@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using CleanArch.Cli.Generators.AddEvent;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
-using static CleanArch.Cli.Generators.AddEvent.NewEvent;
 using static CleanArch.Cli.Generators.Shared.SourceText;
 
 namespace CleanArch.Cli.Tests.Generators;
@@ -306,7 +305,7 @@ public sealed class NewEventTests
             module,
             "DeleteRemindersOnAccountDeletedConsumer>();\n\n        services.AddDomainEventConsumer<InvoicePaidDomainEvent, CancelRemindersOnInvoicePaidConsumer>();\n\n        return services;",
             "The registration");
-        expect(Read(root, _list).Contains("InvoicePaid", StringComparison.Ordinal) is false, "A consumed event was added to the unconsumed list.");
+        expect(!Read(root, _list).Contains("InvoicePaid", StringComparison.Ordinal), "A consumed event was added to the unconsumed list.");
 
         foreach (string file in new[] { record, eventTests, consumer, consumerTests })
         {
@@ -352,7 +351,7 @@ public sealed class NewEventTests
             list.Contains("        \"InvoiceIssuedDomainEvent\",\n        // Nothing reacts to a note\n        \"InvoiceNotedDomainEvent\",\n    ];", StringComparison.Ordinal),
             "The event and its reason did not join the closed list.");
         expect(!Directory.Exists(Path.Combine(root, "Src/Application/A.Application/Features/Reminders/Services/Consumers")), "An unconsumed event wrote a consumer.");
-        expect(Read(root, _module).Contains("InvoiceNoted", StringComparison.Ordinal) is false, "An unconsumed event was registered.");
+        expect(!Read(root, _module).Contains("InvoiceNoted", StringComparison.Ordinal), "An unconsumed event was registered.");
         expect(result.Output.Contains("delete that entry", StringComparison.Ordinal), "The report did not say what to do once a consumer is written.");
         RecordedEditsUndo(root, dry, expect);
 
@@ -409,7 +408,7 @@ public sealed class NewEventTests
             ("crlf", consumed, _module, text => text.ReplaceLineEndings("\r\n"), "CRLF line endings"),
         ];
 
-        foreach (var (name, args, file, damage, fragment) in cases)
+        foreach (var (_, args, file, damage, fragment) in cases)
         {
             string root = NewTree(scratch);
             string full = Path.Combine(root, file);
@@ -440,7 +439,7 @@ public sealed class NewEventTests
         string template = NewTree(scratch);
         string module = Path.Combine(template, _module);
 
-        File.WriteAllText(module, "//" + _conditionOpen + "files)\n" + File.ReadAllText(module).Replace("\uFEFF", string.Empty, StringComparison.Ordinal) + "//" + _conditionClose + "\n");
+        File.WriteAllText(module, "//" + ProjectDocuments.ConditionOpen + "files)\n" + File.ReadAllText(module).Replace("\uFEFF", string.Empty, StringComparison.Ordinal) + "//" + ProjectDocuments.ConditionClose + "\n");
         ExpectRefusal(template, ["Invoices", "InvoicePaidDomainEvent", "--consumer", "Reminders:CancelReminders"], "template's own tree", expect);
 
         string noList = NewTree(scratch);

@@ -7,13 +7,7 @@ namespace CleanArch.Cli.Generators.AddEvent;
 
 internal static class NewEvent
 {
-    internal const string _conditionOpen = "#" + "if (";
-
-    internal const string _conditionClose = "#" + "endif";
-
-    private const string _suffix = "DomainEvent";
-
-    private const string _usage =
+    internal const string Usage =
         "Usage: dotnet cleanarch add event <Features> <Event> (--consumer <Features>:<Reaction> | --unconsumed \"<reason>\")\n"
         + "           [--fields \"Name:Type, Other:Type\"] [--dry-run]\n"
         + "  <Features>    the folder of an existing feature of the rich shape, which raises the event, e.g. Invoices\n"
@@ -30,25 +24,7 @@ internal static class NewEvent
         + "                default the id of the feature's aggregate, when it has exactly one repository.\n"
         + "  --dry-run     print what would be written, and write nothing.";
 
-    private sealed record Spec(
-        string Prefix,
-        string Features,
-        string Name,
-        IReadOnlyList<Field> Fields,
-        string? ConsumerFeatures,
-        string? Reaction,
-        bool ConsumerTakesConfiguration,
-        string? Unconsumed,
-        string? Manifest)
-    {
-        internal string Base => Name[..^_suffix.Length];
-
-        internal string? ConsumerName => Reaction is null ? null : $"{Reaction}On{Base}Consumer";
-
-        internal string EventNamespace => $"{Prefix}.Domain.Features.{Features}.Model.Events";
-
-        internal string ConsumerNamespace => $"{Prefix}.Application.Features.{ConsumerFeatures}.Services.Consumers.{Base}";
-    }
+    private sealed record Listener(string Features, string Reaction);
 
     internal static int Run(AddEventRequest request, GenerationContext context)
     {
@@ -56,27 +32,21 @@ internal static class NewEvent
         var spec = Check(request, context.Root, context.Product, problems);
 
         return spec is null
-            ? Refusal.Write(context.Error, problems, _usage)
+            ? Refusal.Write(context.Error, problems, Usage)
             : new EventGeneration(spec, context).Generate();
     }
 
-    private sealed class EventGeneration(Spec spec, GenerationContext context) : FileGeneration(context, spec.Features, spec.Manifest)
+    private static EventSpec? Check(AddEventRequest request, string root, string product, List<string> problems)
     {
-        protected override string Usage => _usage;
+        CheckNames(request.Features, request.Name, problems);
+        CheckListener(request, problems);
+        var listener = request.Consumer is { } consumer ? ReadListener(consumer, problems) : null;
 
-        protected override IReadOnlyList<Emission> Plan() => NewEvent.Emissions(spec, Root);
-
-        protected override TextEdits.Editor Edit(List<string> problems) => Edits(spec, Root, problems);
-
-        protected override void Report(ReportMode mode) =>
-            NewEvent.Report(Output, spec, Emissions, Editor.Changed.Select(sheet => sheet.Path), mode == ReportMode.DryRun);
+        return problems.Count > 0 ? null : CheckTree(request, listener, root, product, problems);
     }
 
-    private static Spec? Check(AddEventRequest request, string root, string product, List<string> problems)
+    private static void CheckNames(string features, string name, List<string> problems)
     {
-        string features = request.Features;
-        string name = request.Name;
-
         if (!CSharpNames.PascalCase.IsMatch(features))
         {
             problems.Add($"'{features}' is not a feature folder: <Features> is PascalCase and plural, e.g. Invoices.");
@@ -86,15 +56,18 @@ internal static class NewEvent
         {
             problems.Add($"'{name}' is not an event name: <Event> is PascalCase, e.g. InvoicePaidDomainEvent.");
         }
-        else if (!name.EndsWith(_suffix, StringComparison.Ordinal) || name.Length == _suffix.Length)
+        else if (!name.EndsWith(EventSpec.Suffix, StringComparison.Ordinal) || name.Length == EventSpec.Suffix.Length)
         {
-            problems.Add($"'{name}' does not end in {_suffix} after a name of its own: every event of a feature does, as TodoItemCompletedDomainEvent does. Name the fact, e.g. InvoicePaid{_suffix}.");
+            problems.Add($"'{name}' does not end in {EventSpec.Suffix} after a name of its own: every event of a feature does, as TodoItemCompletedDomainEvent does. Name the fact, e.g. InvoicePaid{EventSpec.Suffix}.");
         }
         else if (name.Length > 60)
         {
             problems.Add("An event name longer than 60 characters makes a path that some tools cannot open. Shorten it.");
         }
+    }
 
+    private static void CheckListener(AddEventRequest request, List<string> problems)
+    {
         if (request.Consumer is null == (request.Unconsumed is null))
         {
             problems.Add(
@@ -103,40 +76,40 @@ internal static class NewEvent
                     : "--consumer and --unconsumed exclude each other: an event with a consumer is not listed as unconsumed.");
         }
 
-        if (request.Unconsumed is { } reason && (reason.Trim().Length < 8 || reason.Length > 120 || reason.Any(char.IsControl) || reason.Contains("//", StringComparison.Ordinal)))
+        if (request.Unconsumed is { } reason && !IsOneLineReason(reason))
         {
             problems.Add("--unconsumed is the reason in one line of 8 to 120 characters, with no '//' in it, written beside the event's name as a comment.");
         }
+    }
 
-        string? consumerFeatures = null;
-        string? reaction = null;
+    private static bool IsOneLineReason(string reason) =>
+        reason.Trim().Length >= 8 && reason.Length <= 120 && !reason.Any(char.IsControl) && !reason.Contains("//", StringComparison.Ordinal);
 
-        if (request.Consumer is { } consumer)
+    private static Listener? ReadListener(string consumer, List<string> problems)
+    {
+        string[] parts = consumer.Split(':');
+
+        if (parts.Length != 2 || !CSharpNames.PascalCase.IsMatch(parts[0]) || !CSharpNames.PascalCase.IsMatch(parts[1]))
         {
-            string[] parts = consumer.Split(':');
+            problems.Add($"--consumer '{consumer}' is not written <Features>:<Reaction>, both PascalCase, e.g. Reminders:CancelReminders.");
 
-            if (parts.Length != 2 || !CSharpNames.PascalCase.IsMatch(parts[0]) || !CSharpNames.PascalCase.IsMatch(parts[1]))
-            {
-                problems.Add($"--consumer '{consumer}' is not written <Features>:<Reaction>, both PascalCase, e.g. Reminders:CancelReminders.");
-            }
-            else
-            {
-                (consumerFeatures, reaction) = (parts[0], parts[1]);
-
-                if (reaction.Length > 40 || reaction.EndsWith("Consumer", StringComparison.Ordinal))
-                {
-                    problems.Add($"'{reaction}' is what the consumer does, a verb and its subject of at most 40 characters without 'Consumer': the class is {reaction}On<Event>Consumer.");
-                }
-            }
-        }
-
-        if (problems.Count > 0)
-        {
             return null;
         }
 
-        string prefix = product;
+        string reaction = parts[1];
 
+        if (reaction.Length > 40 || reaction.EndsWith("Consumer", StringComparison.Ordinal))
+        {
+            problems.Add($"'{reaction}' is what the consumer does, a verb and its subject of at most 40 characters without 'Consumer': the class is {reaction}On<Event>Consumer.");
+        }
+
+        return new Listener(parts[0], reaction);
+    }
+
+    private static EventSpec? CheckTree(AddEventRequest request, Listener? listener, string root, string prefix, List<string> problems)
+    {
+        string features = request.Features;
+        string name = request.Name;
         string domain = Full(root, $"{SourceProject(prefix, "Domain")}/Features/{features}");
 
         if (!Directory.Exists(domain))
@@ -162,359 +135,101 @@ internal static class NewEvent
             return null;
         }
 
-        bool takes = false;
+        bool? takes = listener is null ? false : ConsumerTakesConfiguration(root, prefix, name, listener, problems);
 
-        if (consumerFeatures is not null)
+        if (takes is null)
         {
-            string application = Full(root, SourceProject(prefix, "Application"));
-
-            if (!Directory.Exists(Path.Combine(application, "Features", consumerFeatures)))
-            {
-                problems.Add($"No feature called {consumerFeatures} to react: '{SourceProject(prefix, "Application")}/Features/{consumerFeatures}' does not exist.");
-
-                return null;
-            }
-
-            string module = Path.Combine(application, "ApplicationModule.cs");
-
-            if (File.Exists(module) && Regex.Match(File.ReadAllText(module), $@"public static IServiceCollection Add{consumerFeatures}\(this IServiceCollection services(?<rest>[^)]*)\)", RegexOptions.None, TimeSpan.FromSeconds(2)) is { Success: true } method)
-            {
-                takes = Regex.IsMatch(method.Groups["rest"].Value, @"IConfiguration configuration\b", RegexOptions.None, TimeSpan.FromSeconds(1));
-            }
-
-            string consumerFile = Path.Combine(application, "Features", consumerFeatures, "Services", "Consumers", name[..^_suffix.Length], $"{reaction}On{name[..^_suffix.Length]}Consumer.cs");
-
-            if (File.Exists(consumerFile))
-            {
-                problems.Add($"{Path.GetRelativePath(root, consumerFile).Replace('\\', '/')} exists. A consumer is written once; after that it is edited.");
-
-                return null;
-            }
+            return null;
         }
 
         var manifest = FeatureManifest.Read(root, features, out string? unread);
 
-        if (unread is not null)
+        if (ManifestUnread(features, unread, problems))
         {
-            problems.Add($"'{FeatureManifest.PathOf(features)}' {unread}, so the files written could not be recorded in it. Repair or delete it first.");
+            return null;
+        }
+
+        return new EventSpec(prefix, features, name, fields, listener?.Features, listener?.Reaction, takes.Value, request.Unconsumed?.Trim(), manifest?.Path);
+    }
+
+    private static bool? ConsumerTakesConfiguration(string root, string prefix, string name, Listener listener, List<string> problems)
+    {
+        string application = Full(root, SourceProject(prefix, "Application"));
+
+        if (!Directory.Exists(Path.Combine(application, "Features", listener.Features)))
+        {
+            problems.Add($"No feature called {listener.Features} to react: '{SourceProject(prefix, "Application")}/Features/{listener.Features}' does not exist.");
 
             return null;
         }
 
-        return new Spec(prefix, features, name, fields, consumerFeatures, reaction, takes, request.Unconsumed?.Trim(), manifest?.Path);
+        string eventBase = name[..^EventSpec.Suffix.Length];
+        string consumerFile = Path.Combine(application, "Features", listener.Features, "Services", "Consumers", eventBase, $"{listener.Reaction}On{eventBase}Consumer.cs");
+
+        if (File.Exists(consumerFile))
+        {
+            problems.Add($"{Path.GetRelativePath(root, consumerFile).Replace('\\', '/')} exists. A consumer is written once; after that it is edited.");
+
+            return null;
+        }
+
+        string module = Path.Combine(application, "ApplicationModule.cs");
+
+        return File.Exists(module)
+            && Regex.Match(File.ReadAllText(module), $@"public static IServiceCollection Add{listener.Features}\(this IServiceCollection services(?<rest>[^)]*)\)", RegexOptions.None, TimeSpan.FromSeconds(2)) is { Success: true } method
+            && Regex.IsMatch(method.Groups["rest"].Value, @"IConfiguration configuration\b", RegexOptions.None, TimeSpan.FromSeconds(1));
+    }
+
+    private static bool ManifestUnread(string features, string? unread, List<string> problems)
+    {
+        if (unread is null)
+        {
+            return false;
+        }
+
+        problems.Add($"'{FeatureManifest.PathOf(features)}' {unread}, so the files written could not be recorded in it. Repair or delete it first.");
+
+        return true;
     }
 
     private static List<Field> ReadFields(string? text, string name, string domain, string features, List<string> problems)
     {
-        var fields = new List<Field>();
-
         if (text is null)
         {
-            string repositories = Path.Combine(domain, "Repositories");
-            string[] found = Directory.Exists(repositories)
-                ? [.. Directory.EnumerateFiles(repositories, "I*Repository.cs")
-                    .Select(Path.GetFileNameWithoutExtension)
-                    .OfType<string>()
-                    .Select(file => file[1..^"Repository".Length])
-                    .Where(type => CSharpNames.PascalCase.IsMatch(type))
-                    .Order(StringComparer.Ordinal)]
-                : [];
-
-            if (found.Length != 1)
-            {
-                problems.Add(
-                    $"--fields is needed: {features} declares {(found.Length == 0 ? "no repository" : "several repositories, " + string.Join(", ", found))} under Repositories/, so there is no single aggregate whose id the event carries by default. "
-                    + "Pass --fields \"InvoiceId:Guid\".");
-
-                return fields;
-            }
-
-            return [new Field(found[0] + "Id", FieldKind.Guid, Nullable: false, Length: 0, Precision: 0, Scale: 0, Lower: null, Upper: null, Position: 0)];
+            return AggregateId(domain, features, problems);
         }
 
         if (FieldGrammar.Parse(text, FieldProfile.Event, problems) is not { } parsed)
         {
-            return fields;
+            return [];
         }
 
-        fields.AddRange(parsed);
-
-        if (fields.FirstOrDefault(field => field.Name == name) is { } own)
+        if (parsed.FirstOrDefault(field => field.Name == name) is { } own)
         {
             problems.Add($"--fields, at character {own.Position + 1}: {name} is the event's own name, which a property of it cannot share. Choose another name.");
         }
 
-        if (problems.Count == 0 && fields.Count > 12)
+        if (problems.Count == 0 && parsed.Count > 12)
         {
             problems.Add("An event carries at most 12 fields; one that needs more is a record to look up by id.");
         }
 
-        return fields;
+        return [.. parsed];
     }
 
-    private static List<Emission> Emissions(Spec spec, string root)
+    private static List<Field> AggregateId(string domain, string features, List<string> problems)
     {
-        string domain = $"{SourceProject(spec.Prefix, "Domain")}/Features/{spec.Features}/Model/Events";
-        var emissions = new List<Emission> { new($"{domain}/{spec.Name}.cs", EventRecord(spec)) };
-        string domainTests = $"Tests/Domain/{FolderOf(spec.Prefix, "Domain.UnitTests")}";
+        string[] found = DomainFolders.Aggregates(domain);
 
-        if (Directory.Exists(Path.Combine(root, domainTests)))
+        if (found.Length != 1)
         {
-            emissions.Add(new Emission($"{domainTests}/Features/{spec.Features}/Model/Events/{spec.Name}Tests.cs", EventTests(spec)));
+            problems.Add(
+                $"--fields is needed: {features} declares {(found.Length == 0 ? "no repository" : "several repositories, " + string.Join(", ", found))} under Repositories/, so there is no single aggregate whose id the event carries by default. "
+                + "Pass --fields \"InvoiceId:Guid\".");
+
+            return [];
         }
 
-        if (spec.ConsumerFeatures is not null)
-        {
-            string application = $"{SourceProject(spec.Prefix, "Application")}/Features/{spec.ConsumerFeatures}/Services/Consumers/{spec.Base}";
-
-            emissions.Add(new Emission($"{application}/{spec.ConsumerName}.cs", ConsumerClass(spec)));
-
-            string applicationTests = $"Tests/Application/{FolderOf(spec.Prefix, "Application.UnitTests")}";
-
-            if (Directory.Exists(Path.Combine(root, applicationTests)))
-            {
-                emissions.Add(new Emission($"{applicationTests}/Features/{spec.ConsumerFeatures}/Services/Consumers/{spec.Base}/{spec.ConsumerName}Tests.cs", ConsumerTests(spec)));
-            }
-        }
-
-        return emissions;
+        return [new Field(found[0] + "Id", FieldKind.Guid, Nullable: false, Length: 0, Precision: 0, Scale: 0, Lower: null, Upper: null, Position: 0)];
     }
-
-    private static string EventRecord(Spec spec)
-    {
-        string parameters = string.Concat(spec.Fields.Select(field => $"    {field.ClrType} {field.Name},\n"));
-
-        return Sorted(
-            $"using {spec.Prefix}.Domain.Core.Common.Events;\n\n"
-            + $"namespace {spec.EventNamespace};\n\n"
-            + $"public sealed record {spec.Name}(\n{parameters}    DateTimeOffset OccurredOn) : IDomainEvent;\n");
-    }
-
-    private static string Sample(Field field, int index) => field.Kind switch
-    {
-        FieldKind.Guid => $"guid{index}",
-        FieldKind.String => $"\"{Words(field.Name)}\"",
-        FieldKind.Int => "1",
-        FieldKind.Long => "1L",
-        FieldKind.Bool => "true",
-        FieldKind.Decimal => "1m",
-        FieldKind.DateOnly => "new DateOnly(2026, 1, 1)",
-        _ => "new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)",
-    };
-
-    private static string Words(string pascal) =>
-        string.Concat(pascal.Select((character, index) => char.IsUpper(character) && index > 0 ? " " + char.ToLowerInvariant(character) : char.ToLowerInvariant(character).ToString()));
-
-    private static string GuidDeclarations(Spec spec) =>
-        string.Concat(spec.Fields.Select((field, index) => (field, index)).Where(pair => pair.field.Kind == FieldKind.Guid).Select(pair => $"        var guid{pair.index} = Guid.CreateVersion7();\n"));
-
-    private static string EventTests(Spec spec)
-    {
-        string declarations = GuidDeclarations(spec);
-        string arguments = string.Join(", ", spec.Fields.Select(Sample).Append("_occurredOn"));
-        string assertions = string.Concat(spec.Fields.Select((field, index) => $"        domainEvent.{field.Name}.ShouldBe({Sample(field, index)});\n"));
-
-        return Sorted(
-            $"using {spec.Prefix}.Domain.Core.Common.Events;\n"
-            + $"using {spec.EventNamespace};\n"
-            + "using Shouldly;\nusing Xunit;\n\n"
-            + $"namespace {spec.Prefix}.Domain.UnitTests.Features.{spec.Features}.Model.Events;\n\n"
-            + $"public sealed class {spec.Name}Tests\n{{\n"
-            + "    private static readonly DateTimeOffset _occurredOn = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);\n\n"
-            + "    [Fact]\n    public void TheEvent_CarriesWhatItWasGiven()\n    {\n"
-            + declarations + (declarations.Length > 0 ? "\n" : string.Empty)
-            + $"        var domainEvent = new {spec.Name}({arguments});\n\n"
-            + assertions
-            + "        domainEvent.OccurredOn.ShouldBe(_occurredOn);\n    }\n\n"
-            + $"    [Fact]\n    public void TheEvent_IsADomainEvent() =>\n        typeof(IDomainEvent).IsAssignableFrom(typeof({spec.Name})).ShouldBeTrue();\n}}\n");
-    }
-
-    private static string ConsumerClass(Spec spec) =>
-        Sorted(
-            $"using {spec.Prefix}.Application.Core.Common.Events;\n"
-            + $"using {spec.EventNamespace};\n\n"
-            + $"namespace {spec.ConsumerNamespace};\n\n"
-            + $"internal sealed class {spec.ConsumerName} : IDomainEventConsumer<{spec.Name}>\n{{\n"
-            + $"    public Task ConsumeAsync(\n        {spec.Name} domainEvent,\n        CancellationToken cancellationToken = default)\n    {{\n"
-            + "        ArgumentNullException.ThrowIfNull(domainEvent);\n\n"
-            + $"        throw new NotImplementedException(\n            \"{spec.Reaction} is not written yet: re-derive the precondition from the stores, act, then commit through IUnitOfWork, so that running twice changes nothing.\");\n"
-            + "    }\n}\n");
-
-    private static string ConsumerTests(Spec spec)
-    {
-        string call = spec.ConsumerTakesConfiguration
-            ? $"services.Add{spec.ConsumerFeatures}(new ConfigurationBuilder().Build());"
-            : $"services.Add{spec.ConsumerFeatures}();";
-        string configuration = spec.ConsumerTakesConfiguration ? "using Microsoft.Extensions.Configuration;\n" : string.Empty;
-        return Sorted(
-            $"using {spec.Prefix}.Application.Core.Common.Events;\n"
-            + $"using {spec.Prefix}.Application.Features.{spec.ConsumerFeatures}.Services.Consumers.{spec.Base};\n"
-            + $"using {spec.EventNamespace};\n"
-            + configuration
-            + "using Microsoft.Extensions.DependencyInjection;\nusing Shouldly;\nusing Xunit;\n\n"
-            + $"namespace {spec.Prefix}.Application.UnitTests.Features.{spec.ConsumerFeatures}.Services.Consumers.{spec.Base};\n\n"
-            + $"public sealed class {spec.ConsumerName}Tests\n{{\n"
-            + "    [Fact]\n"
-            + $"    public void TheConsumer_IsRegisteredForItsEvent()\n    {{\n        var services = new ServiceCollection();\n        {call}\n\n"
-            + $"        services.ShouldContain(descriptor =>\n            descriptor.ServiceType == typeof(IDomainEventConsumer<{spec.Name}>)\n            && descriptor.ImplementationType == typeof({spec.ConsumerName}));\n    }}\n\n"
-            + "    [Fact]\n"
-            + $"    public async Task AMissingEvent_IsRefused()\n    {{\n        var consumer = new {spec.ConsumerName}();\n\n"
-            + "        await Should.ThrowAsync<ArgumentNullException>(() => consumer.ConsumeAsync(null!, TestContext.Current.CancellationToken));\n    }\n\n"
-            + "    [Fact]\n"
-            + $"    public void TheReaction_IsWritten() =>\n        Assert.Fail(\n            \"{spec.Reaction} is not written: {spec.ConsumerName} throws NotImplementedException, and the dispatcher logs that and drops the event. \"\n            + \"Re-derive the precondition from the stores, act, commit through IUnitOfWork so that running twice changes nothing (ADR 0006), \"\n            + \"then replace this test with the ones that hold the reaction.\");\n}}\n");
-    }
-
-    private static TextEdits.Editor Edits(Spec spec, string root, List<string> problems)
-    {
-        var editor = new TextEdits.Editor(root);
-        var documents = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        string Load(string relative)
-        {
-            if (documents.TryGetValue(relative, out string? loaded))
-            {
-                return loaded;
-            }
-
-            string full = Path.Combine(root, relative);
-
-            if (!File.Exists(full))
-            {
-                problems.Add($"{relative} is not there, and the event needs it. Nothing is written until it is.");
-
-                return string.Empty;
-            }
-
-            string text = Decode(File.ReadAllBytes(full));
-
-            if (text.Contains('\r', StringComparison.Ordinal))
-            {
-                problems.Add($"{relative} has CRLF line endings; this project keeps LF. Run format-fix first.");
-            }
-
-            if (text.Contains(_conditionOpen, StringComparison.Ordinal))
-            {
-                problems.Add($"{relative} still holds template conditions: this is the template's own tree, not a generated project. Generate a project, then run this there.");
-            }
-
-            documents[relative] = text;
-
-            return text;
-        }
-
-        if (spec.ConsumerFeatures is not null)
-        {
-            string module = $"{SourceProject(spec.Prefix, "Application")}/ApplicationModule.cs";
-            string moduleText = Load(module);
-
-            if (moduleText.Contains(spec.ConsumerName!, StringComparison.Ordinal))
-            {
-                problems.Add($"{module} already mentions {spec.ConsumerName}. A consumer is registered once.");
-            }
-
-            editor.Step = $"the registration in Add{spec.ConsumerFeatures} of {module}";
-            editor.Rewrite(module, text => Register(text, spec));
-            editor.Step = $"the usings of {module}";
-
-            foreach (string space in new[] { $"{spec.Prefix}.Application.Core", spec.EventNamespace, spec.ConsumerNamespace })
-            {
-                editor.Using(module, space);
-            }
-        }
-        else
-        {
-            string list = $"Tests/Architecture/{FolderOf(spec.Prefix, "Architecture.Tests")}/Rules/DomainEventTests.cs";
-
-            if (!File.Exists(Path.Combine(root, list)))
-            {
-                problems.Add($"{list} is not there: it holds the closed list of events nobody consumes, which an unconsumed event joins.");
-            }
-            else
-            {
-                Load(list);
-                editor.Step = $"the _deliberatelyUnconsumed list of {list}";
-                editor.Rewrite(list, text => Excuse(text, spec));
-            }
-        }
-
-        return editor;
-    }
-
-    private static string? Register(string text, Spec spec)
-    {
-        var method = new Regex($@"public static IServiceCollection Add{spec.ConsumerFeatures}\(this IServiceCollection services[^)]*\)\s*\{{\n", RegexOptions.None, TimeSpan.FromSeconds(2)).Match(text);
-
-        if (!method.Success)
-        {
-            return null;
-        }
-
-        int start = method.Index + method.Length;
-        int next = text.IndexOf("\n    public static ", start, StringComparison.Ordinal);
-        int end = text.IndexOf("        return services;\n", start, StringComparison.Ordinal);
-
-        if (end < 0 || (next >= 0 && end > next) || !text[..end].EndsWith("\n\n", StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        return text.Insert(end, $"        services.AddDomainEventConsumer<{spec.Name}, {spec.ConsumerName}>();\n\n");
-    }
-
-    private static string? Excuse(string text, Spec spec)
-    {
-        const string opening = "private static readonly string[] _deliberatelyUnconsumed =\n    [\n";
-        int start = text.IndexOf(opening, StringComparison.Ordinal);
-
-        if (start < 0)
-        {
-            return null;
-        }
-
-        int close = text.IndexOf("\n    ];\n", start + opening.Length - 1, StringComparison.Ordinal);
-
-        if (close < 0 || text[start..close].Contains($"\"{spec.Name}\"", StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        return text.Insert(close + 1, $"        // {spec.Unconsumed}\n        \"{spec.Name}\",\n");
-    }
-
-    private static void Report(TextWriter output, Spec spec, IReadOnlyList<Emission> emissions, IEnumerable<string> edited, bool dryRun)
-    {
-        output.WriteLine(dryRun ? "Dry run: nothing was written." : $"Wrote the event {spec.Name} of {spec.Features}.");
-        output.WriteLine();
-        output.WriteLine($"{(dryRun ? "Would write" : "Wrote")} {emissions.Count} file(s):");
-
-        foreach (var emission in emissions)
-        {
-            output.WriteLine($"  {emission.Path}");
-        }
-
-        output.WriteLine();
-        output.WriteLine($"{(dryRun ? "Would edit" : "Edited")}:");
-
-        foreach (string path in edited.Order(StringComparer.Ordinal))
-        {
-            output.WriteLine($"  {path}");
-        }
-
-        output.WriteLine();
-        output.WriteLine("What is left to you:");
-        output.WriteLine($"  - Raise it: call RaiseDomainEvent(new {spec.Name}(...)) in the aggregate method that makes the fact true; nothing publishes an event no aggregate raises.");
-        output.WriteLine("  - Test that method: the event is among the aggregate's DomainEvents after the call, with the values it was given.");
-
-        if (spec.ConsumerFeatures is not null)
-        {
-            output.WriteLine($"  - Write {spec.ConsumerName}: it throws NotImplementedException until you do, and the dispatcher would log that and drop every event. So its generated test TheReaction_IsWritten fails, and verify and CI stay red until you replace it with the tests of the reaction.");
-            output.WriteLine("    It re-derives its precondition when it runs, so running twice is running once (ADR 0006); a fact whose loss would matter has a sweep.");
-            output.WriteLine($"    {spec.ConsumerFeatures} reaches {spec.Features} only through its events: use {spec.EventNamespace} and nothing else of it.");
-        }
-        else
-        {
-            output.WriteLine("  - The reason nothing listens is in DomainEventTests beside the name; when a consumer is written later, delete that entry (NoEventIsListedAsUnconsumed_WhileSomethingConsumesIt fails until you do).");
-        }
-    }
-
 }

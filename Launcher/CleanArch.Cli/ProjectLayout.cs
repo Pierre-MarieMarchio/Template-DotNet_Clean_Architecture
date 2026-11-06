@@ -26,6 +26,8 @@ internal static class ProjectLayout
 
     public static string Auth(LocatedProject project) => Path.Combine("Src", "Infrastructure", FolderOf(project, "Infrastructure.Auth"));
 
+    public static string Migrations(LocatedProject project, string context) => Path.Combine(project.Root, context, "Migrations");
+
     public static IReadOnlyList<string> Contexts(LocatedProject project) =>
         project.File.Options.Auth == "local" ? [Auth(project), Persistence(project)] : [Persistence(project)];
 

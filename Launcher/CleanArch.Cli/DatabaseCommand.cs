@@ -39,6 +39,7 @@ internal static class DatabaseCommand
     private static int RunUpdate(LocatedProject project, ParseResult parseResult, Option<string?> contextOption)
     {
         string target = PersistenceContexts.Target(project, parseResult.GetValue(contextOption), out string? refusal);
+        refusal ??= PersistenceContexts.WithoutInitialMigration(project, $"{Name} update", [target]);
         if (refusal is not null)
         {
             parseResult.InvocationConfiguration.Error.WriteLine(refusal);

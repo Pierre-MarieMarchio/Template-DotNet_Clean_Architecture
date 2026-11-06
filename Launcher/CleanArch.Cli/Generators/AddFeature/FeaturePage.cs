@@ -1,7 +1,6 @@
 ﻿using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using static CleanArch.Cli.Generators.Shared.CSharpNames;
-using static CleanArch.Cli.Generators.Shared.FeatureCode;
 
 namespace CleanArch.Cli.Generators.AddFeature;
 
@@ -11,7 +10,7 @@ internal static class FeaturePage
 
     internal static string PagePath(string features) => $"docs/features/{Kebab(features)}.md";
 
-    internal static Emission? PageOf(string root, Spec spec, List<Emission> plan, out string? unwritten)
+    internal static Emission? PageOf(string root, FeatureSpec spec, List<Emission> plan, out string? unwritten)
     {
         string path = PagePath(spec.Features);
         string template = System.IO.Path.Combine(root, _pageTemplate);
@@ -35,7 +34,7 @@ internal static class FeaturePage
         return new Emission(path, PageText(File.ReadAllText(template), spec, plan));
     }
 
-    internal static string PageText(string template, Spec spec, List<Emission> plan)
+    internal static string PageText(string template, FeatureSpec spec, List<Emission> plan)
     {
         string plural = Separated(spec.Features, ' ');
         string singular = Separated(spec.Type, ' ');

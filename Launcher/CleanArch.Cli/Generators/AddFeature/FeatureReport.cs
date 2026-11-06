@@ -9,7 +9,7 @@ internal static class FeatureReport
 {
     internal const string _removalRefusal = "remove-feature refuses to remove this feature while another owner feature still uses these files.";
 
-    internal static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string manifest, List<string> skipped, ReportMode mode)
+    internal static void Report(TextWriter output, string root, FeatureSpec spec, List<Emission> plan, string manifest, List<string> skipped, ReportMode mode)
     {
         string p = spec.Prefix;
         string f = spec.Features;
@@ -253,7 +253,7 @@ internal static class FeatureReport
         }
     }
 
-    internal static void ReportFields(TextWriter output, Spec spec, IReadOnlyList<Field> fields)
+    internal static void ReportFields(TextWriter output, FeatureSpec spec, IReadOnlyList<Field> fields)
     {
         output.WriteLine();
         output.WriteLine($"--fields: {string.Join(", ", fields.Select(field => field.Declaration))}.");
@@ -279,7 +279,7 @@ internal static class FeatureReport
         }
     }
 
-    internal static void ReportPage(TextWriter output, Spec spec, Emission? page, string? unwritten, ReportMode mode)
+    internal static void ReportPage(TextWriter output, FeatureSpec spec, Emission? page, string? unwritten, ReportMode mode)
     {
         string path = FeaturePage.PagePath(spec.Features);
         bool applied = mode == ReportMode.Applied;
@@ -323,5 +323,5 @@ internal static class FeatureReport
         }
     }
 
-    internal static string ErrorRow(Spec spec) => $"| `{CSharpNames.Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |";
+    internal static string ErrorRow(FeatureSpec spec) => $"| `{CSharpNames.Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |";
 }

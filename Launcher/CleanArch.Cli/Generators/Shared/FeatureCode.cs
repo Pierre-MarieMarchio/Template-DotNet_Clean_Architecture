@@ -10,33 +10,16 @@ internal static class FeatureCode
 
     internal const string ScriptGenerator = "Tools/NewFeature.cs";
 
-    internal sealed record Spec(
-        string Prefix,
-        string Features,
-        string Type,
-        string Access,
-        string Deletion,
-        string[] Operations,
-        string Model,
-        string Concurrency,
-        string? Reaction,
-        bool HasApi,
-        IReadOnlyList<Field>? Fields = null,
-        bool TablePrefixes = false)
-    {
-        internal bool Has(string operation) => Operations.Contains(operation, StringComparer.Ordinal);
-    }
+    internal static string TestDatabasePath(FeatureSpec spec) => $"{IntegrationTests(spec)}/Infrastructure/TestDatabase.cs";
 
-    internal static string TestDatabasePath(Spec spec) => $"{IntegrationTests(spec)}/Infrastructure/TestDatabase.cs";
-
-    internal static bool WritesTheFieldTests(Spec spec, List<Emission> plan) =>
+    internal static bool WritesTheFieldTests(FeatureSpec spec, List<Emission> plan) =>
         plan.Any(emission => emission.Path.StartsWith(IntegrationTests(spec) + "/", StringComparison.Ordinal));
 
-    internal static string IntegrationTests(Spec spec) => ProjectOf(spec, "Tests/Integration", "Api.IntegrationTests");
+    internal static string IntegrationTests(FeatureSpec spec) => ProjectOf(spec, "Tests/Integration", "Api.IntegrationTests");
 
-    internal static string PersistenceProject(Spec spec) => ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence");
+    internal static string PersistenceProject(FeatureSpec spec) => ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence");
 
-    internal static string? Preconditions(string root, Spec spec, TextWriter output, IExecutor executor)
+    internal static string? Preconditions(string root, FeatureSpec spec, TextWriter output, IExecutor executor)
     {
         string auth = ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Auth");
         string[] contexts =
@@ -89,7 +72,7 @@ internal static class FeatureCode
             : [];
     }
 
-    internal static string[] ComposingHosts(string root, Spec spec) =>
+    internal static string[] ComposingHosts(string root, FeatureSpec spec) =>
         spec.HasApi
             ? [.. PresentationHosts(root, spec.Prefix).Prepend(FolderOf(spec.Prefix, "Api"))]
             : [.. PresentationHosts(root, spec.Prefix)];
@@ -125,12 +108,12 @@ internal static class FeatureCode
         return System.IO.Path.GetRelativePath(root, found ?? System.IO.Path.Combine(folder, "Program.cs")).Replace('\\', '/');
     }
 
-    internal static string ProjectOf(Spec spec, string layer, string project) =>
+    internal static string ProjectOf(FeatureSpec spec, string layer, string project) =>
         $"{layer}/{FolderOf(spec.Prefix, project)}";
 
     internal static string ProjectInFolder(string prefix, string folder) => prefix + folder[Initials(prefix).Length..];
 
-    internal static List<Emission> Plan(Spec spec, string root, out List<string> skippedTestProjects)
+    internal static List<Emission> Plan(FeatureSpec spec, string root, out List<string> skippedTestProjects)
     {
         var flags = Flags(spec);
         var tokens = Tokens(spec);
@@ -315,7 +298,7 @@ internal static class FeatureCode
         return emissions;
     }
 
-    internal static HashSet<string> Flags(Spec spec)
+    internal static HashSet<string> Flags(FeatureSpec spec)
     {
         bool record = spec.Model == "record";
         var flags = new HashSet<string>(spec.Operations, StringComparer.Ordinal)
@@ -368,7 +351,7 @@ internal static class FeatureCode
         return flags;
     }
 
-    internal static Dictionary<string, string> Tokens(Spec spec)
+    internal static Dictionary<string, string> Tokens(FeatureSpec spec)
     {
         bool record = spec.Model == "record";
         bool owner = spec.Access == "owner";
@@ -474,7 +457,7 @@ internal static class FeatureCode
         return tokens;
     }
 
-    internal static void FieldTokens(Dictionary<string, string> tokens, Spec spec, IReadOnlyList<Field> fields)
+    internal static void FieldTokens(Dictionary<string, string> tokens, FeatureSpec spec, IReadOnlyList<Field> fields)
     {
         var flags = Flags(spec);
         bool record = spec.Model == "record";
@@ -664,7 +647,7 @@ internal static class FeatureCode
                     }
                 """;
 
-    internal static string ManifestPath(Spec spec) => FeatureManifest.PathOf(spec.Features);
+    internal static string ManifestPath(FeatureSpec spec) => FeatureManifest.PathOf(spec.Features);
 
     internal static JsonArray FieldsOf(IReadOnlyList<Field> fields)
     {

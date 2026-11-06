@@ -258,7 +258,7 @@ public sealed class SilencedDiagnosticTests
         [
             .. sections
                 .Where(section => section.Lines.Any(_generatedCode.IsMatch))
-                .Select(section => GlobPattern(section.Glob, Relative(section.Directory))),
+                .Select(section => GlobPattern(section.Glob, RepositoryTree.Relative(section.Directory))),
         ];
 
         files.Count.ShouldBeGreaterThanOrEqualTo(300, "Far fewer files were found than this project holds, so this rule is reading the wrong tree.");
@@ -267,7 +267,7 @@ public sealed class SilencedDiagnosticTests
 
         foreach (string file in files)
         {
-            string relative = Relative(file);
+            string relative = RepositoryTree.Relative(file);
             string name = Path.GetFileName(file);
             string extension = Path.GetExtension(file);
 
@@ -316,7 +316,7 @@ public sealed class SilencedDiagnosticTests
 
         foreach (string file in RepositoryFiles().Where(file => Path.GetFileName(file) == ".editorconfig" || Path.GetExtension(file) == ".globalconfig"))
         {
-            string holder = Relative(file);
+            string holder = RepositoryTree.Relative(file);
             string directory = Path.GetDirectoryName(file)!;
             var current = new EditorConfigSection(holder, string.Empty, directory, []);
 
@@ -414,25 +414,5 @@ public sealed class SilencedDiagnosticTests
         return index + 1;
     }
 
-    private static string Relative(string path) => Path.GetRelativePath(_root, path).Replace('\\', '/');
-
-    private static List<string> RepositoryFiles()
-    {
-        var files = new List<string>();
-        var pending = new Stack<string>([_root]);
-
-        while (pending.Count > 0)
-        {
-            string directory = pending.Pop();
-
-            files.AddRange(Directory.EnumerateFiles(directory));
-
-            foreach (string child in Directory.EnumerateDirectories(directory).Where(child => !_skippedDirectories.Contains(Path.GetFileName(child))))
-            {
-                pending.Push(child);
-            }
-        }
-
-        return files;
-    }
+    private static List<string> RepositoryFiles() => [.. RepositoryTree.SourceFiles(_root, "*", _skippedDirectories)];
 }

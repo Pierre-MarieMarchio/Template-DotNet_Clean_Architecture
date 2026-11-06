@@ -29,7 +29,7 @@ public sealed class SynchronousSaveTests
 
         var offenders = sources
             .Where(file => _synchronousSave.IsMatch(_commentLine.Replace(File.ReadAllText(file), string.Empty)))
-            .Select(file => Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/'))
+            .Select(RepositoryTree.Relative)
             .Order(StringComparer.Ordinal)
             .ToList();
 
@@ -49,9 +49,5 @@ public sealed class SynchronousSaveTests
     }
 
     private static List<string> ProductionSources() =>
-        [.. Directory
-            .EnumerateFiles(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src"), "*.cs", SearchOption.AllDirectories)
-            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                && !file.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal))];
+        [.. RepositoryTree.SourceFiles(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src"), "*.cs", ["bin", "obj", "node_modules"])];
 }

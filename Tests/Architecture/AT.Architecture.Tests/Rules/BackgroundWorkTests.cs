@@ -7,6 +7,8 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 public sealed class BackgroundWorkTests
 {
+    private static readonly string[] _buildOutput = ["bin", "obj"];
+
     private static readonly Regex _plainScope = new(
         @"\.Create(?:Async)?Scope\(",
         RegexOptions.None,
@@ -47,7 +49,7 @@ public sealed class BackgroundWorkTests
 
         var offenders = services
             .Where(service => _leaseDependency.IsMatch(CodeOf(service)))
-            .Select(Relative)
+            .Select(RepositoryTree.Relative)
             .Order(StringComparer.Ordinal)
             .ToList();
 
@@ -100,11 +102,10 @@ public sealed class BackgroundWorkTests
             .ProjectsInLayer("Application")
             .Select(project => Path.Combine(ProjectReferenceGraph.RootOf(project), "Features"))
             .Where(Directory.Exists)
-            .SelectMany(features => Directory.EnumerateFiles(features, "*.cs", SearchOption.AllDirectories))
+            .SelectMany(features => RepositoryTree.SourceFiles(features, "*.cs", _buildOutput))
             .Where(file => file.Contains($"{Path.DirectorySeparatorChar}UseCases{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            .Where(IsProductionSource)
             .Where(useCase => _leaseDependency.IsMatch(CodeOf(useCase)))
-            .Select(Relative)
+            .Select(RepositoryTree.Relative)
             .Order(StringComparer.Ordinal)
             .ToList();
 
@@ -122,7 +123,7 @@ public sealed class BackgroundWorkTests
 
         var offenders = services
             .Where(service => _plainScope.IsMatch(CodeOf(service)))
-            .Select(Relative)
+            .Select(RepositoryTree.Relative)
             .Order(StringComparer.Ordinal)
             .ToList();
 
@@ -158,7 +159,7 @@ public sealed class BackgroundWorkTests
 
         var offenders = files
             .Where(file => _authenticationReference.IsMatch(CodeOf(file)))
-            .Select(Relative)
+            .Select(RepositoryTree.Relative)
             .Order(StringComparer.Ordinal)
             .ToList();
 
@@ -197,9 +198,7 @@ public sealed class BackgroundWorkTests
     }
 
     private static IEnumerable<string> SourcesOf(ProjectNode project) =>
-        Directory
-            .EnumerateFiles(ProjectReferenceGraph.RootOf(project), "*.cs", SearchOption.AllDirectories)
-            .Where(IsProductionSource);
+        RepositoryTree.SourceFiles(ProjectReferenceGraph.RootOf(project), "*.cs", _buildOutput);
 
     private static List<string> BackgroundCompositionFiles()
     {
@@ -216,24 +215,14 @@ public sealed class BackgroundWorkTests
         return
         [
             .. folders
-                .SelectMany(folder => Directory.EnumerateFiles(folder, "*.cs", SearchOption.AllDirectories))
-                .Where(IsProductionSource)
+                .SelectMany(folder => RepositoryTree.SourceFiles(folder, "*.cs", _buildOutput))
                 .Order(StringComparer.Ordinal),
         ];
     }
 
     private static List<string> BackgroundServices() =>
-        [.. Directory
-            .EnumerateFiles(
-                Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src", "Presentation"),
-                "*BackgroundService.cs",
-                SearchOption.AllDirectories)
-            .Where(IsProductionSource)];
-
-    private static bool IsProductionSource(string file) =>
-        !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-        && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
-
-    private static string Relative(string file) =>
-        Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/');
+        [.. RepositoryTree.SourceFiles(
+            Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src", "Presentation"),
+            "*BackgroundService.cs",
+            _buildOutput)];
 }

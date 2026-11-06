@@ -59,8 +59,8 @@ public sealed class DocumentationFrontmatterTests
 
         Directory.Exists(docs).ShouldBeTrue("this project keeps its pages under docs/, which the rule reads.");
 
-        string[] problems = [.. Pages(docs)
-            .Select(page => Path.GetRelativePath(docs, page).Replace('\\', '/'))
+        string[] problems = [.. RepositoryTree.SourceFiles(docs, "*.md", _skippedDirectories)
+            .Select(page => RepositoryTree.Relative(docs, page))
             .Order(StringComparer.Ordinal)
             .SelectMany(page => Problems(page, File.ReadAllText(Path.Combine(docs, page))).Select(problem => $"docs/{page}: {problem}"))];
 
@@ -217,10 +217,4 @@ public sealed class DocumentationFrontmatterTests
 
     private static string Unquoted(string value) =>
         value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
-
-    private static IEnumerable<string> Pages(string directory) =>
-        Directory.EnumerateFiles(directory, "*.md")
-            .Concat(Directory.EnumerateDirectories(directory)
-                .Where(child => !_skippedDirectories.Contains(Path.GetFileName(child), StringComparer.Ordinal))
-                .SelectMany(Pages));
 }

@@ -93,9 +93,8 @@ public sealed class ConditionedMarkdownTests
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
 
-        return Directory.EnumerateFiles(root, "*.md", SearchOption.AllDirectories)
-            .Select(file => (Path: Path.GetRelativePath(root, file).Replace('\\', '/'), File: file))
-            .Where(page => !page.Path.Split('/').Any(part => _skipped.Contains(part, StringComparer.Ordinal)))
+        return RepositoryTree.SourceFiles(root, "*.md", _skipped)
+            .Select(file => (Path: RepositoryTree.Relative(root, file), File: file))
             .Select(page => (page.Path, Text: File.ReadAllText(page.File)))
             .Where(page => page.Text.Contains("<!--#", StringComparison.Ordinal));
     }

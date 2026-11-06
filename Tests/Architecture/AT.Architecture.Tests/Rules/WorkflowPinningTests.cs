@@ -83,7 +83,7 @@ public sealed class WorkflowPinningTests
 
     private static IEnumerable<(string Where, string Reference)> References(Regex matcher) =>
         Workflows().SelectMany(workflow => File.ReadLines(workflow)
-            .Select((line, index) => (Where: $"{Relative(workflow)}:{index + 1}", Reference: Reference(matcher, line)))
+            .Select((line, index) => (Where: $"{RepositoryTree.Relative(workflow)}:{index + 1}", Reference: Reference(matcher, line)))
             .Where(found => found.Reference is not null)
             .Select(found => (found.Where, found.Reference!)));
 
@@ -97,7 +97,4 @@ public sealed class WorkflowPinningTests
                 .Order(StringComparer.Ordinal)
             : [];
     }
-
-    private static string Relative(string file) =>
-        Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/');
 }

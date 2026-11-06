@@ -90,7 +90,7 @@ public sealed class ConfigurationSurfaceTests
     public void EveryKeyTheCodeReadsDirectly_IsDocumented()
     {
         var sources = SourceFiles().ToDictionary(
-            file => Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/'),
+            RepositoryTree.Relative,
             File.ReadAllText,
             StringComparer.Ordinal);
         var reads = DirectReads(sources);
@@ -453,7 +453,7 @@ public sealed class ConfigurationSurfaceTests
                 && !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)))
         {
             using var document = JsonDocument.Parse(File.ReadAllText(file), options);
-            string origin = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/');
+            string origin = RepositoryTree.Relative(file);
 
             Flatten(document.RootElement, string.Empty, origin, keys);
         }
@@ -688,11 +688,5 @@ public sealed class ConfigurationSurfaceTests
         _sourceRoots
             .Select(root => Path.Combine(ProjectReferenceGraph.RepositoryRoot, root))
             .Where(Directory.Exists)
-            .SelectMany(root => Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
-            .Where(file => !file.Contains(
-                $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
-                StringComparison.Ordinal))
-            .Where(file => !file.Contains(
-                $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
-                StringComparison.Ordinal));
+            .SelectMany(root => RepositoryTree.SourceFiles(root, "*.cs", ["bin", "obj"]));
 }

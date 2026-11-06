@@ -33,7 +33,7 @@ public sealed class OutboundHttpTests
 
         var offenders = sources
             .Where(source => _construction.IsMatch(File.ReadAllText(source)))
-            .Select(Relative)
+            .Select(RepositoryTree.Relative)
             .Order(StringComparer.Ordinal)
             .ToList();
 
@@ -75,7 +75,7 @@ public sealed class OutboundHttpTests
 
         var missing = entryPoints
             .Where(entryPoint => !_policyInstalled.IsMatch(File.ReadAllText(entryPoint)))
-            .Select(Relative)
+            .Select(RepositoryTree.Relative)
             .Order(StringComparer.Ordinal)
             .ToList();
 
@@ -97,17 +97,5 @@ public sealed class OutboundHttpTests
     }
 
     private static List<string> SourceFiles() =>
-        [.. Directory
-            .EnumerateFiles(
-                Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src"),
-                "*.cs",
-                SearchOption.AllDirectories)
-            .Where(IsProductionSource)];
-
-    private static bool IsProductionSource(string file) =>
-        !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-        && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
-
-    private static string Relative(string file) =>
-        Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/');
+        [.. RepositoryTree.SourceFiles(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src"), "*.cs", ["bin", "obj"])];
 }

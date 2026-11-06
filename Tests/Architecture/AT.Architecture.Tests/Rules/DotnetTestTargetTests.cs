@@ -61,7 +61,7 @@ public sealed class DotnetTestTargetTests
     private static IEnumerable<string> Violations(string file)
     {
         string text = File.ReadAllText(file);
-        string relative = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/');
+        string relative = RepositoryTree.Relative(file);
 
         return Matches(_shellCommand, text)
             .Where(target => _aTarget.IsMatch(target) && IsPositional(target))
@@ -79,14 +79,8 @@ public sealed class DotnetTestTargetTests
         !target.TrimStart('"').StartsWith("--", StringComparison.Ordinal);
 
     private static IEnumerable<string> Sources() =>
-        Walk(ProjectReferenceGraph.RepositoryRoot)
+        RepositoryTree.SourceFiles(ProjectReferenceGraph.RepositoryRoot, "*", _skippedFolders)
             .Where(file => _extensions.Contains(Path.GetExtension(file)))
             .Where(file => Path.GetFileName(file) != "CHANGELOG.md")
             .Order(StringComparer.Ordinal);
-
-    private static IEnumerable<string> Walk(string folder) =>
-        Directory.EnumerateFiles(folder)
-            .Concat(Directory.EnumerateDirectories(folder)
-                .Where(child => !_skippedFolders.Contains(Path.GetFileName(child)))
-                .SelectMany(Walk));
 }

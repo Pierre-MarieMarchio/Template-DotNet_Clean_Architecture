@@ -19,6 +19,8 @@ public sealed class ContainerImagePinningTests
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
+    private static readonly string[] _skippedFolders = ["node_modules", "bin", "obj"];
+
     private static readonly Regex _composeService = new(
         @"^  (?<name>[a-z0-9][a-z0-9_-]*):\s*$",
         RegexOptions.CultureInvariant,
@@ -76,7 +78,7 @@ public sealed class ContainerImagePinningTests
     private static IEnumerable<string> UnpinnedReferences(string dockerfile)
     {
         string[] lines = File.ReadAllLines(dockerfile);
-        string path = Relative(dockerfile);
+        string path = RepositoryTree.Relative(dockerfile);
 
         return UnpinnedFrontend(lines).Concat(UnpinnedStages(lines)).Select(line => $"{path}: {line}");
     }
@@ -123,7 +125,7 @@ public sealed class ContainerImagePinningTests
             .ToHashSet(StringComparer.Ordinal);
 
         WebAppComposeFiles()
-            .Select(Relative)
+            .Select(RepositoryTree.Relative)
             .Where(file => !included.Contains(file))
             .ShouldBeEmpty(
                 "A web app's compose.yml is not under include: in docker-compose.yml, so docker compose up "
@@ -247,31 +249,16 @@ public sealed class ContainerImagePinningTests
         [.. _dockerfileRoots
             .Select(directory => Path.Combine(ProjectReferenceGraph.RepositoryRoot, directory))
             .Where(Directory.Exists)
-            .SelectMany(SourceFiles)
+            .SelectMany(directory => RepositoryTree.SourceFiles(directory, "*", _skippedFolders))
             .Where(file => Path.GetFileName(file) is var name
                 && (name == "Dockerfile" || name.EndsWith(".Dockerfile", StringComparison.Ordinal)))
-            .Where(IsSource)
             .Order(StringComparer.Ordinal)];
 
     private static string IntegrationTests => Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Tests", "Integration");
 
     private static List<(string File, string Image)> FixtureImages() =>
-        [.. (Directory.Exists(IntegrationTests) ? Directory.EnumerateFiles(IntegrationTests, "*.cs", SearchOption.AllDirectories) : [])
-            .Where(IsSource)
+        [.. (Directory.Exists(IntegrationTests) ? RepositoryTree.SourceFiles(IntegrationTests, "*.cs", _skippedFolders) : [])
             .SelectMany(file => _fixtureImage
                 .Matches(File.ReadAllText(file))
-                .Select(match => (Relative(file), match.Groups["ref"].Value)))];
-
-    private static IEnumerable<string> SourceFiles(string directory) =>
-        Directory.EnumerateFiles(directory)
-            .Concat(Directory.EnumerateDirectories(directory)
-                .Where(child => Path.GetFileName(child) is not ("node_modules" or "bin" or "obj"))
-                .SelectMany(SourceFiles));
-
-    private static bool IsSource(string file) =>
-        !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-        && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
-
-    private static string Relative(string file) =>
-        Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/');
+                .Select(match => (RepositoryTree.Relative(file), match.Groups["ref"].Value)))];
 }

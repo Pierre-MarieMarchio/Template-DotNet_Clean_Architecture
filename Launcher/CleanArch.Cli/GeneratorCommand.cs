@@ -51,13 +51,11 @@ internal static class GeneratorCommand
         }
     }
 
-    public static Func<TextEdits.Command, int> Runner(ParseResult parseResult) =>
-        command => ExternalCommand.RunAnnounced(
-            new ExternalCall(command.FileName, command.Arguments, command.WorkingDirectory),
+    public static IExecutor Executor(ParseResult parseResult) =>
+        new ProjectExecutor(
+            CommandContext.Of(parseResult).Processes,
             parseResult.InvocationConfiguration.Output,
             parseResult.InvocationConfiguration.Error);
-
-    public static IExecutor Executor(ParseResult parseResult) => new ProjectExecutor(Runner(parseResult));
 
     public static int ShowHelp(ParseResult parseResult)
     {
@@ -66,17 +64,21 @@ internal static class GeneratorCommand
     }
 }
 
-internal sealed class ProjectExecutor(Func<TextEdits.Command, int> run) : IExecutor
+internal sealed class ProjectExecutor(IProcessLauncher processes, TextWriter output, TextWriter error) : IExecutor
 {
     private static readonly string[] _windowsShims = ["pnpm"];
 
-    public int Run(TextEdits.Command command) =>
-        run(OperatingSystem.IsWindows() && _windowsShims.Contains(command.FileName, StringComparer.Ordinal) ? command with { FileName = command.FileName + ".cmd" } : command);
+    public int Run(TextEdits.Command command) => processes.Launch(CallOf(OnThisSystem(command)), output, error);
 
     public (int Code, string Output) Read(TextEdits.Command command)
     {
-        using var output = new StringWriter();
-        int code = ExternalCommand.RunAnnounced(new ExternalCall(command.FileName, command.Arguments, command.WorkingDirectory), output, TextWriter.Null);
-        return (code, output.ToString());
+        using var read = new StringWriter();
+        int code = processes.Launch(CallOf(command), read, TextWriter.Null);
+        return (code, read.ToString());
     }
+
+    private static TextEdits.Command OnThisSystem(TextEdits.Command command) =>
+        OperatingSystem.IsWindows() && _windowsShims.Contains(command.FileName, StringComparer.Ordinal) ? command with { FileName = command.FileName + ".cmd" } : command;
+
+    private static ExternalCall CallOf(TextEdits.Command command) => new(command.FileName, command.Arguments, command.WorkingDirectory);
 }

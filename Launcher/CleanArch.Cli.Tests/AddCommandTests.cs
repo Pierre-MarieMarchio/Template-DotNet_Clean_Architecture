@@ -4,18 +4,18 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class AddCommandTests : IDisposable
 {
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly List<ExternalCall> _calls = [];
     private readonly Dictionary<string, int> _exitOf = new(StringComparer.Ordinal);
+    private readonly FakeProcesses _processes;
     private string _installed = string.Empty;
 
     public AddCommandTests()
     {
-        ExternalCommand.Handler = (call, output, _) =>
+        _processes = new FakeProcesses((call, output, _) =>
         {
             _calls.Add(call);
             if (call.Arguments is ["new", "uninstall"])
@@ -24,7 +24,7 @@ public sealed class AddCommandTests : IDisposable
             }
 
             return _exitOf.FirstOrDefault(exit => string.Join(' ', call.Arguments).Contains(exit.Key, StringComparison.Ordinal)).Value;
-        };
+        });
     }
 
     [Fact]
@@ -126,15 +126,14 @@ public sealed class AddCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 
-    private string[] Lines() => [.. _calls.Select(call => ExternalCommand.LineOf(call))];
+    private string[] Lines() => [.. _calls.Select(call => call.Line)];
 
     private void Clear()
     {

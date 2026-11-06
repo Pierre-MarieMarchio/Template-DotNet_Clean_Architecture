@@ -39,9 +39,9 @@ public static class CleanArchCommand
         return root.Parse([.. arguments]).Invoke(new InvocationConfiguration { Output = output, Error = error });
     }
 
-    private static RootCommand CreateRoot(CommandContext context, IReadOnlyList<CommandRegistration> registrations)
+    private static ContextRootCommand CreateRoot(CommandContext context, IReadOnlyList<CommandRegistration> registrations)
     {
-        var root = new RootCommand(_description);
+        var root = new ContextRootCommand(context, _description);
         root.SetAction(parseResult => Describe(context, parseResult));
 
         HashSet<string> builtIns = [];

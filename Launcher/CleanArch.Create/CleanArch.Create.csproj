@@ -62,4 +62,8 @@
     <Error Condition="'$(Version)' == ''" Text="No templateVersion symbol with a value was found in .template.config/template.json." />
   </Target>
 
+  <ItemGroup>
+    <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+  </ItemGroup>
+
 </Project>

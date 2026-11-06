@@ -22,6 +22,8 @@ still holds.
 | `web-lockfiles --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
 | `api-client --check` | `Src/Presentation/AT.Presentation.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
 
+The launcher's own build is a gate too: its analysis row under [the launcher](#the-launcher) gives the rules it holds.
+
 Each gate runs its `--self-test` first, against fixtures that must make it fire and fixtures that
 must leave it silent, and fails when it examined nothing. A rule added to a gate comes with the fixture
 that fails without it. These three files are excluded from generation, and the project's `hygiene`
@@ -910,6 +912,7 @@ The tests that read the manifests through the launcher's own settings stay in
 | Version | the same `templateVersion`; the launcher installs `CleanArch.WebApi.Templates` at its own version |
 | Thread | drawn with the glyphs every console font carries; [template decision 0016](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md) gives the rule and the test that holds it |
 | Packages | `Spectre.Console` and `System.CommandLine`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
+| Analysis | `SonarAnalyzer.CSharp`, pinned beside them, runs its default rules on all seven projects, and the build fails on any of them; a method of the four projects that ship holds a cognitive complexity (S3776) of 15 at most, set in `Launcher/.editorconfig`. The measure counts nesting and breaks in flow rather than branches, so a flat `switch` stays cheap and a method that nests is split. A finding is fixed in the code, never silenced |
 | Gate | `verify` restores, formats, builds and tests the launcher's solution, all five projects, after the project's gate; CI's `launcher` job does the same |
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
 

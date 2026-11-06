@@ -1,6 +1,6 @@
 ﻿namespace CleanArch.Cli.Commands.Kernel;
 
-internal sealed record ExternalCall(string FileName, IReadOnlyList<string> Arguments, string WorkingDirectory, IReadOnlyDictionary<string, string>? Environment = null, string? DirectoryNote = null)
+internal sealed record ExternalCall(string FileName, IReadOnlyList<string> Arguments, string WorkingDirectory, IReadOnlyDictionary<string, string>? Environment = null, string? DirectoryNote = null, bool CloseInput = false)
 {
     public string Line
     {

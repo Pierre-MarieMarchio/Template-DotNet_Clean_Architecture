@@ -20,11 +20,15 @@ internal abstract class Generation(GenerationContext context)
 
     protected virtual string EditAdvice => "Fix that file, or make this edit by hand.";
 
+    protected virtual string Unchanged => "Nothing was written.";
+
+    protected virtual string Writing => "write";
+
     internal int Generate()
     {
-        if (Resume() is { } resumed)
+        if (Concluded() is { } concluded)
         {
-            return resumed;
+            return concluded;
         }
 
         var problems = new List<string>();
@@ -65,13 +69,15 @@ internal abstract class Generation(GenerationContext context)
 
     protected abstract IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> Replaced { get; }
 
-    protected virtual int? Resume() => null;
+    protected virtual int? Concluded() => null;
 
     protected abstract bool Draft(List<string> problems);
 
     protected virtual bool Record(List<string> problems) => true;
 
     protected virtual string? Preconditions() => null;
+
+    protected virtual void Commit() => TextEdits.Commit(Root, Created, Replaced);
 
     protected abstract void Report(ReportMode mode);
 
@@ -132,20 +138,20 @@ internal abstract class Generation(GenerationContext context)
         if (Preconditions() is { } refusal)
         {
             Error.WriteLine($"error: {refusal}");
-            Error.WriteLine("Nothing was written.");
+            Error.WriteLine(Unchanged);
 
             return Failed;
         }
 
         try
         {
-            TextEdits.Commit(Root, Created, Replaced);
+            Commit();
 
             return null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            Error.WriteLine($"error: nothing was left behind, but the write failed: {exception.Message}");
+            Error.WriteLine($"error: nothing was left behind, but the {Writing} failed: {exception.Message}");
 
             return Failed;
         }

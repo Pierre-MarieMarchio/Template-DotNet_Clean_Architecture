@@ -133,7 +133,7 @@ internal static partial class NewFeature
 
         protected override IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> Replaced => [.. TextEdits.Replacements(_editor)];
 
-        protected override int? Resume()
+        protected override int? Concluded()
         {
             if (!AlreadyGenerated(Root, spec))
             {
@@ -239,16 +239,7 @@ internal static partial class NewFeature
                 + "and commit the migrations first (docs/guides/migrations.md).";
         }
 
-        var check = TextEdits.Task(root, "migration-check");
-
-        output.WriteLine($"Checking that no model change waits for a migration: {check.Display}");
-        output.Flush();
-
-        return run(check) == 0
-            ? null
-            : $"`{check.Display}` failed: the business model holds a change no migration holds yet, or it could not be checked. "
-                + $"The migration of {spec.Features} would carry that change too, so put it in a migration of its own with "
-                + "`dotnet run Tools/Tasks.cs migration-add <Name>`, or undo it, then run this again.";
+        return MigrationCheck.Refusal(root, output, run, $"The migration of {spec.Features}");
     }
 
     private static bool HasInitialMigration(string root, string context)

@@ -153,62 +153,127 @@ internal static class FeatureRemoval
 
         root = Path.GetFullPath(root);
 
-        var analysis = Analyze(root, features);
+        return new Removal(Analyze(root, features), new GenerationContext(root, !apply, output, error), run).Generate();
+    }
 
-        if (!analysis.HasManifest && analysis.Folders.Count == 0 && analysis.Hits.Count == 0)
+    private sealed class Removal(Analysis analysis, GenerationContext context, Func<TextEdits.Command, int> run) : Generation(context)
+    {
+        private readonly string[] _deleted = [.. analysis.Deleted];
+
+        protected override string Usage => _usage;
+
+        protected override string Unchanged => "Nothing was changed.";
+
+        protected override string Writing => "removal";
+
+        protected override IReadOnlyList<string> EditFailures => analysis.Blockers;
+
+        protected override IReadOnlyList<(string Path, byte[] Bytes)> Created => [];
+
+        protected override IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> Replaced =>
+            [.. analysis.Undone.Select(pair => (pair.Key, pair.Value.Original, pair.Value.After))];
+
+        protected override int? Concluded()
         {
-            output.WriteLine($"No feature folder called {features} is left under Src or Tests, and no manifest names it.");
-            PrintNotes(output, analysis);
+            if (!analysis.HasManifest && analysis.Folders.Count == 0 && analysis.Hits.Count == 0)
+            {
+                Output.WriteLine($"No feature folder called {analysis.Features} is left under Src or Tests, and no manifest names it.");
+                PrintNotes(Output, analysis);
 
-            return 0;
-        }
+                return Succeeded;
+            }
 
-        if (!apply)
-        {
-            PrintReport(output, root, analysis);
-            output.WriteLine();
-            output.WriteLine(
+            if (!Context.DryRun)
+            {
+                return null;
+            }
+
+            PrintReport(Output, Root, analysis);
+            Output.WriteLine();
+            Output.WriteLine(
                 analysis.Blockers.Count == 0
-                    ? $"Nothing was changed. --apply removes what is listed above: dotnet run Tools/Tasks.cs remove-feature {features} --apply"
+                    ? $"Nothing was changed. --apply removes what is listed above: dotnet run Tools/Tasks.cs remove-feature {analysis.Features} --apply"
                     : "Nothing was changed. --apply would refuse, for the reasons listed under Blockers.");
 
-            return 0;
+            return Succeeded;
         }
 
-        if (analysis.Blockers.Count > 0)
+        protected override bool Draft(List<string> problems) => true;
+
+        protected override int RefuseEdits(IReadOnlyList<string> failures)
         {
-            PrintReport(output, root, analysis);
-            error.WriteLine();
-            error.WriteLine($"error: {features} was not removed, and nothing was changed: fix what Blockers lists, commit, then run this again.");
+            PrintReport(Output, Root, analysis);
+            Error.WriteLine();
+            Error.WriteLine($"error: {analysis.Features} was not removed, and nothing was changed: fix what Blockers lists, commit, then run this again.");
 
             if (analysis.Dependents.Count > 0)
             {
-                error.WriteLine($"error: {features} holds the shared account-deletion files that {string.Join(", ", analysis.Dependents.Select(dependent => dependent.Name))} still depend on.");
+                Error.WriteLine($"error: {analysis.Features} holds the shared account-deletion files that {string.Join(", ", analysis.Dependents.Select(dependent => dependent.Name))} still depend on.");
             }
 
-            return 1;
+            return Failed;
         }
 
-        if (analysis.Migration is not null || HasInitialMigration(root))
+        protected override string? Preconditions() =>
+            analysis.Migration is not null || HasInitialMigration(Root)
+                ? MigrationCheck.Refusal(Root, Output, run, $"The migration that removes {analysis.Features}")
+                : null;
+
+        protected override void Commit() => TextEdits.Commit(Root, Created, Replaced, _deleted);
+
+        protected override void Report(ReportMode mode) =>
+            Output.WriteLine(
+                $"Removed {analysis.Features}: {Count(_deleted.Length, "file")} deleted, its manifest and page among them, "
+                + $"{Count(analysis.Undos.Count(undo => undo.State == State.Undo), "edit")} undone in {Count(analysis.Undone.Count, "file")}, and the folders left empty.");
+
+        protected override int Finish()
         {
-            var check = TextEdits.Task(root, "migration-check");
+            RemoveEmptyFolders();
 
-            output.WriteLine($"Checking that no model change waits for a migration: {check.Display}");
-            output.Flush();
-
-            if (run(check) != 0)
+            if (!TextEdits.RunAll(Steps(Root, analysis), run, Output, Error, $"{analysis.Features} removed, its edits undone"))
             {
-                error.WriteLine(
-                    $"error: `{check.Display}` failed: the business model holds a change no migration holds yet, or it could not be checked. "
-                    + $"The migration that removes {features} would carry that change too, so put it in a migration of its own with "
-                    + "`dotnet run Tools/Tasks.cs migration-add <Name>`, or undo it, then run this again.");
-                error.WriteLine("Nothing was changed.");
+                foreach (var step in ContractSteps(Root))
+                {
+                    Error.WriteLine($"  {step.Display}");
+                }
 
-                return 1;
+                return Failed;
             }
+
+            if (analysis.Migration is { Schema: { } schema } migration && !DropSchema(Root, migration, schema))
+            {
+                Output.WriteLine($"{migration.Name} was not found to add DropSchema(\"{schema}\") to its Up and EnsureSchema(\"{schema}\") to its Down: add them by hand.");
+            }
+
+            var contract = ContractSteps(Root);
+
+            if (contract.Count > 0 && !TextEdits.RunAll(contract, run, Output, Error, $"{analysis.Features} removed and its migration added"))
+            {
+                return Failed;
+            }
+
+            if (analysis.Notes.Count > 0)
+            {
+                Output.WriteLine();
+                PrintNotes(Output, analysis);
+            }
+
+            return Succeeded;
         }
 
-        return Remove(root, analysis, output, error, run);
+        private void RemoveEmptyFolders()
+        {
+            foreach (string folder in analysis.Folders)
+            {
+                RemoveEmpty(Path.Combine(Root, folder));
+                RemoveEmptyAncestors(Root, folder);
+            }
+
+            foreach (string file in _deleted)
+            {
+                RemoveEmptyAncestors(Root, file);
+            }
+        }
     }
 
     private static int Refuse(TextWriter error, string problem)
@@ -1375,67 +1440,6 @@ internal static class FeatureRemoval
         string client = Directory.EnumerateDirectories(presentation, "*.Presentation.Client").Select(Path.GetFileName).OfType<string>().FirstOrDefault() ?? string.Empty;
 
         return TextEdits.ContractSteps(root, client, built: true);
-    }
-
-    private static int Remove(string root, Analysis analysis, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
-    {
-        string[] deleted = [.. analysis.Deleted];
-
-        try
-        {
-            TextEdits.Commit(root, [], [.. analysis.Undone.Select(pair => (pair.Key, pair.Value.Original, pair.Value.After))], deleted);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            error.WriteLine($"error: nothing was left behind, but the removal failed: {exception.Message}");
-
-            return 1;
-        }
-
-        foreach (string folder in analysis.Folders)
-        {
-            RemoveEmpty(Path.Combine(root, folder));
-            RemoveEmptyAncestors(root, folder);
-        }
-
-        foreach (string file in deleted)
-        {
-            RemoveEmptyAncestors(root, file);
-        }
-
-        output.WriteLine(
-            $"Removed {analysis.Features}: {Count(deleted.Length, "file")} deleted, its manifest and page among them, "
-            + $"{Count(analysis.Undos.Count(undo => undo.State == State.Undo), "edit")} undone in {Count(analysis.Undone.Count, "file")}, and the folders left empty.");
-
-        if (!TextEdits.RunAll(Steps(root, analysis), run, output, error, $"{analysis.Features} removed, its edits undone"))
-        {
-            foreach (var step in ContractSteps(root))
-            {
-                error.WriteLine($"  {step.Display}");
-            }
-
-            return 1;
-        }
-
-        if (analysis.Migration is { Schema: { } schema } migration && !DropSchema(root, migration, schema))
-        {
-            output.WriteLine($"{migration.Name} was not found to add DropSchema(\"{schema}\") to its Up and EnsureSchema(\"{schema}\") to its Down: add them by hand.");
-        }
-
-        var contract = ContractSteps(root);
-
-        if (contract.Count > 0 && !TextEdits.RunAll(contract, run, output, error, $"{analysis.Features} removed and its migration added"))
-        {
-            return 1;
-        }
-
-        if (analysis.Notes.Count > 0)
-        {
-            output.WriteLine();
-            PrintNotes(output, analysis);
-        }
-
-        return 0;
     }
 
     private static bool DropSchema(string root, Migration migration, string schema)

@@ -21,6 +21,7 @@ public static class CleanArchCommand
         CoverageCommand.Registration,
         VerifyCommand.Registration,
         AddCommand.Registration,
+        RemoveCommand.Registration,
         MigrationsCommand.Registration,
         DatabaseCommand.Registration,
         OpenApiCommand.Registration,
@@ -67,6 +68,16 @@ public static class CleanArchCommand
     {
         command.Hidden = true;
         command.TreatUnmatchedTokensAsErrors = false;
+        foreach (Option option in command.Options)
+        {
+            option.Required = false;
+        }
+
+        foreach (Argument argument in command.Arguments)
+        {
+            argument.Arity = new ArgumentArity(0, argument.Arity.MaximumNumberOfValues);
+        }
+
         command.SetAction(parseResult => Refuse(parseResult, refusal));
         foreach (Command subcommand in command.Subcommands)
         {

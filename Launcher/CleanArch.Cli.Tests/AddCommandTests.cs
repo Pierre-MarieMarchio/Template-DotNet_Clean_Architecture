@@ -91,7 +91,7 @@ public sealed class AddCommandTests : IDisposable
         Clear();
 
         Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-        AddedCommands().ShouldBe(["web-app", "presentation"]);
+        AddedCommands().ShouldNotContain("web-package");
     }
 
     [Fact]

@@ -1843,35 +1843,42 @@ public sealed class TemplatePackagingTests
         {
             Match marker = _marker.Match(line);
 
-            if (!marker.Success)
+            if (marker.Success)
             {
-                if (line.Trim().Length > 0
-                    && branches.Any(branch => IsStarterBranch(starterSymbol, branch.Condition, branch.Otherwise))
-                    && !branches.Select(branch => branch.Otherwise ? "!" + branch.Condition : branch.Condition)
-                        .Any(condition => _templateOnly.IsMatch(condition) || listedElsewhere?.IsMatch(condition) == true))
-                {
-                    written.Add(line.Trim());
-                }
+                Follow(branches, marker.Value, line);
             }
-            else if (marker.Value == "#if")
+            else if (line.Trim().Length > 0 && WrittenByTheStarterAlone(branches, starterSymbol, listedElsewhere))
             {
-                branches.Push((_condition.Match(line).Groups[1].Value, false));
-            }
-            else if (marker.Value == "#elseif" && branches.TryPop(out _))
-            {
-                branches.Push((_condition.Match(line).Groups[1].Value, false));
-            }
-            else if (marker.Value == "#else" && branches.TryPop(out var branch))
-            {
-                branches.Push((branch.Condition, true));
-            }
-            else
-            {
-                branches.TryPop(out _);
+                written.Add(line.Trim());
             }
         }
 
         return written;
+    }
+
+    private static bool WrittenByTheStarterAlone(Stack<(string Condition, bool Otherwise)> branches, Regex starterSymbol, Regex? listedElsewhere) =>
+        branches.Any(branch => IsStarterBranch(starterSymbol, branch.Condition, branch.Otherwise))
+        && !branches.Select(branch => branch.Otherwise ? "!" + branch.Condition : branch.Condition)
+            .Any(condition => _templateOnly.IsMatch(condition) || listedElsewhere?.IsMatch(condition) == true);
+
+    private static void Follow(Stack<(string Condition, bool Otherwise)> branches, string marker, string line)
+    {
+        if (marker == "#if")
+        {
+            branches.Push((_condition.Match(line).Groups[1].Value, false));
+        }
+        else if (marker == "#elseif" && branches.TryPop(out _))
+        {
+            branches.Push((_condition.Match(line).Groups[1].Value, false));
+        }
+        else if (marker == "#else" && branches.TryPop(out var branch))
+        {
+            branches.Push((branch.Condition, true));
+        }
+        else
+        {
+            branches.TryPop(out _);
+        }
     }
 
     private static bool IsStarterBranch(Regex starterSymbol, string condition, bool otherwise) =>

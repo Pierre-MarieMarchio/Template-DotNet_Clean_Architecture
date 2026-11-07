@@ -35,7 +35,7 @@ places there, so generating it means generating the API without them.
   the name `cleanarch-presentation` gives a presentation project.
 - **The worker is added later by an item template and a task.** The engine adds files and never
   moves or edits the project's own, so `cleanarch-presentation --framework worker` writes the starter
-  and ADR 0025, and the project's `presentation-join` does the rest of what generation does: it moves
+  and ADR 0025, and the project's `add presentation` does the rest of what generation does: it moves
   the jobs and their tests, renames their namespaces by the switch symbols' rule and makes the edits
   the starter's `README.md` lists, which set ADR 0011 to `Superseded by` ADR 0025 rather than remove
   it: a decision is never erased, and 0011 held while the API ran the jobs. It refuses while git reports a change to a

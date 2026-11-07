@@ -17,7 +17,7 @@ would let their tests run on the template's Linux runners and in WSL, but it wou
 project around runners its users do not have, where the Avalonia starter is one project and
 [0014](0014-a-windows-only-shape-is-proved-on-a-windows-runner.md) proves a Windows-only shape on a
 Windows runner. The split would also give every tool around it a case of its own: a sibling for
-`presentation-scaffold` to add, names `cleanarch-presentation` must refuse when the sibling's is
+`add presentation` to add, names `cleanarch-presentation` must refuse when the sibling's is
 taken, and exceptions in the architecture rules. A test project on a Windows target framework builds
 on Linux but its tests cannot run there, so the tasks that run the tests must know it.
 
@@ -34,7 +34,7 @@ on Linux but its tests cannot run there, so the tasks that run the tests must kn
   `Skipped <folder>: it targets <framework> and runs on Windows alone.` before the run and after it;
   the build still compiles it and the exit code is the others'. `sonar` does the same, its scanner
   running in a Linux container. The `sqlite, defaults` leg fails unless `test --no-integration` announces the
-  skip. `Tools/Tasks.cs --self-test` holds the matcher and the selection, and
+  skip. The tests of the project tool hold the matcher and the selection, and
   `WindowsTestProjectTests` holds the premise: such a test project says so in its own file, with one
   target framework, and no `.props` or `.targets` sets a Windows one.
 - **The session stays a copy.** The WPF starter's hosting, session, settings, test support and their

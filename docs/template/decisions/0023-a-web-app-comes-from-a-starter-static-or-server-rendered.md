@@ -33,7 +33,7 @@ records. The template has to offer that form without doubling its values.
   a folder under `.template.config/starters` named after the value, holding
   `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`. The project template and
   `cleanarch-webapp` copy the wiring under the `webFramework` symbol and the chosen starter into the
-  app's folder; `web-scaffold` consumes the starter at bootstrap.
+  app's folder; `bootstrap` consumes the starter.
 - **A starter is a pinned CLI with its arguments, its merges and its overlay**: the CLI's package and
   exact version, the arguments `pnpm dlx` passes it, the JSON merges into the files it writes, and
   the files laid over its starter where no setting reaches. The template keeps no framework code.
@@ -83,7 +83,7 @@ records. The template has to offer that form without doubling its values.
   its build writes into the page template, computed when the server starts. With accounts, the
   overlay's server keeps the session, as the project's ADR 0024 describes.
 - **A .NET starter keeps the same place and the same server.** `blazor-wasm` is a starter of kind
-  `dotnet` ([0009](0009-a-dotnet-project-comes-from-a-starter.md)): `web-scaffold` runs
+  `dotnet` ([0009](0009-a-dotnet-project-comes-from-a-starter.md)): `add web-app` runs
   `dotnet new blazorwasm` for it and adds the project to the solution, and its folder holds the
   project file and `Program.cs` the project owns beside `scaffold.json`. Its output is the published
   `wwwroot`, built by the .NET SDK from the repository root: the shared `Dockerfile` and `nginx.conf`
@@ -111,11 +111,11 @@ records. The template has to offer that form without doubling its values.
 - **The hash step in every image.** It would allow an inline script that slips into any app's page
   as silently as React Router's: a starter whose page carries none keeps refusing them.
 - **Starters inside `Src/Web/apps`.** The checkout would carry a descriptor per framework where
-  `web-scaffold` looks for apps to create, and each generated project would need them excluded.
+  `add web-app` looks for apps to create, and each generated project would need them excluded.
 - **A `--web` value per rendering, `angular-ssr` beside `angular`.** Every value that renders both
   ways doubles, the launcher shows both, and each starter to come that renders both ways doubles
   again.
-- **One `scaffold.json` and one overlay per starter, with markers for the rendering.** `web-scaffold`
+- **One `scaffold.json` and one overlay per starter, with markers for the rendering.** `add web-app`
   parses the descriptor, and the server files exist in one rendering only, which a path condition
   says better than markers.
 - **Server rendering only, as each generator's default.** Angular and React Router would lose the

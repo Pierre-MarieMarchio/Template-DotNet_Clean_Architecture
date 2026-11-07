@@ -21,8 +21,7 @@ generation holds, and an item template's join edits files outside its part.
 
 ## Decision
 
-- **Generate both versions, then compare three ways.** `Tools/UpgradeReport.cs`, run as
-  `upgrade-report`, installs the package at the project's version and at the target, each in a
+- **Generate both versions, then compare three ways.** `dotnet cleanarch upgrade-report`, installs the package at the project's version and at the target, each in a
   template hive of its own, generates the project from each under the recorded name and options,
   and replays the item templates of the parts the options cannot express, in the recorded order. A
   file the target changed is taken as is when the project's copy equals the first generation, and
@@ -56,12 +55,12 @@ generation holds, and an item template's join edits files outside its part.
   generator that draws a value, shows every file it touches as changed. A web app's `--port` is
   recorded with the app for that reason, and a record without one is replayed on its framework's
   default.
-- `_writtenByBootstrap` and `_editedByBootstrap` in `Tools/UpgradeReport.cs` follow what bootstrap
+- `_writtenByBootstrap` and `_editedByBootstrap` in `Launcher/CleanArch.Cli/UpgradeReport/BootstrapWriters.cs` follow what bootstrap
   writes: a step added to bootstrap adds its paths there, or every project reads them as its own.
 - The report replays an item template's options by the names its `template.json` declares; a
   renamed one is reported, not followed.
-- `Tools/UpgradeReport.cs --self-test`, which `hygiene` runs, holds the classification, the
-  exclusions, the options, the refusals and the changelog range.
+- The tests of the project tool hold the classification, the exclusions, the options, the refusals
+  and the changelog range.
 
 ## Revisit when
 

@@ -12,7 +12,7 @@ Status: Accepted
 ## Context
 
 A team that works on Windows runs the generated project's tasks from PowerShell: `bootstrap`,
-the build, the tests and `hygiene`. On Windows, paths, line endings and the processes a task
+the build, the tests and `verify`. On Windows, paths, line endings and the processes a task
 starts differ from Linux, so a run on `ubuntu-latest` proves none of them there. The acceptance
 matrix's legs run on `ubuntu-latest` unless they say otherwise, in one job of bash steps that start
 Linux containers, which a Windows runner cannot run. A shape that targets Windows alone, as a WPF
@@ -28,7 +28,7 @@ Windows.
   the `skipped` job reports them as it reports every leg the change cannot reach.
 - **The Windows job runs what a Windows user runs.** From PowerShell, one command a step, it
   installs the package, generates, asserts the template's name leaked nowhere, runs `bootstrap`, the
-  `build` task with warnings as errors, `test --no-integration`, `hygiene` and the citation check. It
+  `build` task with warnings as errors, `test --no-integration`, `verify` and the citation check. It
   starts no container, since a Windows runner runs no Linux image, and sets up no web workspace.
 - **The default shape runs on Windows with WPF, and it is required.** `windows, wpf, local auth`
   generates with `--presentation wpf` alone, which keeps every other default and adds the desktop

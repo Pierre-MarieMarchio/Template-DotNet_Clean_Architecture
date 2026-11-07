@@ -20,11 +20,11 @@ between two template releases, and maintaining it would be maintaining a second 
 - **The template keeps no React or Angular code.** For each framework it holds only the wiring: a
   `Dockerfile`, an `nginx.conf`, a `compose.yml`, a `README.md`, a `scaffold.json` descriptor and an
   `overlay/` folder.
-- **The app is created at bootstrap.** `dotnet run Tools/Tasks.cs web-scaffold`, which `bootstrap`
-  runs, runs the CLI named in `scaffold.json` at its exact version through `pnpm dlx`: `create-vite`
+- **The app is created at bootstrap.** `dotnet cleanarch bootstrap`, and `dotnet cleanarch add web-app` for
+  an app added later, run the CLI named in `scaffold.json` at its exact version through `pnpm dlx`: `create-vite`
   with its `react-ts` template, or the Angular CLI's `ng new`. It writes into a scratch folder inside
   the workspace and moves nothing into place until the starter is complete. The CLI runs from that
-  folder with its input closed, so a CLI that asks a question makes `web-scaffold` fail with the app's
+  folder with its input closed, so a CLI that asks a question makes `add web-app` fail with the app's
   folder unchanged instead of waiting.
 - **The overlay is wiring and nothing else**: the dev server's relay to the API, the package name,
   the API client dependency, the scripts the workspace runs, and the compiler settings the client's

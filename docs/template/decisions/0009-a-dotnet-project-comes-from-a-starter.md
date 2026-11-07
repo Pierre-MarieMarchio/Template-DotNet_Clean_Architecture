@@ -11,7 +11,7 @@ Status: Accepted
 
 ## Context
 
-A web app is a starter: a pinned CLI that `web-scaffold` runs with pnpm, and an overlay. A .NET
+A web app is a starter: a pinned CLI that `add web-app` runs with pnpm, and an overlay. A .NET
 project is not a pnpm app: `--presentation blazor-server`, for one, is a Blazor Web App written by
 `dotnet new blazor`, from Microsoft's ASP.NET Core templates. Its output is C#, built by the
 solution and held by the architecture tests, so it has to come under the repository's rules: the
@@ -25,7 +25,7 @@ pins and refuses an install of another version beside it.
   of pnpm needs none, and `dotnet` for a template package. A `dotnet` descriptor names the
   package, its exact version, the template's short name, its arguments, and the generated folders
   the project keeps.
-- **The template runs in a hive of its own.** `presentation-scaffold`, or `web-scaffold` for a web
+- **The template runs in a hive of its own.** `add presentation`, or `add web-app` for a web
   starter of kind `dotnet`, installs the pinned package
   into a scratch template hive with the SDK's own templates disabled, so the version the descriptor
   names is the one that runs, whatever SDK is installed. The hive sits in the system's temporary
@@ -47,7 +47,7 @@ pins and refuses an install of another version beside it.
   folder under `.template.config/starters` is one or the other, and that each `--presentation`
   value but `api` is a starter, of kind `dotnet` or, as
   [0013](0013-a-starter-the-generator-cannot-add-to-is-written-whole.md) has it, `written`. A web starter of kind `dotnet`, `blazor-wasm`,
-  holds its project under `FrameworkSite/` as the others do, and `web-scaffold` dispatches on the
+  holds its project under `FrameworkSite/` as the others do, and `add web-app` dispatches on the
   kind: the same scaffold as a presentation project, joining the solution, for it, `pnpm dlx` for
   the others.
 - **`bootstrap` creates the presentation project first**, before the formatting it then applies.
@@ -55,10 +55,10 @@ pins and refuses an install of another version beside it.
   starter by `--framework` and takes the project's options as parameters of the same names, values
   and defaults, since an item template cannot read the project it runs in. What `--presentation`
   writes outside the project's folders, an item template cannot edit either: the starter's
-  `README.md` lists each line with the lines it goes beside, the project's `presentation-join` task
+  `README.md` lists each line with the lines it goes beside, the project's `add presentation` command
   makes them all or none, and the acceptance matrix runs it and builds the result. `TemplatePackagingTests` holds both lists against `template.json`.
   `cleanarch-webapp --framework blazor-wasm` does the same for the web starter of kind `dotnet`,
-  with the .NET client it brings, through the project's `web-join` task.
+  with the .NET client it brings, through the project's `add web-app` command.
 - **A value names its generator and never changes meaning**, as for `--web`: `blazor-server` is
   `dotnet new blazor` with server interactivity and no authentication of its own.
 
@@ -81,7 +81,7 @@ pins and refuses an install of another version beside it.
   leg it joins.
 - The template package's version is bumped by hand with the ASP.NET Core image, as Dependabot reads
   no descriptor.
-- `presentation-scaffold` needs the network once, to fetch the template package.
+- `add presentation` needs the network once, to fetch the template package.
 
 ## Revisit when
 

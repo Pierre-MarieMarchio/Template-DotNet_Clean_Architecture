@@ -45,10 +45,10 @@ switches and `isRequired` alike.
   you, naming what calls it ([0026](0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md)).
 - **A project without the API holds none of its parts.** Under `!api` it has no `<Project>.Api`, no
   API unit or integration tests, no end-to-end suite, no load smoke, no `.http` file, no `api`
-  Compose service, no `openapi`, `run`, `api-client` or `end-to-end` task, no OpenAPI document, no
+  Compose service, no `openapi`, `run` or `end-to-end` command, no OpenAPI document, no
   .NET client, and none of the architecture rules or pages about the HTTP surface; the hosts read
-  their shared settings from `x-host-environment` in `docker-compose.yml`, and `new-feature`,
-  `new-use-case` and `remove-feature` write and remove every layer of a feature but the HTTP one:
+  their shared settings from `x-host-environment` in `docker-compose.yml`, and `add feature`,
+  `add use-case` and `remove feature` write and remove every layer of a feature but the HTTP one:
   no controller, contract or API test, and the edits and rows they make name the hosts'
   `Program.cs`, never the API; they tell the shape from whether `Src/Presentation/<Initials>.Api`
   exists. The acceptance leg `no api, blazor server, mcp and worker, external auth, no agent files`
@@ -58,7 +58,7 @@ switches and `isRequired` alike.
   needsWorker`, so the worker comes as the API comes for its callers. The launcher shows the worker
   as answered for you, the jobs running in it, and passes `--presentation worker`.
 - **`cleanarch-presentation` is told whether the project holds the API.** `--has-api`, true by
-  default, conditions the lines its README lists for `presentation-join`, and
+  default, conditions the lines its README lists for `add presentation`, and
   `presentationNeedsTheApi` refuses a desktop client, or the MCP server under local accounts, in a
   project without it.
 - **Every refusal keeps its shape**, a hidden parameter with a conditional `isRequired`, mirrored in

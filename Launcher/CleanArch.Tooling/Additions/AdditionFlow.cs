@@ -11,6 +11,8 @@ namespace CleanArch.Tooling.Additions;
 
 internal sealed record AskedItem(string Name, Dictionary<string, string> Options);
 
+internal sealed record PlannedStep(string Title, string Running, ItemStep Step);
+
 internal sealed class AdditionFlow(AdditionContext context)
 {
     public const string Dotnet = "dotnet";
@@ -104,11 +106,68 @@ internal sealed class AdditionFlow(AdditionContext context)
         Conversation.Perform($"Adding {name}", $"Added {name}", () => context.Engine.Run(project.Root, engine, performed));
     }
 
-    public bool RunStep(string root, string title, string running, ItemStep step)
+    public string CompletedBy(string command, string name) => $"{context.Invocation} {command} --name {name}";
+
+    public Dictionary<string, string> GivenOptions(TemplateManifest manifest) =>
+        manifest.Options
+            .Where(option => context.Arguments.TemplateOptions.ContainsKey(option.CliName))
+            .ToDictionary(option => option.Symbol, option => context.Arguments.TemplateOptions[option.CliName], StringComparer.Ordinal);
+
+    public string? Existing(Func<string, string> folderOf, Func<string, bool> valid) =>
+        context.Arguments.Name is { } name && valid(name) && Directory.Exists(folderOf(name)) ? name : null;
+
+    public int? Complete(string root, string shown, string complete, IReadOnlyList<PlannedStep> steps)
     {
-        string command = step.CommandLine;
-        ProcessResult result = Conversation.Spin(running, () => step.Run(Conversation.EchoesTheTemplateEngine ? context.Console.Verbatim : null));
+        PlannedStep[] pending = [.. steps.Where(planned => !planned.Step.IsDone())];
+        if (pending.Length == 0)
+        {
+            throw new LauncherException($"{shown} is {complete} already: there is nothing to complete. Nothing was written.");
+        }
+
+        if (context.DryRun)
+        {
+            Conversation.Note($"Dry run: nothing is written. {shown} exists, so these are the steps it would run to complete it, in this order.");
+            foreach (PlannedStep planned in pending)
+            {
+                context.Console.Verbatim(planned.Step.CommandLine);
+            }
+
+            return null;
+        }
+
+        return RunSteps(root, steps);
+    }
+
+    public int RunSteps(string root, IReadOnlyList<PlannedStep> steps)
+    {
+        for (int index = 0; index < steps.Count; index++)
+        {
+            if (steps[index].Step.IsDone())
+            {
+                Conversation.Note($"{steps[index].Title}: done already.");
+                continue;
+            }
+
+            if (!RunStep(root, steps[index]))
+            {
+                foreach (PlannedStep skipped in steps.Skip(index + 1))
+                {
+                    Conversation.Reported($"{skipped.Title} skipped", false, $"Skipped because the {steps[index].Title.ToLowerInvariant()} step didn't go through.", [skipped.Step.CommandLine]);
+                }
+
+                return index;
+            }
+        }
+
+        return steps.Count;
+    }
+
+    private bool RunStep(string root, PlannedStep planned)
+    {
+        string command = planned.Step.CommandLine;
+        ProcessResult result = Conversation.Spin(planned.Running, () => planned.Step.Run(Conversation.EchoesTheTemplateEngine ? context.Console.Verbatim : null));
         bool done = result.ExitCode == 0;
+        string title = planned.Title;
         Conversation.Reported(title + (done ? " done" : " failed"), done, done ? null : ProcessFailure.Why(command, result, ProcessFailure.Journal(root, title.ToLowerInvariant(), command, result)), done ? [] : [command]);
         return done;
     }

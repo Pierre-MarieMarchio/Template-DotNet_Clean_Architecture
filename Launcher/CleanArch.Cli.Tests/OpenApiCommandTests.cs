@@ -208,6 +208,20 @@ public sealed class OpenApiCommandTests : IDisposable
     }
 
     [Fact]
+    public void OpenApi_Check_LeavesNoTemporaryFolderBehind_WhenTheBuildFails()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        project.Folder(_clientFolder);
+        _exit = 7;
+
+        Run(["openapi", "--check"], project.Root).ShouldBe(7);
+
+        string prefix = "-p:OpenApiDocumentsDirectory=";
+        string documents = _calls.Single().Arguments.Single(argument => argument.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..];
+        Directory.Exists(documents).ShouldBeFalse();
+    }
+
+    [Fact]
     public void OpenApi_Check_ReportsAReferenceThatIsMissing()
     {
         using var project = new SampleProject(SampleProject.Api);

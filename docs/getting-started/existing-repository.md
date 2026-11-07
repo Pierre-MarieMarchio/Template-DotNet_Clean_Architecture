@@ -13,7 +13,7 @@ once, right after generation and bootstrap.
 
 | Shape | What you do | What it costs |
 |---|---|---|
-| At the root | the tree becomes the repository; merge by hand what both already have | nothing in the tooling: every task and gate assumes the solution sits at the repository root |
+| At the root | the tree becomes the repository; merge by hand what both already have | nothing in the tooling: every command and gate assumes the solution sits at the repository root |
 | In a subdirectory, such as `services/api/` | copy the tree there; the host keeps its own root files | the host's `global.json` learns the test runner; the workflows move to the git root |
 
 Take the root unless the repository must hold more than this service. At the root, the files to merge
@@ -22,8 +22,8 @@ are the ones a host is likely to have already: `README.md`, `.gitignore`, `globa
 
 Three facts decide the subdirectory shape:
 
-- `Tools/Tasks.cs` finds the repository root by walking up to `cleanarch.json`, so every task works
-  from the subdirectory unchanged.
+- `dotnet cleanarch` finds the repository root by walking up to `cleanarch.json`, so every command
+  works from the subdirectory unchanged.
 - MSBuild stops at the nearest `Directory.Build.props` and `Directory.Packages.props`, and
   `.editorconfig` declares `root = true`: the host's root files do not reach these projects, and these
   do not reach the host's.
@@ -68,7 +68,7 @@ Three facts decide the subdirectory shape:
 <!--#endif-->
 <!--#if (ci)-->
    A workflow runs from the git root, so prefix every path its steps name (the solution,
-   `Tools/Tasks.cs`, `coverage.minimum`, `global.json`) with the subdirectory.
+   `.config/dotnet-tools.json`, `coverage.minimum`, `global.json`) with the subdirectory.
 
 <!--#endif-->
 4. Merge `.github/dependabot.yml` into the host's, at the git root, each `directory` prefixed with
@@ -82,7 +82,7 @@ Three facts decide the subdirectory shape:
 From the subdirectory:
 
 ```bash
-dotnet run Tools/Tasks.cs verify
+dotnet cleanarch verify
 docker compose config -q
 ```
 

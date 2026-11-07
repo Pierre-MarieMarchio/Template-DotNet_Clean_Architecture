@@ -457,13 +457,13 @@ task stops:
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  other tasks assume all five.
+  migration, and the other commands assume it.
   ```
 
   add:
 
   ```markdown
-  It first adds the MCP server to the solution with `dotnet run Tools/Tasks.cs presentation-scaffold`.
+  It first adds the MCP server to the solution.
   ```
 
 <!--#endif-->

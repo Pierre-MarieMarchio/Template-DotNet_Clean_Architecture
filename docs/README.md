@@ -20,7 +20,7 @@ Which page answers your question, and where a new page goes.
 | [decisions](decisions/index.md) | asking why a choice was made |
 
 [The index](index.md) links each folder's own index, which lists its pages by their title and
-their description. `dotnet run Tools/Tasks.cs docs-index` writes every index from the frontmatter of
+their description. `dotnet cleanarch docs-index` writes every index from the frontmatter of
 the pages this project holds, so a page appears there once it exists, and leaves once it is gone.
 
 ## Decisions
@@ -34,14 +34,14 @@ with.
 
 | You add | Where | Start from |
 |---|---|---|
-| A feature | `features/<feature>.md` | [the feature template](_page-templates/feature.md); `new-feature` writes it for you |
+| A feature | `features/<feature>.md` | [the feature template](_page-templates/feature.md); `add feature` writes it for you |
 | A how-to | `guides/<task>.md` | [the how-to template](_page-templates/how-to.md) |
 | A decision | `decisions/NNNN-<title>.md`, numbered from 1000 | [the ADR template](_page-templates/adr.md) |
 | A setting | a section in the configuration reference | the table shape there |
 | A route or a code | a row in the API reference | the table shape there |
 
-Then run `dotnet run Tools/Tasks.cs docs-index`, which lists the new page in its folder's index;
-`new-feature` and `remove-feature --apply` run it for the page they write or delete. `hygiene` fails
+Then run `dotnet cleanarch docs-index`, which lists the new page in its folder's index;
+`add feature` and `remove feature --apply` run it for the page they write or delete. `verify` fails
 while an index no longer lists its folder's pages as their frontmatter says.
 
 Every page opens with its frontmatter, at the first byte of the file, before its `# ` heading:

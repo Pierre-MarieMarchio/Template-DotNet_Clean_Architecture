@@ -21,7 +21,7 @@ Run every command from the repository root.
 
 | Tool | Version | Needed for |
 |---|---|---|
-| .NET SDK | 10.0.100 or any later .NET 10 SDK, as `global.json` allows | building, running, every task |
+| .NET SDK | 10.0.100 or any later .NET 10 SDK, as `global.json` allows | building, running, every command |
 | Docker with Compose v2 | any recent | the local stack and the integration tests |
 | <!--#if (anyWeb)--> |
 | Node.js | the version in `Src/Web/.node-version` | the web workspace |
@@ -45,11 +45,14 @@ Run `corepack enable` once per machine so the pinned pnpm is the one that runs.
 <!--#endif-->
 ## Bootstrap once
 
-Run it right after generating, as `dotnet new` ends by saying. It needs the network, to restore the
-packages and the local tools, and not Docker.
+Run it right after generating, as `dotnet new` ends by saying. The project pins its own tool,
+`dotnet cleanarch`, in `.config/dotnet-tools.json` at the version of the template it came from, so
+restore the local tools first. It needs the network, to restore the packages and the local tools, and
+not Docker.
 
 ```bash
-dotnet run Tools/Tasks.cs bootstrap
+dotnet tool restore
+dotnet cleanarch bootstrap
 ```
 
 Commit what it changes before anything else.
@@ -78,14 +81,12 @@ to the solution with its tests.
 <!--#if (api)-->
 It formats the solution, writes the index of each folder under `docs/` from its pages, writes the
 OpenAPI reference the contract test reads
-([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)), pins this project's
-own tool, `dotnet cleanarch`, at the version of the template it came from, restores the local tools
-(`dotnet-ef` among them), then creates each database context's initial migration under its
+([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)), restores the local
+tools (`dotnet-ef` among them), then creates each database context's initial migration under its
 project's `Migrations` folder.
 <!--#endif-->
 <!--#if (!api)-->
-It formats the solution, writes the index of each folder under `docs/` from its pages, pins this
-project's own tool, `dotnet cleanarch`, at the version of the template it came from, restores the
+It formats the solution, writes the index of each folder under `docs/` from its pages, restores the
 local tools (`dotnet-ef` among them), then creates each database context's initial migration under
 its project's `Migrations` folder.
 <!--#endif-->
@@ -103,7 +104,7 @@ pnpm.
 
 Both steps are required. Using directives sort around the project's own name, so their order is only
 right once the project has its name. The build does not check that order: until bootstrap runs,
-`dotnet run Tools/Tasks.cs format` fails, and `verify` with it.
+`dotnet cleanarch format --check` fails, and `verify` with it.
 <!--#if (api)-->
 Without a migration, the API cannot create its schema, the migration drift tests fail, and `verify`
 refuses to start.
@@ -123,14 +124,13 @@ wrote. `dnx CleanArch.Create -- new --setup` does the `git init`, both commits, 
 
 When bootstrap stops, its last message says which step failed and what is left undone, and what it
 already did stays done. A project made by the launcher also keeps bootstrap's full output in
-`artifacts/bootstrap.log`, which git ignores. Run bootstrap again once the cause is fixed. If the
-step that failed is the install of `CleanArch.Cli` at the version of the template this project came
-from, that version is not on a NuGet source the machine uses: nuget.org holds only published
-releases, so a version not released yet, or a template packed locally, has no package there. Put the
-package `CleanArch.Cli.<version>.nupkg`, packed with `dotnet pack` from the template's
-repository, in a folder, install it from there with
-`dotnet tool install CleanArch.Cli --local --version <version> --add-source <folder>`, then run
-bootstrap again.
+`artifacts/bootstrap.log`, which git ignores. Run bootstrap again once the cause is fixed. If
+`dotnet tool restore` fails on `cleanarch.cli`, the version of the template this project came from is
+not on a NuGet source the machine uses: nuget.org holds only published releases, so a version not
+released yet, or a template packed locally, has no package there. Put the package
+`CleanArch.Cli.<version>.nupkg`, packed with `dotnet pack` from the template's repository, in a
+folder, restore from there with `dotnet tool restore --add-source <folder>`, then run bootstrap
+again.
 
 ## Run with Compose
 
@@ -200,25 +200,25 @@ For a debugger, start only the dependencies and run the API yourself:
 <!--#if (files && serverDatabase)-->
 ```bash
 docker compose up -d --wait db mailpit objectstore
-dotnet run Tools/Tasks.cs run
+dotnet cleanarch run
 ```
 <!--#endif-->
 <!--#if (!files && serverDatabase)-->
 ```bash
 docker compose up -d --wait db mailpit
-dotnet run Tools/Tasks.cs run
+dotnet cleanarch run
 ```
 <!--#endif-->
 <!--#if (files && sqlite)-->
 ```bash
 docker compose up -d --wait mailpit objectstore
-dotnet run Tools/Tasks.cs run
+dotnet cleanarch run
 ```
 <!--#endif-->
 <!--#if (!files && sqlite)-->
 ```bash
 docker compose up -d --wait mailpit
-dotnet run Tools/Tasks.cs run
+dotnet cleanarch run
 ```
 <!--#endif-->
 
@@ -370,15 +370,15 @@ docker compose down -v    # stop and delete the data
 
 <!--#if (api)-->
 ```bash
-dotnet run Tools/Tasks.cs test                    # the solution's suites, Docker needed
-dotnet run Tools/Tasks.cs test --no-integration   # without Docker
-dotnet run Tools/Tasks.cs end-to-end              # the end-to-end suite, against a stack of its own
+dotnet cleanarch test                    # the solution's suites, Docker needed
+dotnet cleanarch test --no-integration   # without Docker
+dotnet cleanarch end-to-end              # the end-to-end suite, against a stack of its own
 ```
 <!--#endif-->
 <!--#if (!api)-->
 ```bash
-dotnet run Tools/Tasks.cs test                    # the solution's suites, Docker needed
-dotnet run Tools/Tasks.cs test --no-integration   # without Docker
+dotnet cleanarch test                    # the solution's suites, Docker needed
+dotnet cleanarch test --no-integration   # without Docker
 ```
 <!--#endif-->
 
@@ -410,7 +410,7 @@ shows how to install.
 Generate the skeleton of a feature owned by its caller:
 
 ```bash
-dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion delete
+dotnet cleanarch add feature Widgets Widget --access owner --deletion delete
 ```
 
 It writes the files, a manifest under `.feature-manifest`, and the feature's page in
@@ -421,7 +421,7 @@ run the tests:
 
 ```bash
 docker compose up -d --build --wait
-dotnet run Tools/Tasks.cs test --no-integration
+dotnet cleanarch test --no-integration
 ```
 
 `/api/v1/widgets` now answers in Scalar. [Adding a feature](../guides/adding-a-feature.md) says what to
@@ -434,7 +434,7 @@ write next.
 Generate the skeleton of a feature owned by its caller:
 
 ```bash
-dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion delete
+dotnet cleanarch add feature Widgets Widget --access owner --deletion delete
 ```
 
 It writes every layer but an HTTP one, which this project does not hold, a manifest under
@@ -445,7 +445,7 @@ run the tests:
 
 ```bash
 dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
-dotnet run Tools/Tasks.cs test --no-integration
+dotnet cleanarch test --no-integration
 ```
 
 [Adding a feature](../guides/adding-a-feature.md) says what to write next, what each host shows of

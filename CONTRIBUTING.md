@@ -4,7 +4,7 @@ What has to be true before a change is done, and where each rule is written.
 
 ## The gate
 
-A change is done when `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage`,
+A change is done when `dotnet cleanarch verify`, then `dotnet cleanarch coverage`,
 pass without overrides; [build and CI](docs/guides/build-and-ci.md#the-gate) says what each step
 checks, and [first run](docs/getting-started/first-run.md) what the machine needs.
 
@@ -119,7 +119,7 @@ list starts from an issue.
    [Discussions](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/discussions) before writing
    code, so the change is agreed before it is made.
 2. Branch from `develop`, as `<type>/<subject>`, and keep the change to one concern.
-3. Run `dotnet run Tools/Tasks.cs check` while you work, then
+3. Run `dotnet cleanarch check` while you work, then
    [the gate](#the-gate) before you ask for a review.
 4. Open the pull request against `develop` and fill in its template; the title is a conventional
    commit, as [the commit messages](#commit-messages) ask.

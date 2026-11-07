@@ -387,24 +387,40 @@ public sealed class TemplatePackagingTests
         ?? [];
 
     [Theory]
-    [InlineData("no-sonar", new[] { "dotnet-sonarscanner" })]
-    [InlineData("no-client", new[] { "microsoft.openapi.kiota" })]
-    [InlineData("no-sonar-no-client", new[] { "dotnet-sonarscanner", "microsoft.openapi.kiota" })]
-    public void EachVariantToolManifest_IsTheToolManifestMinusItsTools(string variant, string[] removed)
+    [InlineData(".config", new[] { "cleanarch.cli" })]
+    [InlineData(".template.config/variants/no-sonar/.config", new[] { "dotnet-sonarscanner" })]
+    [InlineData(".template.config/variants/no-client/.config", new[] { "microsoft.openapi.kiota" })]
+    [InlineData(".template.config/variants/no-sonar-no-client/.config", new[] { "dotnet-sonarscanner", "microsoft.openapi.kiota" })]
+    public void EachToolManifest_IsTheGeneratedProjectsMinusItsTools(string folder, string[] removed)
     {
-        string root = ProjectReferenceGraph.RepositoryRoot;
-        var full = JsonNode.Parse(File.ReadAllText(Path.Combine(root, ".config", "dotnet-tools.json")))!;
-        var withoutTools = JsonNode.Parse(File.ReadAllText(
-            Path.Combine(root, ".template.config", "variants", variant, ".config", "dotnet-tools.json")))!;
+        JsonNode full = JsonNode.Parse(File.ReadAllText(GeneratedToolManifestPath()))!;
+        JsonNode withoutTools = JsonNode.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "dotnet-tools.json")))!;
 
         foreach (string tool in removed)
         {
-            full["tools"]!.AsObject().Remove(tool).ShouldBeTrue($"The tool manifest no longer declares {tool}.");
+            full["tools"]!.AsObject().Remove(tool).ShouldBeTrue($"The generated project's tool manifest no longer declares {tool}.");
         }
 
         JsonNode.DeepEquals(full, withoutTools).ShouldBeTrue(
-            $".template.config/variants/{variant}/.config/dotnet-tools.json has drifted from .config/dotnet-tools.json.");
+            $"{folder}/dotnet-tools.json has drifted from .template.config/variants/project/.config/dotnet-tools.json, the one a generated project receives.");
     }
+
+    [Fact]
+    public void TheGeneratedProjectsToolManifest_PinsTheProjectsToolAtTheTemplatesVersion()
+    {
+        XDocument tool = XDocument.Load(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Launcher", "CleanArch.Cli", "CleanArch.Cli.csproj"));
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        JsonNode pinned = JsonNode.Parse(File.ReadAllText(GeneratedToolManifestPath()))!["tools"]![tool.Descendants("PackageId").Single().Value.ToLowerInvariant()]
+            .ShouldNotBeNull("The generated project's tool manifest does not pin CleanArch.Cli, so dotnet tool restore leaves dotnet cleanarch out.");
+
+        pinned["version"]!.GetValue<string>().ShouldBe(
+            Text(manifest.RootElement.GetProperty("symbols").GetProperty("templateVersion"), "replaces"),
+            "CleanArch.Cli is pinned at another version than the token templateVersion replaces, so a generated project restores a tool of another release.");
+        pinned["commands"]!.AsArray().Select(command => command!.GetValue<string>()).ShouldBe([tool.Descendants("ToolCommandName").Single().Value]);
+    }
+
+    private static string GeneratedToolManifestPath() =>
+        Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "variants", "project", ".config", "dotnet-tools.json");
 
     [Fact]
     public void TheCheckoutsProjectFile_RecordsWhatTheDefaultGenerationWrites()
@@ -894,14 +910,14 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
-    [InlineData(".template.config", "(!refusedOptions && api)", "dotnet run Tools/Tasks.cs bootstrap")]
+    [InlineData(".template.config", "(!refusedOptions && api)", "dotnet tool restore, then dotnet cleanarch bootstrap")]
     [InlineData(".template.config", "(!refusedOptions && api)", "the network, not Docker")]
     [InlineData(".template.config", "(!refusedOptions && api)", "writes the OpenAPI reference")]
     [InlineData(".template.config", "(!refusedOptions && api)", "git init")]
     [InlineData(".template.config", "(!refusedOptions && api)", "new --setup")]
     [InlineData(".template.config", "(!refusedOptions && !api)", "git init")]
     [InlineData(".template.config", "(!refusedOptions && !api)", "new --setup")]
-    [InlineData(".template.config", "(!refusedOptions && !api)", "dotnet run Tools/Tasks.cs bootstrap")]
+    [InlineData(".template.config", "(!refusedOptions && !api)", "dotnet tool restore, then dotnet cleanarch bootstrap")]
     [InlineData(".template.config", "(!refusedOptions && !api)", "the network, not Docker")]
     [InlineData(".template.config", "(!refusedOptions && scaffoldedAtBootstrap)", "scaffold.json")]
     [InlineData(".template.config", "(!refusedOptions && dotnetClient)", "the client in Src/Presentation")]

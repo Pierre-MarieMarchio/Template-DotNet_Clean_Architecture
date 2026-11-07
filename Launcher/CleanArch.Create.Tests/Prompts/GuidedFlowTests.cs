@@ -16,7 +16,7 @@ namespace CleanArch.Create.Tests.Prompts;
 public sealed partial class GuidedFlowTests : IDisposable
 {
     private const string _created = "The template was created successfully.";
-    private const string _bootstrapInstruction = "Manual instructions: run dotnet run Tools/Tasks.cs bootstrap.";
+    private const string _bootstrapInstruction = "Manual instructions: run dotnet tool restore, then dotnet cleanarch bootstrap.";
     private const string _runIt =
         """
         ## Run it
@@ -24,7 +24,8 @@ public sealed partial class GuidedFlowTests : IDisposable
         You need Docker.
 
         ```bash
-        dotnet run Tools/Tasks.cs bootstrap     # once, after a fresh clone; commit what it changes
+        dotnet tool restore                     # once, after a fresh clone
+        dotnet cleanarch bootstrap              # once, after a fresh clone; commit what it changes
         cp .env.example .env
         docker compose up -d --build --wait
         ```
@@ -88,6 +89,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         string left = Closing(output);
         left.ShouldContain("     cd ./Demo");
         left.ShouldContain("     docker compose up -d --build --wait");
+        left.ShouldNotContain(BootstrapStep.Restore);
         left.ShouldNotContain(BootstrapStep.Command);
         left.ShouldNotContain(EnvironmentFileStep.Command);
         left.ShouldNotContain("```");
@@ -249,8 +251,8 @@ public sealed partial class GuidedFlowTests : IDisposable
         Regex.Count(output, "◊  Authentication").ShouldBe(1);
         output.ShouldNotContain("◊  Bootstrap done");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.Contains("--auth external", StringComparison.Ordinal));
-        _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
-        Closing(output).ShouldContain(BootstrapStep.Command);
+        _processes.CommandLines.ShouldNotContain(BootstrapStep.Command);
+        Order(Closing(output), BootstrapStep.Restore, BootstrapStep.Command);
     }
 
     [Fact]
@@ -431,7 +433,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain("```");
         output.ShouldNotContain(LauncherCommands.Invocation);
         _processes.Calls.ShouldNotContain(call => call.FileName == "git");
-        _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
+        _processes.CommandLines.ShouldNotContain(BootstrapStep.Command);
     }
 
     [Fact]
@@ -542,7 +544,12 @@ public sealed partial class GuidedFlowTests : IDisposable
             };
         }
 
-        if (call.Arguments[0] == "run")
+        if (call.Arguments[0] == "tool")
+        {
+            return new ProcessResult(0, string.Empty);
+        }
+
+        if (call.Arguments[0] == "cleanarch")
         {
             return Bootstrapped();
         }

@@ -1,6 +1,6 @@
 # Getting started
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+Written by `dotnet cleanarch docs-index` from the frontmatter of each page:
 edit the pages, then run it again.
 
 - [First run](first-run.md) - How to go from a fresh clone to a running stack, bootstrapped once, and see its hosts answer.

@@ -1,6 +1,6 @@
 # Reference
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+Written by `dotnet cleanarch docs-index` from the frontmatter of each page:
 edit the pages, then run it again.
 
 - [API reference](api.md) - Every route of the API and every refusal code it answers.

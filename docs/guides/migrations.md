@@ -37,7 +37,7 @@ project holds exactly one context, so naming the project names the context.
 design-time factories read `ConnectionStrings__Default` from the environment and fall back to the
 <!--#if (serverDatabase)-->
 Compose database's address without credentials, so adding or checking a migration needs no running
-host. `database-update` connects: set `ConnectionStrings__Default` to the connection string of
+host. `database update` connects: set `ConnectionStrings__Default` to the connection string of
 `appsettings.Development.json`, or of the database you migrate, before running it.
 <!--#endif-->
 <!--#if (sqlite)-->
@@ -48,41 +48,41 @@ development file `App_Data/appdb.db`, so adding or checking a migration needs no
 
 This project ships no migration. `bootstrap` creates each context's first one, `InitialCreate`,
 under its project's `Migrations` folder, for this project's own model and database; commit it. Its
-step is a task of its own:
+step is a command of its own:
 
 ```bash
-dotnet run Tools/Tasks.cs migration-initial
+dotnet cleanarch bootstrap
 ```
 
 The migration is written for this project's database provider and is not portable to another one.
 A context that already has a model snapshot is left alone, so a second run changes nothing. Until the
-initial migration exists, `migration-add`, `database-update`, `migration-bundle` and `verify` refuse,
+initial migration exists, `migrations add`, `database update`, `migrations bundle` and `verify` refuse,
 and `PendingModelChangesTests` fails.
 
 While no database has applied it, change it rather than stacking migrations: delete the context's
-`Migrations` folder and run `migration-initial` again. Once a database has applied it, add a named migration
+`Migrations` folder and run `bootstrap` again. Once a database has applied it, add a named migration
 instead. Why the first migration is born here is a row of
 [ADR 0001](../decisions/0001-adopt-the-generated-baseline.md).
 
 ## Add a migration
 
 ```bash
-dotnet run Tools/Tasks.cs migration-add <Name>
+dotnet cleanarch migrations add <Name>
 ```
 
-The task targets the business context.
+The command targets the business context.
 <!--#if (localAuth)-->
 `--context auth` targets the identity context instead:
 
 ```bash
-dotnet run Tools/Tasks.cs migration-add <Name> --context auth
+dotnet cleanarch migrations add <Name> --context auth
 ```
 <!--#endif-->
 <!--#if (!localAuth)-->
-`--context auth` names the identity context, which this project does not hold: the task refuses it.
+`--context auth` names the identity context, which this project does not hold: the command refuses it.
 <!--#endif-->
 
-When the model has not changed since the context's last migration, the task deletes the empty
+When the model has not changed since the context's last migration, the command deletes the empty
 migration `dotnet ef` wrote, restores the model snapshot and fails, so nothing is written: a new entity
 needs its schema constant, its set and its `ApplyConfiguration` call in the context first.
 
@@ -91,7 +91,7 @@ take. `dotnet ef` writes the type's empty value as the `defaultValue` of its `Ad
 field's rule may refuse, an empty string or a zero below a bound: set the one the rule accepts in
 the migration before a database applies it.
 <!--#if (!publicApi)-->
-`new-field` sets it itself, from the default each field declares.
+`add field` sets it itself, from the default each field declares.
 <!--#endif-->
 
 ## Check it against the model
@@ -117,15 +117,15 @@ dotnet ef migrations has-pending-model-changes \
 It compares the snapshot with the model and needs no database. `verify` runs it for every context,
 and `PendingModelChangesTests` proves the same inside the suite, which is how CI catches drift.
 <!--#if (localAuth)-->
-`dotnet run Tools/Tasks.cs migration-check` runs it for the business context, or for the
-identity context with `--context auth`; `new-feature` and `new-field` run it before they
-write, so the migration of a feature, or of a field, carries it alone, and `remove-feature --apply`
+`dotnet cleanarch migrations add --check` runs it for the business context, or for the
+identity context with `--context auth`; `add feature` and `add field` run it before they
+write, so the migration of a feature, or of a field, carries it alone, and `remove feature --apply`
 before it removes a feature, so `Remove<Features>` carries the removal alone.
 <!--#endif-->
 <!--#if (!localAuth)-->
-`dotnet run Tools/Tasks.cs migration-check` runs it for the business context; `new-feature` and
-`new-field` run it before they write, so the migration of a feature, or of a field, carries it alone,
-and `remove-feature --apply` before it removes a feature, so `Remove<Features>` carries the removal
+`dotnet cleanarch migrations add --check` runs it for the business context; `add feature` and
+`add field` run it before they write, so the migration of a feature, or of a field, carries it alone,
+and `remove feature --apply` before it removes a feature, so `Remove<Features>` carries the removal
 alone.
 <!--#endif-->
 
@@ -145,11 +145,11 @@ Every other environment refuses to start: this project runs on SQLite, a develop
 <!--#endif-->
 
 ```bash
-dotnet run Tools/Tasks.cs database-update    # the business context, against ConnectionStrings__Default
+dotnet cleanarch database update    # the business context, against ConnectionStrings__Default
 ```
 <!--#if (localAuth)-->
 
-`database-update --context auth` applies the identity context's migrations in the same way.
+`database update --context auth` applies the identity context's migrations in the same way.
 <!--#endif-->
 
 ## Seeding

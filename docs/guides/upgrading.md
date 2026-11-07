@@ -16,11 +16,19 @@ your decision, file by file.
 
 ## Steps
 
+A project generated before `dotnet cleanarch` existed has no tool yet. Add it at the newer
+version, which is the first to publish it: `dotnet new tool-manifest` where `.config` holds no
+manifest, then `dotnet tool install CleanArch.Cli --local --version <newer version>`. Where the
+project has no `cleanarch.json`, run `dotnet cleanarch adopt` first, which writes it from the
+project's files; the report then reads the version it records. The task launcher the project
+holds and its generators are what the report lists under **Removed**, and what replaces each task
+is [the project tool](../reference/cli.md).
+
 1. Read the report:
 
    ```bash
-   dotnet run Tools/Tasks.cs upgrade-report --keep <folder>                  # the latest stable version
-   dotnet run Tools/Tasks.cs upgrade-report --keep <folder> --to <version>   # a given one, a prerelease included
+   dotnet cleanarch upgrade-report --keep <folder>                  # the latest stable version
+   dotnet cleanarch upgrade-report --keep <folder> --to <version>   # a given one, a prerelease included
    ```
 
    It installs the package at both versions from the NuGet sources the NuGet configuration of this
@@ -51,8 +59,8 @@ your decision, file by file.
    and the part here was created already, so take what the new descriptor brings by hand.
 8. Set `template.version` in `cleanarch.json` to the newer version, then pin the project's tool at
    that version with `dotnet tool update CleanArch.Cli --local --version <newer version>`.
-9. Run `dotnet run Tools/Tasks.cs format-fix`, which orders the using directives as bootstrap did,
-   then `dotnet run Tools/Tasks.cs verify`.
+9. Run `dotnet cleanarch format`, which orders the using directives as bootstrap did,
+   then `dotnet cleanarch verify`.
 
 ## What the report compares
 
@@ -87,7 +95,7 @@ newer version under the same name and options in a folder of its own, and compar
 
 ## Check
 
-`dotnet run Tools/Tasks.cs verify` passes, and `dotnet run Tools/Tasks.cs upgrade-report` says no
+`dotnet cleanarch verify` passes, and `dotnet cleanarch upgrade-report` says no
 stable version is newer than the one `cleanarch.json` records.
 
 ## Undo

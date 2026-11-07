@@ -130,7 +130,7 @@ them, with a database principal that holds DDL rights; the hosts' runtime users 
 <!--#endif-->
 
 ```bash
-dotnet run Tools/Tasks.cs migration-bundle
+dotnet cleanarch migrations bundle
 ```
 
 <!--#if (localAuth)-->

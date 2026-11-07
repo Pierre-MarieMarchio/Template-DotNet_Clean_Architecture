@@ -111,7 +111,7 @@ A feature that brings a risk of its own adds a row here.
   meet; one test that reads every member of every response the feature serves.
 <!--#if (api)-->
 - **Contract:** the feature's codes as rows of [the API reference](../reference/api.md#error-codes),
-  and the OpenAPI reference rewritten with `dotnet run Tools/Tasks.cs openapi` and read in the review.
+  and the OpenAPI reference rewritten with `dotnet cleanarch openapi` and read in the review.
 - **End-to-end:** nothing, unless the feature changes what the stack runs: a new service, a mail, a
   relay.
 <!--#endif-->
@@ -144,17 +144,17 @@ linked into the in-memory and integration suites.
 
 <!--#if (api)-->
 ```bash
-dotnet run Tools/Tasks.cs test                                          # the solution
-dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
+dotnet cleanarch test                                          # the solution
+dotnet cleanarch test --no-integration                         # the projects that need no Docker
 dotnet test --project Tests/Architecture/AT.Architecture.Tests # the architecture rules alone
-dotnet run Tools/Tasks.cs openapi                                       # rewrite the OpenAPI reference after a contract change
-dotnet run Tools/Tasks.cs end-to-end                                    # the end-to-end suite against a stack of its own
+dotnet cleanarch openapi                                       # rewrite the OpenAPI reference after a contract change
+dotnet cleanarch end-to-end                                    # the end-to-end suite against a stack of its own
 ```
 <!--#endif-->
 <!--#if (!api)-->
 ```bash
-dotnet run Tools/Tasks.cs test                                          # the solution
-dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
+dotnet cleanarch test                                          # the solution
+dotnet cleanarch test --no-integration                         # the projects that need no Docker
 dotnet test --project Tests/Architecture/AT.Architecture.Tests # the architecture rules alone
 ```
 <!--#endif-->
@@ -204,18 +204,18 @@ docker rm -f $(docker ps -aq --filter label=org.testcontainers=true)
 
 ## The end-to-end suite
 
-`dotnet run Tools/Tasks.cs end-to-end` builds and starts the Compose stack from `.env.example` under a
+`dotnet cleanarch end-to-end` builds and starts the Compose stack from `.env.example` under a
 project name of its own, waits until every service is healthy, runs the suite, prints the stack's
 logs on a failure, then removes the stack with its volumes. `--keep-stack` leaves it running. The
 development stack keeps its data, but it holds the same ports: stop it first.
 
 The suite reads the ports from the environment, then from `.env.example`, as Compose does, so a
-variable set before the task moves the stack and the suite together.
+variable set before the command moves the stack and the suite together.
 <!--#if (anyWeb)-->
 It finds every web app by its `WEB_<APP>_HOST_PORT` line.
 <!--#endif-->
 <!--#if (externalAuth)-->
-The task names an unreachable placeholder provider when `EXTERNAL_AUTH_AUTHORITY` is unset: no test
+The command names an unreachable placeholder provider when `EXTERNAL_AUTH_AUTHORITY` is unset: no test
 signs in, and the API starts.
 <!--#endif-->
 <!--#if (files)-->
@@ -239,7 +239,7 @@ The project sets `IsTestingPlatformApplication` to `false`, so `dotnet test` ove
 with it `verify` and `coverage`, leaves it out; it stays in `AppTemplate.slnx`, so it builds and is
 formatted with the rest. `test --no-integration` and `check` build it, with every project that needs Docker, and name it as built and not run; `test --no-integration` runs only the projects that set `IsTestProject` and need no Docker.
 <!--#if (ci)-->
-CI runs the task in the `end-to-end` job, once the Compose manifest is checked, and fails on a red
+CI runs the command in the `end-to-end` job, once the Compose manifest is checked, and fails on a red
 test.
 <!--#endif-->
 <!--#endif-->
@@ -289,11 +289,11 @@ resolves.
 ## Coverage
 
 ```bash
-dotnet run Tools/Tasks.cs coverage
+dotnet cleanarch coverage
 ```
 
 It runs the suite with coverage and compares the merged line coverage with the floor in
-`coverage.minimum`. `Tools/CoverageGate.cs` merges the per-module Cobertura reports as a union over
+`coverage.minimum`. The command merges the per-module Cobertura reports as a union over
 (file, line), so an assembly two modules exercise counts once. Settings reach the platform through
 `--coverage-settings`; `--settings` is accepted and ignored.
 
@@ -372,7 +372,7 @@ Async calls pass `TestContext.Current.CancellationToken`; NSubstitute placeholde
 <!--#endif-->
 - A unit-test project with no test exits with code 8; the domain and application projects ignore it
   only while they hold no test folder.
-- `.cs` files are UTF-8 with BOM, and one without it fails `format`; `.md` files are UTF-8 without
+- `.cs` files are UTF-8 with BOM, and one without it fails `format --check`; `.md` files are UTF-8 without
   BOM, and one with it, or with a CR, fails `MarkdownEncodingTests`.
 - An unused `using` and a stale `<see cref="…"/>` fail the build, since every project generates its
   documentation file.

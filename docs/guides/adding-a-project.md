@@ -62,7 +62,7 @@ A `.Core` project, an SDK half the layer shares, also sets `IsSdkProject`, as
 
 ## Check
 
-`dotnet run Tools/Tasks.cs test --no-integration` passes, and `docker build` of each host that
+`dotnet cleanarch test --no-integration` passes, and `docker build` of each host that
 references the project, as [deployment](deployment.md#the-image) shows, restores it.
 
 ## Undo

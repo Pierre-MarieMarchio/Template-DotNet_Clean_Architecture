@@ -20,7 +20,7 @@ past it answers `400`; one that shapes the work is read by the use case.
 ## The command
 
 ```bash
-dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>, <Key>:<type>"
+dotnet cleanarch add setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>, <Key>:<type>"
 ```
 
 `<Features>` is a feature that a host registers, and `<Section>` the new section's name, without
@@ -126,7 +126,7 @@ Where the project holds no `Add<Features>` in its `ApplicationModule`, follow th
 step 7, which calls `IStartupValidator.Validate()` without a database. A started API proves the same
 only with the Compose stack's database running: in Development it migrates before it validates the
 options, so without a database the migration stops it, whatever the key holds. With the database
-running, `<Section>__<Key>=0 dotnet run Tools/Tasks.cs run` stops before serving and names
+running, `<Section>__<Key>=0 dotnet cleanarch run` stops before serving and names
 `<Section>:<Key>`.
 <!--#endif-->
 <!--#if (!api)-->

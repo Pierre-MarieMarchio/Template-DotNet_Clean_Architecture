@@ -269,8 +269,8 @@ task stops:
 
   ```markdown
   The .NET client of `Src/Presentation/AT.Presentation.Client` is generated from the reference itself:
-  `dotnet run Tools/Tasks.cs api-client` rewrites its `Generated/` folder with the Kiota the tool
-  manifest pins, and `dotnet run Tools/Tasks.cs api-client --check`, which `verify` runs, fails while
+  `dotnet cleanarch openapi` rewrites its `Generated/` folder with the Kiota the tool
+  manifest pins, and `dotnet cleanarch openapi --check`, which `verify` runs, fails while
   the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
   ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
   ```

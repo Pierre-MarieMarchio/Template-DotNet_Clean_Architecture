@@ -702,7 +702,7 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 
   ## Web pages for it
 
-  `new-feature` and `new-use-case` run `pnpm api` in `Src/Web` once the API serves the routes; run it
+  `add feature` and `add use-case` run `openapi`, which runs `pnpm api <reference>`, once the API serves the routes; run it
   yourself after a route you change by hand. The generated client then holds their types, and an app
   calls them through it. [The web front end](../features/web-frontend.md#calling-the-api)
   shows the call.
@@ -776,7 +776,7 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   add:
 
   ```markdown
-  With a web workspace, that rewrite includes `pnpm api` in `Src/Web`, which needs Node.js and pnpm.
+  With a web workspace, that rewrite includes `pnpm api <reference>` in `Src/Web`, which needs Node.js and pnpm.
   ```
 
 - in `docs/guides/build-and-ci.md`, after the line:
@@ -850,7 +850,7 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/guides/testing.md`, after the line:
 
   ```markdown
-  variable set before the task moves the stack and the suite together.
+  variable set before the command moves the stack and the suite together.
   ```
 
   add:

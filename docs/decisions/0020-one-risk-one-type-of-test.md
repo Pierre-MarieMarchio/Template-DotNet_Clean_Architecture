@@ -45,7 +45,7 @@ ever passed and let the review catch the rest.
 <!--#endif-->
 <!--#if (api)-->
 - **The stack as shipped is held by a small end-to-end suite**, one test per flow, run over HTTP
-  against the Compose stack by `dotnet run Tools/Tasks.cs end-to-end`, apart from `verify`: no lower type
+  against the Compose stack by `dotnet cleanarch end-to-end`, apart from `verify`: no lower type
   fails for a broken Compose file, a mail that never reaches the inbox or a relay that drops a
   request, and none of them needs the whole stack built.
 <!--#endif-->
@@ -73,7 +73,7 @@ ever passed and let the review catch the rest.
   whole surface pick it up.
 <!--#if (api)-->
 - A change to a route, a contract or a summary lands with its new OpenAPI reference, written by
-  `dotnet run Tools/Tasks.cs openapi`, and the review reads the difference a client will see.
+  `dotnet cleanarch openapi`, and the review reads the difference a client will see.
 <!--#endif-->
 <!--#if (postgreSql)-->
 - Ownership and a controller's HTTP behaviour are proved against PostgreSQL, so a run without Docker

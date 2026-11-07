@@ -18,8 +18,8 @@ a build order and stale output.
 
 ## Decision
 
-- **The schema is generated from the API's own document.** `pnpm api` builds the API with document
-  generation on and turns the OpenAPI document into the TypeScript schema of the `api-client`
+- **The schema is generated from the API's own document.** `pnpm api` has `dotnet cleanarch openapi` build the API with document
+  generation on, then turns the OpenAPI document into the TypeScript schema of the `api-client`
   package with `openapi-typescript`. The schema is committed, so an app type-checks without the .NET
   SDK.
 <!--#if (ci)-->

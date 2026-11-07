@@ -18,10 +18,11 @@ From `Src/Web`, after `corepack enable` once per machine:
 | <!--#endif--> |
 | After a change to the API's routes or bodies | `pnpm api` |
 | Before calling a change done | `pnpm lint`, `pnpm test`, `pnpm build` |
-| After a change to an app's page, headers or relay | `dotnet run Tools/Tasks.cs end-to-end`, which ends with `pnpm --filter "*browser-smoke" smoke` |
+| After a change to an app's page, headers or relay | `dotnet cleanarch end-to-end`, which ends with `pnpm --filter "*browser-smoke" smoke` |
 
-`pnpm api` builds the API, so it needs the .NET SDK as well as Node; `pnpm api --no-build` reads the
-API's last build instead.
+`pnpm api` runs `dotnet cleanarch openapi`, which builds the API and writes the OpenAPI reference,
+then writes the schema from it, so it needs the .NET SDK as well as Node; `pnpm api --no-build` reads
+the API's last build instead.
 
 ## Files not edited by hand
 
@@ -37,12 +38,12 @@ API's last build instead.
 ## Rules
 
 <!--#if (webNodeFramework)-->
-- A framework app starts from its framework's official CLI, which `dotnet run Tools/Tasks.cs web-scaffold`
-  runs once; from then on the app is this project's own, and `web-scaffold` leaves it alone.
+- A framework app starts from its framework's official CLI, which `bootstrap` and `dotnet cleanarch add web-app`
+  run once; from then on the app is this project's own, and they leave it alone.
 <!--#endif-->
 <!--#if (webBlazorWasm)-->
-- The WebAssembly app starts from `dotnet new blazorwasm`, which `dotnet run Tools/Tasks.cs web-scaffold`
-  runs once; it is a .NET project of the solution, built and formatted with it, and calls the API
+- The WebAssembly app starts from `dotnet new blazorwasm`, which `bootstrap` and `dotnet cleanarch add web-app`
+  run once; it is a .NET project of the solution, built and formatted with it, and calls the API
   through the .NET client of `Src/Presentation/AT.Presentation.Client`, never through `@app-template/api-client`.
 <!--#endif-->
 <!--#if (webPlaceholder)-->

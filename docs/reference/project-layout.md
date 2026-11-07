@@ -16,7 +16,7 @@ A project's folder is its name with this project's name replaced by its initials
 the pages: the capital letters of the name in order, or a part's first letter where the part has
 none, so a product named Acme.Shop keeps its project Acme.Shop.Application.Auth in
 Src/Application/AS.Application.Auth. A module promoted to a project of its own follows the rule, and
-a second product goes in a root folder of its own, since the tasks find a project by its
+a second product goes in a root folder of its own, since the tool finds a project by its
 `cleanarch.json` ([ADR 0029](../decisions/0029-a-project-folder-carries-the-products-initials-not-its-name.md)).
 
 Every project has the same shape: `Common/` for what knows no feature, `Features/<Feature>/` for the
@@ -41,7 +41,7 @@ their markup, in the shape `dotnet new wpf` gives them; a file named `<Type>.xam
 `<Type>`.
 <!--#endif-->
 <!--#if (dotnetClient)-->
-The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
+The .NET client's root also holds `Generated/`, which `dotnet cleanarch openapi`
 writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
 <!--#endif-->
 
@@ -218,7 +218,7 @@ Tests/                                  one test project per source project, mir
 ## The project file
 
 `cleanarch.json`, at the root, records what this project was generated with and what was added
-since. `dotnet run Tools/Tasks.cs` finds the root by it and reads the options there; `new-feature`
+since. `dotnet cleanarch` finds the root by it and reads the options there; `add feature`
 reads `database` to write the test of the feature's table, which a schema holds on PostgreSQL and SQL
 Server and which carries the schema in its name on SQLite.
 
@@ -231,10 +231,10 @@ Server and which carries the schema in its name on SQLite.
 | `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience`, `rendering` and host `port` each was added with, and the `packages` added to it |
 | `presentation` | every presentation project under `Src/Presentation` but `Presentation.Core` and the .NET client, the API and the worker among them: its `name`, the part of its project's name after this project's name, and its `framework` |
 
-The options are a fact about the day of generation, and no task rewrites them: removing an example
-feature leaves `examples` as it was. A part added later is recorded by the task that joins it,
-`web-join` for a web app or package and `presentation-join` for a presentation project. A key this
-table does not name is kept by every task that writes the file. `ProjectFileTests` fails when the
+The options are a fact about the day of generation, and no command rewrites them: removing an example
+feature leaves `examples` as it was. A part added later is recorded by the command that joins it,
+`add web-app` for a web app or package and `add presentation` for a presentation project. A key this
+table does not name is kept by every command that writes the file. `ProjectFileTests` fails when the
 file and the tree disagree.
 <!--#if (localAuth && api)-->
 

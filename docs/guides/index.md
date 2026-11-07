@@ -7,7 +7,7 @@ edit the pages, then run it again.
 - [Adding a pipeline behaviour](adding-a-pipeline-behaviour.md) - How to add a behaviour that runs around every use case, at a place in the pipeline a test holds.
 - [Adding a project](adding-a-project.md) - How to add a project to the solution so that it builds, ships in each host's image, has its tests and is read by every structural rule.
 - [Adding a setting](adding-a-setting.md) - How to add a setting a deployment chooses, bound from its own section and checked before the host serves anything.
-- [Build and CI](build-and-ci.md) - Which task builds, checks and tests this project, what the gate holds, and what each workflow runs.
+- [Build and CI](build-and-ci.md) - Which command builds, checks and tests this project, what the gate holds, and what each workflow runs.
 - [Deployment](deployment.md) - How to ship this project to an environment other than your machine, from its images and migrations to its secrets and instances.
 - [Migrations](migrations.md) - How to create, check and apply the migrations of each database context.
 - [Reaching another feature](reaching-another-feature.md) - How one feature reads, changes or reacts to another through a port or a domain event, so that each stays removable.

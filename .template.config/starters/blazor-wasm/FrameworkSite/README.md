@@ -444,7 +444,7 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   add:
 
   ```markdown
-  The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
+  The .NET client's root also holds `Generated/`, which `dotnet cleanarch openapi`
   writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
   ```
 

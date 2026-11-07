@@ -20,12 +20,19 @@ or write a public feature by hand from the steps below.
 <!--#endif-->
 ## Generate it
 
+<!--#if (canAddFeature)-->
 ```bash
 dotnet cleanarch add feature <Features> <Feature> --access owner|shared \
     [--deletion delete|anonymise] [--operations get,list,create,update,delete] \
     [--model record|aggregate] [--concurrency none|etag] [--fields "<Name:type>, ..."] [--dry-run]
 ```
 
+<!--#endif-->
+<!--#if (!canAddFeature)-->
+In a project that authenticates its callers, the generator takes the options below; here they
+describe what a feature written by hand holds.
+
+<!--#endif-->
 `<Features>` is the folder, plural (`Orders`); `<Feature>` the type, singular (`Order`).
 
 | Option | Default | Meaning |
@@ -42,11 +49,13 @@ Every refused combination is refused before anything is written, with the change
 
 ### Fields
 
+<!--#if (canAddFeature)-->
 ```bash
 dotnet cleanarch add feature Projects Project --access owner --deletion delete \
     --fields "Title:string(120), Notes:text?, Budget:decimal(12,2)>=0, Due:DateOnly"
 ```
 
+<!--#endif-->
 `--fields` lists the fields as `Name:type`, comma separated. A name is PascalCase; a type is one of
 this closed set, and anything else is refused with the character where reading stopped and what it
 expected:

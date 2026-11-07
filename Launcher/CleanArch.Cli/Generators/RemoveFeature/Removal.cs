@@ -41,7 +41,7 @@ internal sealed class Removal(Analysis analysis, GenerationContext context) : Ge
         Output.WriteLine();
         Output.WriteLine(
             analysis.Blockers.Count == 0
-                ? $"Nothing was changed. --apply removes what is listed above: dotnet run Tools/Tasks.cs remove-feature {analysis.Features} --apply"
+                ? $"Nothing was changed. --apply removes what is listed above: {Tool.Name} remove feature {analysis.Features} --apply"
                 : "Nothing was changed. --apply would refuse, for the reasons listed under Blockers.");
 
         return Succeeded;

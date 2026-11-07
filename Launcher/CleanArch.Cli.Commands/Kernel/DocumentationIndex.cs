@@ -65,7 +65,7 @@ internal static class DocumentationIndex
         {
             throw new InvalidOperationException(
                 $"The documentation index is out of date: {string.Join("; ", problems)}. "
-                + "Run `dotnet run Tools/Tasks.cs docs-index` and commit what it writes.");
+                + $"Run `{Tool.Name} docs-index` and commit what it writes.");
         }
 
         output.WriteLine($"The {indexes.Count} index files under {_docsFolder}/ list their folders' pages as their frontmatter says.");

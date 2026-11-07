@@ -58,7 +58,7 @@ internal static class ReportWriter
             ? "--keep <folder> keeps the two generations outside the project, so a file to take can be copied from there."
             : $"The two generations are kept in {report.Kept}: take a file from {Path.Combine(report.Kept, report.To)}, "
                 + $"and merge one three ways with git merge-file <path> {Path.Combine(report.Kept, report.From)}/<path> {Path.Combine(report.Kept, report.To)}/<path>.");
-        output.WriteLine("After taking files, run `dotnet run Tools/Tasks.cs format-fix`: it orders the using directives as bootstrap did.");
+        output.WriteLine($"After taking files, run `{Tool.Name} format`: it orders the using directives as bootstrap did.");
         output.WriteLine();
         output.WriteLine($"Changelog after {report.From} up to {report.To}");
         output.WriteLine(report.Changelog);

@@ -439,7 +439,7 @@ public sealed partial class NewFeatureTests
         var check = InvokeField(pending, Recording([], failing: "dotnet run Tools/Tasks.cs migration-check"), "Things", "Budget:decimal(12,2)>=0=5");
 
         expect(
-            check.Code == 1 && Same(untouched, Snapshot(pending)) && check.Error.Contains("migration-add <Name>", StringComparison.Ordinal),
+            check.Code == 1 && Same(untouched, Snapshot(pending)) && check.Error.Contains("dotnet cleanarch migrations add <Name>", StringComparison.Ordinal),
             "A model change no migration holds did not stop new-field before it wrote.");
 
         Directory.Delete(System.IO.Path.Combine(pending, _thingMigrations), recursive: true);

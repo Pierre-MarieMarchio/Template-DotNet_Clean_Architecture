@@ -33,7 +33,7 @@ internal static class FeatureCode
         if (missing.Length > 0)
         {
             return $"{string.Join(" and ", missing)} has no initial migration, so the migration of {spec.Features} would have "
-                + "none to follow. Run `dotnet run Tools/Tasks.cs bootstrap`, or `dotnet run Tools/Tasks.cs migration-initial`, "
+                + $"none to follow. Run `{Tool.Name} bootstrap`, which creates it, "
                 + "and commit the migrations first (docs/guides/migrations.md).";
         }
 

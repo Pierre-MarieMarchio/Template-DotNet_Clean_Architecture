@@ -5,7 +5,7 @@ public sealed class EnvironmentFileStep()
         "Copy .env",
         "Copies .env.example to .env, which git ignores. The defaults work as they are on your machine.",
         "Copying .env.example to .env",
-        Command)
+        [Command])
 {
     public const string Command = "cp .env.example .env";
 

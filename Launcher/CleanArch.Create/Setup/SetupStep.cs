@@ -2,7 +2,7 @@
 
 namespace CleanArch.Create.Setup;
 
-public abstract class SetupStep(string title, string description, string running, string? replaces)
+public abstract class SetupStep(string title, string description, string running, IReadOnlyList<string> replaces)
 {
     public string Title { get; } = title;
 
@@ -10,7 +10,7 @@ public abstract class SetupStep(string title, string description, string running
 
     public string Running { get; } = running;
 
-    public string? Replaces { get; } = replaces;
+    public IReadOnlyList<string> Replaces { get; } = replaces;
 
     internal abstract SetupOutcome Run(SetupContext context, IReadOnlyList<SetupOutcome> before);
 

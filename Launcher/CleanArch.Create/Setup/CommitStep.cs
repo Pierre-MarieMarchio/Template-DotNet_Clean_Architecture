@@ -1,7 +1,7 @@
 ﻿namespace CleanArch.Create.Setup;
 
 public sealed class CommitStep(string title, string description, string running, bool initialises)
-    : SetupStep(title, description, running, null)
+    : SetupStep(title, description, running, [])
 {
     public const string BootstrapMessage = "chore: bootstrap";
 

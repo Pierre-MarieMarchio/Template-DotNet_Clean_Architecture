@@ -20,23 +20,58 @@ internal static class TestCommand
             Description = "Build every test project, and run only the ones that set IsTestProject and reference neither "
                 + "Testcontainers nor Aspire.Hosting.Testing, so no Docker daemon is needed; it names each project it built and did not run.",
         };
+        Option<string> summary = new("--summary")
+        {
+            Description = $"Write a TRX report of each test module under {TestSummary.ResultsFolder}, then print their totals and append them, as Markdown, to this file; a run that executed no test fails.",
+        };
+        Option<bool> reportsOnly = new("--reports-only")
+        {
+            Description = $"Total the TRX reports already under {TestSummary.ResultsFolder}, without running the tests; a run that executed no test fails.",
+        };
         command.Options.Add(noIntegration);
+        command.Options.Add(summary);
+        command.Options.Add(reportsOnly);
         BuildSettings.Options settings = BuildSettings.Add(command);
         if (context.Project is { } project)
         {
-            command.SetAction(parseResult => Run(project, context.Shell(parseResult), parseResult.GetValue(noIntegration), settings.Of(parseResult)));
+            command.SetAction(parseResult =>
+            {
+                Shell shell = context.Shell(parseResult);
+                IReadOnlyList<string>? summaries = Summaries(parseResult.GetValue(summary), parseResult.GetValue(reportsOnly), context.WorkingDirectory);
+                return parseResult.GetValue(reportsOnly)
+                    ? TestRuns.Guarded(shell, () => TestSummary.Write(shell, project.Root, summaries!))
+                    : Run(project, shell, parseResult.GetValue(noIntegration), settings.Of(parseResult), summaries);
+            });
         }
 
         return command;
     }
 
-    private static int Run(LocatedProject project, Shell shell, bool dockerFreeOnly, BuildSettings settings) =>
+    private static IReadOnlyList<string>? Summaries(string? summary, bool reportsOnly, string workingDirectory)
+    {
+        if (summary is null && !reportsOnly)
+        {
+            return null;
+        }
+
+        string? given = summary is null ? null : Path.GetFullPath(summary, workingDirectory);
+        return [.. new[] { given, Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY") }.OfType<string>().Where(path => path.Length > 0)];
+    }
+
+    private static int Run(LocatedProject project, Shell shell, bool dockerFreeOnly, BuildSettings settings, IReadOnlyList<string>? summaries) =>
         TestRuns.Guarded(shell, () =>
         {
+            if (summaries is not null)
+            {
+                TestSummary.ForgetEarlierReports(project.Root);
+            }
+
             Selection selection = Select(project, shell.Output, dockerFreeOnly);
             try
             {
-                return Execute(project, shell, settings, selection);
+                int exit = Execute(project, shell, settings, selection, summaries is null ? [] : TestSummary.ReportOptions);
+                int summarised = summaries is null ? ExitCode.Succeeded : TestSummary.Write(shell, project.Root, summaries);
+                return exit != ExitCode.Succeeded ? exit : summarised;
             }
             finally
             {
@@ -69,20 +104,20 @@ internal static class TestCommand
         return new Selection(run, build, leavesOut);
     }
 
-    private static int Execute(LocatedProject project, Shell shell, BuildSettings settings, Selection selection)
+    private static int Execute(LocatedProject project, Shell shell, BuildSettings settings, Selection selection, IReadOnlyList<string> reporting)
     {
         string root = project.Root;
         string solution = SolutionOf(project);
         string target = ProjectPath.Relative(root, selection.RunFilter ?? solution);
         if (settings.MaxCpuCount is null && !selection.LeavesOut)
         {
-            return shell.Run(Dotnet.Test(root, target, settings.Configuration));
+            return shell.Run(Dotnet.Test(root, target, settings.Configuration, reporting));
         }
 
         return ExitCode.FirstFailureOf(
         [
             () => shell.Run(Dotnet.Build(root, ProjectPath.Relative(root, selection.BuildFilter ?? selection.RunFilter ?? solution), settings.Configuration, settings.Nodes)),
-            () => shell.Run(Dotnet.Test(root, target, settings.Configuration, ["--no-build", .. settings.Modules])),
+            () => shell.Run(Dotnet.Test(root, target, settings.Configuration, ["--no-build", .. settings.Modules, .. reporting])),
         ]);
     }
 

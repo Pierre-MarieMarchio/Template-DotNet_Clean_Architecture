@@ -3,11 +3,48 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
+[Collection(ProcessWideState.Name)]
 public sealed class TestCommandTests : IDisposable
 {
+    private const string _stepSummary = "GITHUB_STEP_SUMMARY";
+
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly FakeDotnet _dotnet = new();
+    private readonly string? _savedStepSummary = Environment.GetEnvironmentVariable(_stepSummary);
+
+    public TestCommandTests() => Environment.SetEnvironmentVariable(_stepSummary, null);
+
+    [Fact]
+    public void Test_WithReportsOnly_TotalsTheTrxReportsAlreadyWritten_AppendsThemToTheSummary_AndRunsNothing()
+    {
+        using var project = SampleSolution.WithSolution();
+        Trx(project, "one/a.trx", total: 10, passed: 7, failed: 2, notExecuted: 1);
+        Trx(project, "two/b.trx", total: 5, passed: 5, failed: 0, notExecuted: 0);
+        File.WriteAllText(Path.Combine(project.Folder("TestResults/two"), "unfinished.trx"), "<TestRun />");
+        File.WriteAllText(Path.Combine(project.Root, "summary.md"), "Before.\n");
+
+        Run(["test", "--reports-only", "--summary", "summary.md"], project.Root).ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
+
+        _output.ToString().ShouldContain("Read 3 TRX file(s) under TestResults.");
+        File.ReadAllText(Path.Combine(project.Root, "summary.md"))
+            .ShouldBe("Before.\n### Test results\n\n| Total | Passed | Failed | Skipped |\n|---:|---:|---:|---:|\n| 15 | 12 | 2 | 1 |\n");
+        _dotnet.Calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Test_WithASummary_ReportsEachModule_ForgetsEarlierReports_AndFailsARunThatExecutedNoTest()
+    {
+        using var project = SampleSolution.WithSolution();
+        SampleSolution.AddTestProject(project, "Tests/Unit", "A.Unit.csproj", SampleSolution.UnitProject);
+        Trx(project, "earlier/a.trx", total: 4, passed: 4, failed: 0, notExecuted: 0);
+
+        Run(["test", "--summary", "summary.md"], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _dotnet.Calls.ShouldBe(["test --solution Acme.Shop.slnx --configuration Debug --results-directory TestResults --report-xunit-trx"]);
+        _error.ToString().ShouldContain("The run executed no test.");
+        File.ReadAllText(Path.Combine(project.Root, "summary.md")).ShouldContain("| 0 | 0 | 0 | 0 |");
+    }
 
     [Fact]
     public void Test_NoIntegration_BuildsEveryTestProjectAndRunsOnlyTheDockerFreeOnes()
@@ -106,8 +143,25 @@ public sealed class TestCommandTests : IDisposable
 
     public void Dispose()
     {
+        Environment.SetEnvironmentVariable(_stepSummary, _savedStepSummary);
         _output.Dispose();
         _error.Dispose();
+    }
+
+    private static void Trx(SampleProject project, string relative, int total, int passed, int failed, int notExecuted)
+    {
+        string path = Path.Combine(project.Root, "TestResults", relative);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(
+            path,
+            $"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+              <ResultSummary outcome="Completed">
+                <Counters total="{total}" executed="{total - notExecuted}" passed="{passed}" failed="{failed}" notExecuted="{notExecuted}" />
+              </ResultSummary>
+            </TestRun>
+            """);
     }
 
     private int Run(string[] arguments, string workingDirectory) =>

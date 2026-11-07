@@ -201,13 +201,13 @@ task stops:
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  other tasks assume all five.
+  migration, and the other commands assume it.
   ```
 
   add:
 
   ```markdown
-  It first creates the presentation project's pages with `dotnet run Tools/Tasks.cs presentation-scaffold`.
+  It first creates the presentation project's pages.
   ```
 
 <!--#endif-->

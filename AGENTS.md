@@ -31,72 +31,71 @@ once before a change that adds a type; [the documentation index](docs/README.md)
 ## Commands
 
 <!--#if (api)-->
-From the repository root. Right after generating, before anything else, run `bootstrap` and commit
-what it writes: it formats the usings the rename reordered, writes the documentation index and the
-OpenAPI reference, restores the local tools, with the project's own `dotnet cleanarch` pinned at the
-template's version among them, and creates each context's initial migration, and the
-other tasks assume all five.
+From the repository root. Right after generating, before anything else, run `dotnet tool restore`,
+which restores the project's own `dotnet cleanarch`, pinned at the template's version, then
+`dotnet cleanarch bootstrap`, and commit what it writes: it formats the usings the rename reordered,
+writes the documentation index and the OpenAPI reference, and creates each context's initial
+migration, and the other commands assume it.
 <!--#endif-->
 <!--#if (!api)-->
-From the repository root. Right after generating, before anything else, run `bootstrap` and commit
-what it writes: it formats the usings the rename reordered, writes the documentation index,
-restores the local tools, with the project's own `dotnet cleanarch` pinned at the template's
-version among them, and creates each context's initial migration, and the other tasks assume
-all four.
+From the repository root. Right after generating, before anything else, run `dotnet tool restore`,
+which restores the project's own `dotnet cleanarch`, pinned at the template's version, then
+`dotnet cleanarch bootstrap`, and commit what it writes: it formats the usings the rename reordered,
+writes the documentation index and creates each context's initial migration, and the other commands
+assume it.
 <!--#endif-->
 <!--#if (presentationBlazorServer || presentationAvalonia)-->
-It first creates the presentation project's pages with `dotnet run Tools/Tasks.cs presentation-scaffold`.
+It first creates the presentation project's pages.
 <!--#endif-->
 <!--#if (presentationMcp)-->
-It first adds the MCP server to the solution with `dotnet run Tools/Tasks.cs presentation-scaffold`.
+It first adds the MCP server to the solution.
 <!--#endif-->
 <!--#if (dotnetClient)-->
-It then writes the .NET client from the OpenAPI reference with `dotnet run Tools/Tasks.cs api-client`.
+It then writes the .NET client from the OpenAPI reference.
 <!--#endif-->
-[The project tool](docs/reference/cli.md) says which of these tasks `dotnet cleanarch` runs as a
-command of its own, and which still run through `Tools/Tasks.cs`.
+[The project tool](docs/reference/cli.md) says what each command does and when it is refused.
 
 | When | Command | Needs |
 |---|---|---|
-| Once, right after generating | `dotnet run Tools/Tasks.cs bootstrap` | the network |
-| While you work | `dotnet run Tools/Tasks.cs check` (what you touched: format, build, architecture and unit tests) | nothing |
-| Over the whole tree, without Docker | `dotnet run Tools/Tasks.cs test --no-integration` | nothing |
+| Once, right after generating | `dotnet tool restore`, then `dotnet cleanarch bootstrap` | the network |
+| While you work | `dotnet cleanarch check` (what you touched: format, build, architecture and unit tests) | nothing |
+| Over the whole tree, without Docker | `dotnet cleanarch test --no-integration` | nothing |
 | The structural rules alone | `dotnet test --project Tests/Architecture/AT.Architecture.Tests` | nothing |
-| After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` (commit apart what it rewrites in files you did not touch; it names each name it cannot fix) | nothing |
-| After adding, removing or renaming a page under `docs/`, or changing its frontmatter | `dotnet run Tools/Tasks.cs docs-index` | nothing |
-| After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
+| After creating or moving a file | `dotnet cleanarch format` (commit apart what it rewrites in files you did not touch; it names each name it cannot fix) | nothing |
+| After adding, removing or renaming a page under `docs/`, or changing its frontmatter | `dotnet cleanarch docs-index` | nothing |
+| After changing the model | `dotnet cleanarch migrations add <Name>` | the initial migration bootstrap creates |
 | <!--#if (dotnetClient)--> |
-| After changing a route or a contract | `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client` | the tools bootstrap restores |
+| After changing a route or a contract | `dotnet cleanarch openapi`, which writes the OpenAPI reference and the .NET client | the tools `dotnet tool restore` restores |
 | <!--#endif--> |
 | <!--#if (anyWeb)--> |
-| After changing a route or a contract, with the web workspace | `pnpm api` in `Src/Web`, after `openapi` | the .NET SDK, Node.js and pnpm |
+| After changing a route or a contract, with the web workspace | `dotnet cleanarch openapi`, which also runs `pnpm api <reference>` | the .NET SDK, Node.js and pnpm |
 | <!--#endif--> |
 | <!--#if (canAddFeature)--> |
-| After adding a field to a feature `new-feature --fields` generated | `dotnet run Tools/Tasks.cs new-field <Features> "<Name>:<type>=<default>"` | the feature's manifest, which records its fields |
-| After adding a feature's setting | `dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>"` | the feature registered in a host |
-| After adding a domain event | `dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>`, or `--unconsumed "<reason>"` | the feature in the rich shape |
+| After adding a field to a feature `add feature --fields` generated | `dotnet cleanarch add field <Features> "<Name>:<type>=<default>"` | the feature's manifest, which records its fields |
+| After adding a feature's setting | `dotnet cleanarch add setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>"` | the feature registered in a host |
+| After adding a domain event | `dotnet cleanarch add event <Features> <Event> --consumer <Features>:<Reaction>`, or `--unconsumed "<reason>"` | the feature in the rich shape |
 | <!--#endif--> |
-| Every task and option | `dotnet run Tools/Tasks.cs help [<task>]`; `-m:<N>` caps build and test parallelism | nothing |
+| Every command and option | `dotnet cleanarch help`, `dotnet cleanarch <command> --help`; `-m:<N>` caps build and test parallelism | nothing |
 | <!--#if (!anyWeb)--> |
-| Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
+| Before calling a change done | `dotnet cleanarch verify`, then `dotnet cleanarch coverage` | Docker, the tools `dotnet tool restore` restores |
 | <!--#endif--> |
 | <!--#if (anyWeb)--> |
-| Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores, Node.js and pnpm |
+| Before calling a change done | `dotnet cleanarch verify`, then `dotnet cleanarch coverage` | Docker, the tools `dotnet tool restore` restores, Node.js and pnpm |
 | <!--#endif--> |
 | <!--#if (api)--> |
-| After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs end-to-end` | Docker |
+| After changing the stack, a mail or a relay | `dotnet cleanarch end-to-end` | Docker |
 | <!--#endif--> |
 | <!--#if (aspire)--> |
 | The stack from one command, with the Aspire dashboard | `dotnet run --project Src/AppHost/AT.AppHost`; a Compose service or host setting you add goes into the app host too, as `LocalStackParityTests` demands | Docker, the network on its first build |
 | <!--#endif--> |
-| Before taking a newer version of the package that generated the project | `dotnet run Tools/Tasks.cs upgrade-report --keep <folder>` ([upgrading](docs/guides/upgrading.md)); it writes nothing in the project | the NuGet sources, or `--source` |
+| Before taking a newer version of the package that generated the project | `dotnet cleanarch upgrade-report --keep <folder>` ([upgrading](docs/guides/upgrading.md)); it writes nothing in the project | the NuGet sources, or `--source` |
 
 ## Where code goes
 
 - [Project layout](docs/reference/project-layout.md): which project and folder a file goes in, and its
   name.
 - [Feature shapes](docs/architecture/feature-shapes.md): an aggregate, or a service over a store;
-  choose the aggregate when use cases beyond the five operations are foreseen (`new-use-case`
+  choose the aggregate when use cases beyond the five operations are foreseen (`add use-case`
   refuses a service).
 - [Modules and boundaries](docs/architecture/modules-and-boundaries.md): what may depend on what.
 <!--#if (api)-->
@@ -120,7 +119,7 @@ command of its own, and which still run through `Tools/Tasks.cs`.
   gets its own section in [the configuration reference](docs/reference/configuration.md);
   `ConfigurationSurfaceTests` fails until it has one.
 <!--#if (canAddFeature)-->
-  `new-setting` writes all of it; [adding a setting](docs/guides/adding-a-setting.md) says what it
+  `add setting` writes all of it; [adding a setting](docs/guides/adding-a-setting.md) says what it
   writes and what stays yours.
 <!--#endif-->
 <!--#if (!canAddFeature)-->
@@ -138,11 +137,11 @@ command of its own, and which still run through `Tools/Tasks.cs`.
 ## Files not edited by hand
 
 <!--#if (canAddFeature)-->
-- `.feature-manifest/`: `remove-feature` reads its files, hashes and edits to know what is the feature's
+- `.feature-manifest/`: `remove feature` reads its files, hashes and edits to know what is the feature's
   and to undo each edit as it was made.
 <!--#endif-->
 <!--#if (canAddFeature)-->
-- A migration: `dotnet ef` writes it, bootstrap the first, and `new-field` sets the default of each
+- A migration: `dotnet ef` writes it, bootstrap the first, and `add field` sets the default of each
   column it adds in the one it has just added; one a database has applied is never rewritten, as
   [migrations](docs/guides/migrations.md) says.
 <!--#endif-->
@@ -153,8 +152,8 @@ command of its own, and which still run through `Tools/Tasks.cs`.
 - `coverage.minimum`: never lowered to pass; re-measured as [testing](docs/guides/testing.md#coverage)
   says.
 - A folder's `docs/<folder>/index.md`: `docs-index` writes it from each page's frontmatter, bootstrap
-  the first, and `hygiene` fails when one no longer lists its folder's pages.
-- `cleanarch.json`: generation writes it and `web-join` or `presentation-join` records a part added
+  the first, and `verify` fails when one no longer lists its folder's pages.
+- `cleanarch.json`: generation writes it and `add web-app`, `add web-package` or `add presentation` records a part added
   since, as [the project file](docs/reference/project-layout.md#the-project-file) says.
 
 ## Writing docs
@@ -166,28 +165,28 @@ command of its own, and which still run through `Tools/Tasks.cs`.
 - A choice another team could reasonably have made otherwise is an ADR;
   [decisions](docs/decisions/README.md) holds the criteria, and the page links to it in one line.
 - Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.
-  `DocumentationCitationTests` checks the root pages, the `AGENTS.md` files, every page under `docs/` and every task a page cites.
+  `DocumentationCitationTests` checks the root pages, the `AGENTS.md` files, every page under `docs/` and every `dotnet cleanarch` command a page cites.
 - Markdown files are UTF-8 without BOM and C# files UTF-8 with BOM, both with LF line endings;
-  `format-fix` repairs them.
+  `format` repairs them.
 
 ## Adding or removing a feature
 
 <!--#if (canAddFeature)-->
 ```bash
-dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --deletion delete|anonymise
-dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared
-dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared --fields "Title:string(120), Budget:decimal>=0"
-dotnet run Tools/Tasks.cs new-field <Features> "Code:string(20)='none', Notes:text?"
-dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
-dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "MaxItems:int(1..100)=10"
-dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>
-dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
-dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # removes it, edited or not, once committed
+dotnet cleanarch add feature <Features> <Feature> --access owner --deletion delete|anonymise
+dotnet cleanarch add feature <Features> <Feature> --access shared
+dotnet cleanarch add feature <Features> <Feature> --access shared --fields "Title:string(120), Budget:decimal>=0"
+dotnet cleanarch add field <Features> "Code:string(20)='none', Notes:text?"
+dotnet cleanarch add use-case <Features> <UseCase> --kind command|query
+dotnet cleanarch add setting <Features> <Section> --keys "MaxItems:int(1..100)=10"
+dotnet cleanarch add event <Features> <Event> --consumer <Features>:<Reaction>
+dotnet cleanarch remove feature <Features>           # reports, writes nothing
+dotnet cleanarch remove feature <Features> --apply   # removes it, edited or not, once committed
 ```
 
 <!--#endif-->
 <!--#if (canAddFeature && api)-->
-`new-feature` writes the skeleton, its manifest and its page, and makes the edits that compose it
+`add feature` writes the skeleton, its manifest and its page, and makes the edits that compose it
 with its rows in `docs/reference/api.md`: every edit or none, each recorded in the manifest. It
 refuses while a model change waits for a migration, then writes the documentation index again,
 builds once and, from that build, adds the `Add<Features>` migration and rewrites the OpenAPI reference and what is written
@@ -195,36 +194,36 @@ from it;
 `--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
 validator and the aggregate and carried down to its column, its contracts and its tests, an
 integration test among them; without it the fields are `Name` and `Description`, placeholders you
-rewrite. `new-use-case` adds one operation to a rich feature, with its action, its contracts and its
+rewrite. `add use-case` adds one operation to a rich feature, with its action, its contracts and its
 route's row, then rewrites the OpenAPI reference; it refuses a simple feature, to promote first as
 [feature shapes](docs/architecture/feature-shapes.md) says.
 <!--#endif-->
 <!--#if (canAddFeature && !api)-->
-`new-feature` writes the skeleton in every layer but an HTTP one, which this project does not hold,
+`add feature` writes the skeleton in every layer but an HTTP one, which this project does not hold,
 with its manifest and its page, and makes the edits that compose it, each host's `Program.cs` among
 them: every edit or none, each recorded in the manifest. It refuses while a model change waits for a
 migration, then writes the documentation index again, builds and adds the `Add<Features>` migration;
 `--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
 validator and the aggregate and carried down to its column and its tests; without it the fields are
-`Name` and `Description`, placeholders you rewrite. `new-use-case` adds one operation to a rich
+`Name` and `Description`, placeholders you rewrite. `add use-case` adds one operation to a rich
 feature, refuses a simple one (promote it first, as [feature shapes](docs/architecture/feature-shapes.md)
 says) and prints the hosts that may offer it.
 <!--#endif-->
 <!--#if (canAddFeature)-->
-`new-setting` writes a feature's options class and validator, registers them, ships the section in
-each host's `appsettings.json` and lists it in the configuration reference; `new-event` writes a
+`add setting` writes a feature's options class and validator, registers them, ships the section in
+each host's `appsettings.json` and lists it in the configuration reference; `add event` writes a
 domain event, its consumer or its place on the list of events nobody consumes, and their tests. Each
 writes everything or nothing, and `--dry-run` prints what it would write.
-`new-field` adds fields to a feature `new-feature --fields` generated, in every member `--fields`
+`add field` adds fields to a feature `add feature --fields` generated, in every member `--fields`
 writes them in, found through each file's syntax tree, and refuses a member changed by hand; it adds
 their migration with the default each field that cannot be null gives the rows already stored, and
 says when a required field breaks the callers of the create and update operations.
 [Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (!canAddFeature)-->
-This project authenticates nobody, so `new-feature` refuses it; write a feature by hand from
+This project authenticates nobody, so `add feature` refuses it; write a feature by hand from
 [adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_page-templates/feature.md`,
-then run `docs-index`. `new-use-case` then adds one operation to it once it has the rich
+then run `docs-index`. `add use-case` then adds one operation to it once it has the rich
 shape. [Removing features](docs/guides/removing-features.md) gives the reverse.
 <!--#endif-->
 
@@ -263,9 +262,11 @@ This repository is also the `dotnet new` template the project pages describe; pa
 `docs/template/` are about the template and never reach a generated project.
 
 - `verify` also runs the template's gates: `Tools/CheckDocPaths.cs`, `Tools/CheckComments.cs`,
-  `Tools/CheckWorkflows.cs` and `dotnet run Tools/Tasks.cs web-lockfiles --check`. Each runs alone
+  `Tools/CheckWorkflows.cs` and `dotnet run Tools/WebLockfiles.cs --check`. Each runs alone
   with `dotnet run`; a generated project keeps none of them, and `DocumentationCitationTests` holds
   its citations.
+- This repository runs the tool from its source: where a page says `dotnet cleanarch <command>`, run
+  `dotnet run --project Launcher/CleanArch.Cli -- <command>` here.
 - A shared file conditions a sentence on an option only where the option changes what is true, a
   whole sentence per branch; read it in the default form and in
   `--auth none --examples none --files false`.

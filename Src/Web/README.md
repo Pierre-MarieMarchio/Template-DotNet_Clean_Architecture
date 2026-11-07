@@ -158,7 +158,7 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/getting-started/overview.md`, after the line:
 
   ```markdown
-  | Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case; `Tools/NewSetting.cs` and `Tools/NewEvent.cs`, a validated setting and a domain event; `Tools/UpgradeReport.cs`, what a newer version of the package changes |
+  | Tools | `dotnet cleanarch`, pinned in `.config/dotnet-tools.json`: the build, the gates, the feature generator and its undo, one more use case, a validated setting, a domain event, and what a newer version of the package changes; `Tools/` holds the commands you add or eject |
   ```
 
   add:
@@ -344,13 +344,13 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `AGENTS.md`, before the line:
 
   ```markdown
-  | After adding a field to a feature `new-feature --fields` generated | `dotnet run Tools/Tasks.cs new-field <Features> "<Name>:<type>=<default>"` | the feature's manifest, which records its fields |
+  | After adding a field to a feature `add feature --fields` generated | `dotnet cleanarch add field <Features> "<Name>:<type>=<default>"` | the feature's manifest, which records its fields |
   ```
 
   add:
 
   ```markdown
-  | After changing a route or a contract, with the web workspace | `pnpm api` in `Src/Web`, after `openapi` | the .NET SDK, Node.js and pnpm |
+  | After changing a route or a contract, with the web workspace | `dotnet cleanarch openapi`, which also runs `pnpm api <reference>` | the .NET SDK, Node.js and pnpm |
   ```
 
 <!--#endif-->
@@ -358,13 +358,13 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `AGENTS.md`, before the line:
 
   ```markdown
-  | Every task and option | `dotnet run Tools/Tasks.cs help [<task>]`; `-m:<N>` caps build and test parallelism | nothing |
+  | Every command and option | `dotnet cleanarch help`, `dotnet cleanarch <command> --help`; `-m:<N>` caps build and test parallelism | nothing |
   ```
 
   add:
 
   ```markdown
-  | After changing a route or a contract, with the web workspace | `pnpm api` in `Src/Web`, after `openapi` | the .NET SDK, Node.js and pnpm |
+  | After changing a route or a contract, with the web workspace | `dotnet cleanarch openapi`, which also runs `pnpm api <reference>` | the .NET SDK, Node.js and pnpm |
   ```
 
 <!--#endif-->
@@ -372,13 +372,13 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `AGENTS.md`, replace the line:
 
   ```markdown
-  | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
+  | Before calling a change done | `dotnet cleanarch verify`, then `dotnet cleanarch coverage` | Docker, the tools `dotnet tool restore` restores |
   ```
 
   with:
 
   ```markdown
-  | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores, Node.js and pnpm |
+  | Before calling a change done | `dotnet cleanarch verify`, then `dotnet cleanarch coverage` | Docker, the tools `dotnet tool restore` restores, Node.js and pnpm |
   ```
 
 <!--#endif-->

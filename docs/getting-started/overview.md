@@ -93,7 +93,7 @@ features grow beside them, and the documentation grows with them.
 | <!--#if (jobsWorker)--> |
 | Background jobs | timers in the worker, `Src/Presentation/<Initials>.Worker`, a process of their own |
 | <!--#endif--> |
-| Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case; `Tools/NewSetting.cs` and `Tools/NewEvent.cs`, a validated setting and a domain event; `Tools/UpgradeReport.cs`, what a newer version of the package changes |
+| Tools | `dotnet cleanarch`, pinned in `.config/dotnet-tools.json`: the build, the gates, the feature generator and its undo, one more use case, a validated setting, a domain event, and what a newer version of the package changes; `Tools/` holds the commands you add or eject |
 | <!--#if (anyWeb)--> |
 | Web | `Src/Web`, a pnpm workspace with one app, a generated API client and shared packages |
 | <!--#endif--> |
@@ -240,8 +240,8 @@ To change a value, remove the part by hand or add it:
 - `dotnet new cleanarch-webapp -n PlaceholderSite --framework vite-react --project-name AppTemplate --scope app-template --workspace`
   adds a first web app and its workspace (`vite-vue`, `vite-svelte`, `react-router`,
   `angular` or `placeholder` work too). Pass this project's `--auth`, `--examples` and `--ci` when they are not
-  the defaults; then `dotnet run Tools/Tasks.cs web-join PlaceholderSite --web vite-react` makes the
-  lines the workspace's `README.md` and the app's list outside their folders, and records the app.
+  the defaults; then `dotnet cleanarch add web-app --name PlaceholderSite` makes the lines the
+  workspace's `README.md` and the app's list outside their folders, records the app and creates it.
 <!--#endif-->
 <!--#if (anyWeb)-->
 - `dotnet new cleanarch-webapp` adds another web app; [the web front end](../features/web-frontend.md) says how.
@@ -258,8 +258,8 @@ To change a value, remove the part by hand or add it:
 - `dotnet new cleanarch-presentation -n <Name> --framework blazor-server --project-name AppTemplate`
   adds a presentation project (`mcp`, `avalonia`, `wpf`, or `worker` with `-n Worker`, work too). Pass this project's `--auth`,
   `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults; then
-  `dotnet run Tools/Tasks.cs presentation-join AppTemplate.<Name>` makes the lines the README it
-  writes in the new project's folder lists outside it.
+  `dotnet cleanarch add presentation --name <Name>` makes the lines the README it writes in the new
+  project's folder lists outside it, records the project and creates its pages.
 
 ## Why it starts like this
 

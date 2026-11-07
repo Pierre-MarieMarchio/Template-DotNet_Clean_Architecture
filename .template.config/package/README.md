@@ -35,7 +35,8 @@ Or with `dotnet new` alone:
 dotnet new install CleanArch.WebApi.Templates
 dotnet new cleanarch-webapi -n Company.Product
 cd Company.Product
-dotnet run Tools/Tasks.cs bootstrap
+dotnet tool restore
+dotnet cleanarch bootstrap
 cp .env.example .env
 docker compose up -d --build --wait
 ```

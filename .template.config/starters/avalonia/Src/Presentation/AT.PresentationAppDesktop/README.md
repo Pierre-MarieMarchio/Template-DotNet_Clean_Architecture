@@ -163,15 +163,15 @@ task stops:
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  other tasks assume all five.
+  migration, and the other commands assume it.
   ```
 
   add:
 
   ```markdown
-  It first creates the presentation project's pages with `dotnet run Tools/Tasks.cs presentation-scaffold`.
+  It first creates the presentation project's pages.
   <!--#if (!hasClient)-->
-  It then writes the .NET client from the OpenAPI reference with `dotnet run Tools/Tasks.cs api-client`.
+  It then writes the .NET client from the OpenAPI reference.
   <!--#endif-->
   ```
 
@@ -179,13 +179,13 @@ task stops:
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  | After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
+  | After changing the model | `dotnet cleanarch migrations add <Name>` | the initial migration bootstrap creates |
   ```
 
   add:
 
   ```markdown
-  | After changing a route or a contract | `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client` | the tools bootstrap restores |
+  | After changing a route or a contract | `dotnet cleanarch openapi`, which writes the OpenAPI reference and the .NET client | the tools `dotnet tool restore` restores |
   ```
 
 <!--#endif-->

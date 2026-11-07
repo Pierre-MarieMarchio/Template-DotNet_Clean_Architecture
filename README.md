@@ -25,7 +25,8 @@ product does not need.
 ```bash
 mkdir acme-shop && cd acme-shop
 dnx CleanArch.Create                    # names it AcmeShop, asks each option, generates here
-dotnet run Tools/Tasks.cs bootstrap     # required once: commit what it changes
+dotnet tool restore
+dotnet cleanarch bootstrap     # required once: commit what it changes
 cp .env.example .env
 docker compose up -d --build --wait
 ```
@@ -57,21 +58,21 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 The generators and the gate are what the template offers once the project exists:
 
 ```bash
-dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --deletion delete  # a feature, its tests and its migration
-dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command                   # one more operation on a feature
-dotnet run Tools/Tasks.cs new-field <Features> "Code:string(20)='none'"                      # a field, down to its column
-dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "MaxItems:int(1..100)=10"  # a validated setting
-dotnet run Tools/Tasks.cs new-event <Features> <Event> --unconsumed "<reason>"               # a domain event
-dotnet run Tools/Tasks.cs remove-feature <Features>                                          # reports; --apply removes it
-dotnet run Tools/Tasks.cs migration-add <Name>                                               # a migration after a model change
-dotnet run Tools/Tasks.cs check                                                              # format, build and tests of what you touched
-dotnet run Tools/Tasks.cs verify                                                             # the whole gate, with Docker
+dotnet cleanarch add feature <Features> <Feature> --access owner --deletion delete  # a feature, its tests and its migration
+dotnet cleanarch add use-case <Features> <UseCase> --kind command                   # one more operation on a feature
+dotnet cleanarch add field <Features> "Code:string(20)='none'"                      # a field, down to its column
+dotnet cleanarch add setting <Features> <Section> --keys "MaxItems:int(1..100)=10"  # a validated setting
+dotnet cleanarch add event <Features> <Event> --unconsumed "<reason>"               # a domain event
+dotnet cleanarch remove feature <Features>                                          # reports; --apply removes it
+dotnet cleanarch migrations add <Name>                                               # a migration after a model change
+dotnet cleanarch check                                                              # format, build and tests of what you touched
+dotnet cleanarch verify                                                             # the whole gate, with Docker
 dotnet cleanarch add web-app                                                                 # add a web app to the project
 dotnet cleanarch add presentation                                                            # add a host to the project
 ```
 
-`new-feature` needs `--auth` other than `none`. [Adding a feature](docs/guides/adding-a-feature.md)
-gives the steps, and [the task launcher](docs/guides/build-and-ci.md#the-task-launcher) every task.
+`add feature` needs `--auth` other than `none`. [Adding a feature](docs/guides/adding-a-feature.md)
+gives the steps, and [the project tool](docs/reference/cli.md) every command.
 
 ## What you get
 

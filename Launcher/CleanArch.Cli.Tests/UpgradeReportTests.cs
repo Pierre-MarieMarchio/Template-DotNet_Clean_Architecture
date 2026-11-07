@@ -241,6 +241,18 @@ public sealed class UpgradeReportTests : IDisposable
     }
 
     [Theory]
+    [InlineData("{ \"identity\": \"P\", \"symbols\": {} }", "The template has no shortName.")]
+    [InlineData("{ \"identity\": \"P\", ", "template.json")]
+    public void APackage_WhoseTemplateCannotBeRead_IsRefused_NamingTheFileAndWhy(string manifest, string why)
+    {
+        string message = Should.Throw<LauncherException>(() => Packed("unreadable", manifest, string.Empty)).Message;
+
+        message.ShouldContain("unreadable.nupkg");
+        message.ShouldContain("content/.template.config/template.json");
+        message.ShouldContain(why);
+    }
+
+    [Theory]
     [InlineData("2.0.0", "2.1.0", "## 2.1.0 (2026-11-20)\n\n* b")]
     [InlineData("2.0.0", "2.2.0", "## [2.2.0](https://example.invalid) (2026-12-01)\n\n* c\n\n## 2.1.0 (2026-11-20)\n\n* b")]
     [InlineData("2.2.0", "2.3.0", "CHANGELOG.md holds no entry after 2.2.0 up to 2.3.0.")]

@@ -38,7 +38,7 @@
     <TemplateExclude Include="$(TemplateRoot).git/**;$(TemplateRoot).git" />
     <TemplateExclude Include="$(TemplateRoot).claude/**;$(TemplateRoot).vs/**;$(TemplateRoot).idea/**;$(TemplateRoot).vscode/**" />
     <TemplateExclude Include="$(TemplateRoot)**/bin/**;$(TemplateRoot)**/obj/**;$(TemplateRoot)**/node_modules/**;$(TemplateRoot)**/TestResults/**" />
-    <TemplateExclude Include="$(TemplateRoot)artifacts/**;$(TemplateRoot).env" />
+    <TemplateExclude Include="$(TemplateRoot)artifacts/**;$(TemplateRoot).env;$(TemplateRoot).config/dotnet-tools.json" />
     <TemplateExclude Include="$(TemplateRoot)Launcher/**" />
     <TemplateExclude Include="$(TemplateRoot).template.config/TemplatePackage.csproj;$(TemplateRoot).template.config/package/**;$(TemplateRoot).template.config/icon.png" />
     <TemplateExclude Include="$(TemplateRoot)README.md;$(TemplateRoot)CHANGELOG.md;$(TemplateRoot)LICENSE" />

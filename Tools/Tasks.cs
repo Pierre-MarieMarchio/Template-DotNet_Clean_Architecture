@@ -831,21 +831,6 @@ internal static class Tasks
 
                 try
                 {
-                    PinTheProjectsTool(repoRoot, projectFile);
-                }
-                catch (InvalidOperationException error)
-                {
-                    string version = projectFile.TemplateVersion;
-                    throw new InvalidOperationException(
-                        error.Message + $" CleanArch.Cli {version}, the tool this project pins, could not be installed: most likely that version is not on a NuGet source this machine uses "
-                        + "(nuget.org holds only published releases, so a version not released yet, or a template packed locally, has no package there), or the machine is offline. "
-                        + $"Done: {finished}. Not done: the tools' restore, the initial migrations and what follows. "
-                        + $"Fix: put CleanArch.Cli.{version}.nupkg (dotnet pack Launcher/CleanArch.Cli in the template's repository) in a folder, run "
-                        + $"'dotnet tool install CleanArch.Cli --local --version {version} --add-source <that folder>', then run bootstrap again.");
-                }
-
-                try
-                {
                     Step("dotnet", "tool", "restore");
                 }
                 catch (InvalidOperationException error)
@@ -3140,23 +3125,6 @@ internal static class Tasks
         }
     }
 
-    private static void PinTheProjectsTool(string repoRoot, ProjectFile projectFile)
-    {
-        string manifest = Path.Combine(repoRoot, ".config", "dotnet-tools.json");
-        bool pinned = File.Exists(manifest) && ReadJson(manifest)["tools"]?[_projectToolPackage.ToLowerInvariant()] is not null;
-        if (pinned || IsTheTemplatesCheckout(repoRoot))
-        {
-            return;
-        }
-
-        Step("dotnet", "tool", "install", _projectToolPackage, "--local", "--version", projectFile.TemplateVersion);
-    }
-
-    private const string _projectToolPackage = "CleanArch.Cli";
-
-    private static bool IsTheTemplatesCheckout(string repoRoot) =>
-        File.Exists(Path.Combine(repoRoot, ".template.config", "template.json"));
-
     private static JsonObject ReadJson(string path) =>
         JsonNode.Parse(
             File.ReadAllText(path),
@@ -4324,11 +4292,6 @@ internal sealed class ProjectFile
     internal string Name => Text(_json, "name");
 
     internal string Initials => string.Concat(Name.Split('.').Select(SegmentInitials));
-
-    internal string TemplateVersion =>
-        _json["template"] is JsonObject template
-            ? Text(template, "version")
-            : throw new InvalidOperationException($"{FilePath} records no template.");
 
     internal bool LocalAuth => Option("auth") == "local";
 

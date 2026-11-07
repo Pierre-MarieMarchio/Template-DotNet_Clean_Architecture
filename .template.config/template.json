@@ -1578,6 +1578,7 @@
         {
           "exclude": [
             ".template.config/**",
+            ".config/dotnet-tools.json",
             ".git",
             ".git/**",
             "**/bin/**",
@@ -2074,12 +2075,6 @@
           ]
         },
         {
-          "condition": "(!sonar || !dotnetClient)",
-          "exclude": [
-            ".config/dotnet-tools.json"
-          ]
-        },
-        {
           "condition": "(jobsWorker)",
           "exclude": [
             "Src/Presentation/AT.Api/Common/Jobs/**",
@@ -2098,7 +2093,15 @@
     },
     {
       "source": "./.template.config/variants/project/",
-      "target": "./"
+      "target": "./",
+      "modifiers": [
+        {
+          "condition": "(!sonar || !dotnetClient)",
+          "exclude": [
+            ".config/dotnet-tools.json"
+          ]
+        }
+      ]
     },
     {
       "source": "./.template.config/variants/no-aspire/",
@@ -2524,7 +2527,7 @@
       "description": "Bootstrap the project before anything else.",
       "manualInstructions": [
         {
-          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, writes the OpenAPI reference, restores the local tools and creates each context's initial migration. It needs the network, not Docker. dotnet new creates no git repository: run git init before the first commit. dnx CleanArch.Create -- new --setup does the git init, the commits, bootstrap and the .env copy in one go."
+          "text": "In the project folder, run dotnet tool restore, then dotnet cleanarch bootstrap, and commit what it writes: the tests, verify and the stack assume it ran. The restore installs the tools .config/dotnet-tools.json pins, dotnet cleanarch among them; bootstrap formats the usings around the project's name, writes the OpenAPI reference and creates each context's initial migration. It needs the network, not Docker. dotnet new creates no git repository: run git init before the first commit. dnx CleanArch.Create -- new --setup does the git init, the commits, bootstrap and the .env copy in one go."
         }
       ],
       "continueOnError": true
@@ -2535,7 +2538,7 @@
       "description": "Bootstrap the project before anything else.",
       "manualInstructions": [
         {
-          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, restores the local tools and creates each context's initial migration. It needs the network, not Docker. dotnet new creates no git repository: run git init before the first commit. dnx CleanArch.Create -- new --setup does the git init, the commits, bootstrap and the .env copy in one go."
+          "text": "In the project folder, run dotnet tool restore, then dotnet cleanarch bootstrap, and commit what it writes: the tests, verify and the stack assume it ran. The restore installs the tools .config/dotnet-tools.json pins, dotnet cleanarch among them; bootstrap formats the usings around the project's name and creates each context's initial migration. It needs the network, not Docker. dotnet new creates no git repository: run git init before the first commit. dnx CleanArch.Create -- new --setup does the git init, the commits, bootstrap and the .env copy in one go."
         }
       ],
       "continueOnError": true

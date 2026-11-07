@@ -1,6 +1,7 @@
 ﻿using CleanArch.Create.Setup;
 using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
+using CleanArch.Tooling.Markdown;
 using CleanArch.Tooling.Processes;
 using Shouldly;
 using Xunit;
@@ -14,6 +15,7 @@ public sealed class ProjectSetupTests : IDisposable
     private bool _insideAWorkTree;
     private bool _identity = true;
     private string _status = " A README.md";
+    private ProcessResult _restore = new(0, string.Empty);
     private ProcessResult _bootstrap = new(0, string.Empty);
     private ProcessResult _add = new(0, string.Empty);
 
@@ -37,7 +39,7 @@ public sealed class ProjectSetupTests : IDisposable
         var answers = new Dictionary<string, string>(StringComparer.Ordinal) { ["web"] = web, ["presentation"] = presentation };
 
         BootstrapStep.DescriptionFor(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers))).ShouldBe(
-            "Runs " + BootstrapStep.Command + ": formatting, OpenAPI document, tools and first migrations"
+            "Runs dotnet tool restore, then dotnet cleanarch bootstrap: formatting, OpenAPI document, tools and first migrations"
             + writes + ". Needs internet.");
     }
 
@@ -49,6 +51,19 @@ public sealed class ProjectSetupTests : IDisposable
         BootstrapStep.WritesWhen.Select(fact => fact.Symbol).ShouldAllBe(
             symbol => manifest.Computed.ContainsKey(symbol),
             "The bootstrap step reads a symbol the project template no longer computes, so it would never say what bootstrap writes.");
+    }
+
+    [Fact]
+    public void EveryCommandAStepRuns_StartsALineOfTheProjectsRunItSection_WhichTheClosingLeavesOut()
+    {
+        string[] lines = [.. MarkdownSection.Of(Path.Combine(Repository.Root, ".template.config", "variants", "project", "README.md"), "## Run it")
+            .ShouldNotBeNull()
+            .Split('\n')
+            .Select(line => line.TrimStart())];
+
+        ProjectSetup.Steps.SelectMany(step => step.Replaces).ShouldAllBe(
+            command => lines.Any(line => line.StartsWith(command, StringComparison.Ordinal)),
+            "The generated README's Run it section no longer starts a line with a command a setup step runs, so the launcher's closing repeats it.");
     }
 
     [Fact]
@@ -64,7 +79,8 @@ public sealed class ProjectSetupTests : IDisposable
             "git add -A -- .",
             "git status --porcelain -- .",
             "git commit -q -m chore: generate from cleanarch-webapi 1.2.3 -- .",
-            "dotnet run Tools/Tasks.cs bootstrap",
+            "dotnet tool restore",
+            "dotnet cleanarch bootstrap",
             "git rev-parse --is-inside-work-tree",
             "git add -A -- .",
             "git status --porcelain -- .",
@@ -96,7 +112,7 @@ public sealed class ProjectSetupTests : IDisposable
         outcomes[0].Rerun.ShouldContain("git config --global user.email \"<your email>\"");
         outcomes[0].Rerun.ShouldContain("git commit -m \"chore: generate from cleanarch-webapi 1.2.3\"");
         _processes.CommandLines.ShouldNotContain(line => line.StartsWith("git commit", StringComparison.Ordinal));
-        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs bootstrap");
+        _processes.CommandLines.ShouldContain("dotnet cleanarch bootstrap");
     }
 
     [Fact]
@@ -110,7 +126,7 @@ public sealed class ProjectSetupTests : IDisposable
         string why = outcomes[1].Why.ShouldNotBeNull();
         why.ShouldContain("exited with code 1");
         why.ShouldContain("NU1301");
-        outcomes[1].Rerun.ShouldBe([BootstrapStep.Command]);
+        outcomes[1].Rerun.ShouldBe(["dotnet cleanarch bootstrap"]);
         outcomes[2].Status.ShouldBe(SetupStatus.Skipped);
         outcomes[2].Rerun.ShouldContain("git commit -m \"chore: bootstrap\"");
         outcomes[3].Status.ShouldBe(SetupStatus.Done);
@@ -132,23 +148,35 @@ public sealed class ProjectSetupTests : IDisposable
         why.ShouldContain("The full output is in " + journal);
         File.ReadAllText(journal).ShouldContain("line 1");
         File.ReadAllText(journal).ShouldContain("error CS0246");
-        outcome.Rerun.ShouldBe([BootstrapStep.Command]);
+        outcome.Rerun.ShouldBe(["dotnet cleanarch bootstrap"]);
     }
 
     [Fact]
-    public void AProjectToolNoSourceHolds_IsNamedWithItsCause_AndTheInstallThatFixesIt()
+    public void AProjectToolNoSourceHolds_IsNamedWithItsCause_AndTheRestoreThatFixesIt_BeforeBootstrapRuns()
     {
-        _bootstrap = new ProcessResult(1, "Build succeeded.\n    0 Error(s)\n> dotnet tool install CleanArch.Cli --local --version 1.2.3\nVersion 1.2.3 of package cleanarch.cli is not found in NuGet feeds https://api.nuget.org/v3/index.json.\n'dotnet tool install CleanArch.Cli' exited with 1.\n");
+        _restore = new ProcessResult(1, "Version 1.2.3 of package cleanarch.cli is not found in NuGet feeds https://api.nuget.org/v3/index.json.\nTool 'cleanarch.cli' failed to restore.\n");
 
         SetupOutcome outcome = RunAll()[1];
 
         outcome.Status.ShouldBe(SetupStatus.Failed);
         string why = outcome.Why.ShouldNotBeNull();
+        why.ShouldContain("dotnet tool restore exited with code 1");
         why.ShouldContain("Last error: Version 1.2.3 of package cleanarch.cli is not found in NuGet feeds");
-        why.ShouldContain("CleanArch.Cli 1.2.3, the tool this project pins, isn't on a NuGet source this machine uses");
-        why.ShouldContain("CleanArch.Cli.1.2.3.nupkg");
-        why.ShouldContain("then run bootstrap again");
-        outcome.Rerun.ShouldBe(["dotnet tool install CleanArch.Cli --local --version 1.2.3 --add-source <folder holding CleanArch.Cli.1.2.3.nupkg>", BootstrapStep.Command]);
+        why.ShouldContain("CleanArch.Cli 1.2.3, the tool .config/dotnet-tools.json pins, isn't on a NuGet source this machine uses");
+        why.ShouldContain("then run dotnet cleanarch bootstrap");
+        outcome.Rerun.ShouldBe(["dotnet tool restore --add-source <folder holding CleanArch.Cli.1.2.3.nupkg>", "dotnet cleanarch bootstrap"]);
+        _processes.CommandLines.ShouldNotContain("dotnet cleanarch bootstrap");
+    }
+
+    [Fact]
+    public void AnotherRestoreFailure_RerunsTheRestoreAndBootstrap()
+    {
+        _restore = new ProcessResult(1, "error NU1301: Unable to load the service index for source https://api.nuget.org/v3/index.json.\n");
+
+        SetupOutcome outcome = RunAll()[1];
+
+        outcome.Why.ShouldNotBeNull().ShouldContain("NU1301");
+        outcome.Rerun.ShouldBe(["dotnet tool restore", "dotnet cleanarch bootstrap"]);
     }
 
     [Theory]
@@ -258,7 +286,8 @@ public sealed class ProjectSetupTests : IDisposable
         ("git", "config") => _identity ? new ProcessResult(0, "Ada Lovelace\n") : new ProcessResult(1, string.Empty),
         ("git", "status") => new ProcessResult(0, _status),
         ("git", "add") => _add,
-        ("dotnet", "run") => _bootstrap,
+        ("dotnet", "tool") => _restore,
+        ("dotnet", "cleanarch") => _bootstrap,
         _ => new ProcessResult(0, string.Empty),
     };
 

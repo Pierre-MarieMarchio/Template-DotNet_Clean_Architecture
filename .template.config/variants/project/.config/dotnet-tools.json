@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "cleanarch.cli": {
+      "version": "0.0.0-checkout",
+      "commands": [
+        "dotnet-cleanarch"
+      ],
+      "rollForward": false
+    },
+    "dotnet-ef": {
+      "version": "10.0.14",
+      "commands": [
+        "dotnet-ef"
+      ],
+      "rollForward": false
+    },
+    "dotnet-sonarscanner": {
+      "version": "12.0.0",
+      "commands": [
+        "dotnet-sonarscanner"
+      ],
+      "rollForward": false
+    },
+    "microsoft.openapi.kiota": {
+      "version": "1.38.0",
+      "commands": [
+        "kiota"
+      ],
+      "rollForward": false
+    }
+  }
+}

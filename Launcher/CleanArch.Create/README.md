@@ -67,7 +67,7 @@ hand. Each runs under its own spinner, in this order:
 | Step | What it runs |
 |---|---|
 | First commit | `git init` unless the folder is in a git work tree already, then a commit of the generated files, `chore: generate from cleanarch-webapi <version>` |
-| Bootstrap | `dotnet run Tools/Tasks.cs bootstrap`, which needs the network; its line names what it creates for the options chosen |
+| Bootstrap | `dotnet tool restore`, then `dotnet cleanarch bootstrap`, which need the network; its line names what it creates for the options chosen |
 | Bootstrap commit | a commit of what bootstrap wrote, `chore: bootstrap` |
 | Copy .env | `.env.example` to the git-ignored `.env`, unless one is there |
 

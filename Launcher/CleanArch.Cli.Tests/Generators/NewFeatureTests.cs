@@ -796,7 +796,7 @@ public sealed partial class NewFeatureTests
             ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check"]),
             "A run refused for a pending model change ran more than the check.");
         expect(
-            refused.Error.Contains("migration-add <Name>", StringComparison.Ordinal) && refused.Error.Contains("Nothing was written.", StringComparison.Ordinal),
+            refused.Error.Contains("dotnet cleanarch migrations add <Name>", StringComparison.Ordinal) && refused.Error.Contains("Nothing was written.", StringComparison.Ordinal),
             "The refusal for a pending model change does not say what to do.");
 
         string unmigrated = NewTree(scratch);
@@ -833,7 +833,7 @@ public sealed partial class NewFeatureTests
         expect(
             result.Error.Contains("then `dotnet run Tools/Tasks.cs build`", StringComparison.Ordinal)
                 && result.Error.Contains("  dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build\n  dotnet run Tools/Tasks.cs -- openapi --no-build\n", StringComparison.Ordinal)
-                && result.Error.Contains("run `dotnet run Tools/Tasks.cs build` before it", StringComparison.Ordinal),
+                && result.Error.Contains("run `dotnet cleanarch build` before it", StringComparison.Ordinal),
             $"A failed step does not say what is done and the commands that remain: {result.Error}");
         expect(File.Exists(System.IO.Path.Combine(root, ".feature-manifest/Widgets.json")), "A failed step undid the files written, which are consistent without it.");
     }

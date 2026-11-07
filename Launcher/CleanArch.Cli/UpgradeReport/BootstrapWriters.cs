@@ -7,10 +7,10 @@ internal static class BootstrapWriters
     private static readonly (Regex Path, string Writer)[] _writtenByBootstrap =
     [
         (Rx(@"^Src/Infrastructure/[^/]+\.Infrastructure\.(?:Persistence|Auth)/Migrations/"),
-            "the migrations: bootstrap's migration-initial creates them, migration-add <Name> adds to them"),
-        (Rx(@"^docs/(?:.+/)?index\.md$"), "dotnet run Tools/Tasks.cs docs-index"),
-        (Rx(@"^Tests/Integration/[^/]+\.Api\.IntegrationTests/OpenApi/v1\.json$"), "dotnet run Tools/Tasks.cs openapi"),
-        (Rx(@"^Src/Presentation/[^/]+\.Presentation\.Client/Generated/"), "dotnet run Tools/Tasks.cs api-client"),
+            $"the migrations: {Tool.Name} bootstrap creates them, {Tool.Name} migrations add <Name> adds to them"),
+        (Rx(@"^docs/(?:.+/)?index\.md$"), $"{Tool.Name} docs-index"),
+        (Rx(@"^Tests/Integration/[^/]+\.Api\.IntegrationTests/OpenApi/v1\.json$"), $"{Tool.Name} openapi"),
+        (Rx(@"^Src/Presentation/[^/]+\.Presentation\.Client/Generated/"), $"{Tool.Name} openapi"),
         (Rx(@"^Src/Web/pnpm-lock\.yaml$"), "pnpm install, in Src/Web"),
         (Rx(@"^Src/Web/packages/api-client/(?:src/generated|openapi)/"), "pnpm api, in Src/Web"),
     ];

@@ -601,7 +601,7 @@ internal static class TextEdits
             {
                 error.WriteLine(
                     $"A command with {_noBuild} works from the build this command made: when the fix changes the code, run "
-                    + "`dotnet run Tools/Tasks.cs build` before it.");
+                    + $"`{Tool.Name} build` before it.");
             }
 
             return false;

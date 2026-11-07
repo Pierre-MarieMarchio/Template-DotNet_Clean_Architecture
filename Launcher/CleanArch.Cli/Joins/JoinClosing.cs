@@ -21,7 +21,7 @@ internal static class JoinClosing
         DocumentationIndex.Write(project.Root, output);
         if (ProjectLayout.HoldsTheApi(project))
         {
-            ApiSteps(project, output);
+            output.WriteLine($"Next, once the routes and contracts are as they should be: {Tool.Name} openapi");
         }
     }
 
@@ -30,22 +30,6 @@ internal static class JoinClosing
         if (Directory.Exists(Path.Combine(project.Root, ProjectLayout.Client(project))))
         {
             record.RecordClient();
-        }
-    }
-
-    private static void ApiSteps(LocatedProject project, TextWriter output)
-    {
-        output.WriteLine("Next, once the routes and contracts are as they should be:");
-        output.WriteLine("  dotnet run Tools/Tasks.cs openapi");
-
-        if (Directory.Exists(Path.Combine(project.Root, ProjectLayout.Client(project))))
-        {
-            output.WriteLine("  dotnet run Tools/Tasks.cs api-client");
-        }
-
-        if (WebSchema.IsGenerated(project))
-        {
-            output.WriteLine("  pnpm api    (in Src/Web)");
         }
     }
 }

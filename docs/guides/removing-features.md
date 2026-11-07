@@ -10,7 +10,7 @@ description: How to remove a feature, an example or another part this project no
 
 When a part has served its purpose, this page removes:
 
-- a feature you generated with `new-feature`
+- a feature you generated with `add feature`
 <!--#if (todoLists || notes)-->
 - the examples, once you have read them
 <!--#endif-->
@@ -27,15 +27,15 @@ change the business migration.
 ## Remove a generated feature
 
 ```bash
-dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
-dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # removes it, edited or not
+dotnet cleanarch remove feature <Features>           # reports, writes nothing
+dotnet cleanarch remove feature <Features> --apply   # removes it, edited or not
 ```
 
 The report reads `.feature-manifest/<Features>.json` and sorts what removing the feature involves:
 
 - what `--apply` removes: the files the generators wrote and nobody changed since, the files the
-  fields `new-field` added changed among them, the feature page, and each edit the manifest records,
-  those `new-use-case`, `new-setting` and `new-event` made among them, each undone exactly as it was
+  fields `add field` added changed among them, the feature page, and each edit the manifest records,
+  those `add use-case`, `add setting` and `add event` made among them, each undone exactly as it was
   made;
 - what it removes though it changed since: a file of the feature edited, or one added to its folders;
 - what is already gone, which it leaves as it is;
@@ -69,14 +69,14 @@ It reads neither the solution, the `.props` and `.targets` files nor `Tools/`, n
 
 `--apply` changes nothing while a file it would delete or edit is not committed as it stands, since
 only `git restore` gives back what it removes, while a model change waits for a migration
-(`migration-check`), or while code outside the feature uses it.
+(`migrations add --check`), or while code outside the feature uses it.
 <!--#if (api)-->
 It then deletes and undoes everything or nothing, writes the documentation index again without the
 feature's page, builds once, and from that build adds the `Remove<Features>` migration, as
 [below](#migrations) says, and rewrites the OpenAPI reference and what is written from it.
 <!--#endif-->
 <!--#if (anyWeb)-->
-With a web workspace, that rewrite includes `pnpm api` in `Src/Web`, which needs Node.js and pnpm.
+With a web workspace, that rewrite includes `pnpm api <reference>` in `Src/Web`, which needs Node.js and pnpm.
 <!--#endif-->
 <!--#if (!api)-->
 It then deletes and undoes everything or nothing, writes the documentation index again without the
@@ -190,12 +190,12 @@ None of these breaks a build, and each goes stale:
 - the feature's requests in `AppTemplate.Api.http`;
 - the feature's rows in [the configuration](../reference/configuration.md) and [API](../reference/api.md)
   references and in [adding a feature](adding-a-feature.md#patterns-from-the-examples); then run
-  `dotnet run Tools/Tasks.cs docs-index`, which drops the feature's page from the index.
+  `dotnet cleanarch docs-index`, which drops the feature's page from the index.
 <!--#endif-->
 <!--#if ((todoLists || notes) && !api)-->
 - the feature's rows in [the configuration reference](../reference/configuration.md) and in
   [adding a feature](adding-a-feature.md#patterns-from-the-examples); then run
-  `dotnet run Tools/Tasks.cs docs-index`, which drops the feature's page from the index.
+  `dotnet cleanarch docs-index`, which drops the feature's page from the index.
 <!--#endif-->
 <!--#if (todoLists || notes)-->
 
@@ -243,12 +243,12 @@ While no database has applied the initial migration, recreate it as
 [migrations](migrations.md#the-initial-migration) shows. Once a database has applied it, add a
 migration that drops the tables, and review it line by line.
 Where no database has applied `Add<Features>` or `Remove<Features>`, neither is needed: delete the
-context's `Migrations` folder and run `migration-initial` again, as
+context's `Migrations` folder and run `bootstrap` again, as
 [migrations](migrations.md#the-initial-migration) shows, and the first migration holds the model
 without the feature.
 
-`remove-feature --apply` leaves `Add<Features>`, the migration `new-feature` added, and each
-`Add<Field>To<Features>` that `new-field` added, as they are, since a database may have applied them,
+`remove feature --apply` leaves `Add<Features>`, the migration `add feature` added, and each
+`Add<Field>To<Features>` that `add field` added, as they are, since a database may have applied them,
 and adds `Remove<Features>` after them: it drops the feature's tables, and its schema when
 `Add<Features>` created one, and its `Down` puts them back. A database that applied the others
 applies it next; one that applied none applies them all and ends without the feature.
@@ -283,13 +283,13 @@ with a directory over your provider, or remove Reminders too.
 
 <!--#if (api)-->
 ```bash
-dotnet run Tools/Tasks.cs verify
+dotnet cleanarch verify
 docker build -f Src/Presentation/AT.Api/Dockerfile .
 ```
 <!--#endif-->
 <!--#if (!api)-->
 ```bash
-dotnet run Tools/Tasks.cs verify
+dotnet cleanarch verify
 docker build -f Src/Presentation/<Initials>.Worker/Dockerfile .
 ```
 <!--#endif-->

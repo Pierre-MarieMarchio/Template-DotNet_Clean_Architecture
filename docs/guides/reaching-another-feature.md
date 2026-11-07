@@ -79,10 +79,10 @@ Feature `<A>` announces a fact; any feature, `<A>` included, reacts after the co
 ### Raise it
 
 1. Write the event and its consumer, or its entry among the unconsumed, with
-   [`new-event`](adding-a-feature.md#add-a-domain-event), which needs a feature of the rich shape:
+   [`add event`](adding-a-feature.md#add-a-domain-event), which needs a feature of the rich shape:
 
    ```bash
-   dotnet run Tools/Tasks.cs new-event <A> <Fact>DomainEvent --consumer <B>:<Reaction>
+   dotnet cleanarch add event <A> <Fact>DomainEvent --consumer <B>:<Reaction>
    ```
 
 2. Raise it in the aggregate method that makes the fact true, after the method has changed the
@@ -95,7 +95,7 @@ Feature `<A>` announces a fact; any feature, `<A>` included, reacts after the co
 
 ### Consume it
 
-The consumer `new-event` writes throws `NotImplementedException` until its body is written. The body
+The consumer `add event` writes throws `NotImplementedException` until its body is written. The body
 re-derives its precondition: it loads what it changes, decides from the current state whether
 anything is left to do, does it, and commits a transaction of its own, since it runs after the
 raising one. Running it twice is then running it once.
@@ -107,7 +107,7 @@ completed item, keeps the pending ones, and commits only when one is left to can
 ### Leave it unconsumed
 
 An event nobody reacts to yet is listed, with its reason, in `_deliberatelyUnconsumed` of
-`Tests/Architecture/AT.Architecture.Tests/Rules/DomainEventTests.cs`; `new-event --unconsumed`
+`Tests/Architecture/AT.Architecture.Tests/Rules/DomainEventTests.cs`; `add event --unconsumed`
 writes the entry. `DomainEventTests` fails on an event that is neither consumed nor listed, and on an
 event listed while something consumes it, so the first consumer of a listed event removes its entry.
 
@@ -127,10 +127,10 @@ The account-deletion sweep is the worked case, behind the consumers of `UserAcco
 
 | What | Where | Proves |
 |---|---|---|
-| The event | the test `new-event` writes beside the domain tests | what it carries |
+| The event | the test `add event` writes beside the domain tests | what it carries |
 | The raise | the aggregate's tests | the method raises it once, with the state it changed, and a refusal raises nothing |
 | The reaction | the consumer's tests, with substitutes of its ports | it acts on the state it re-derives, and changes and commits nothing when nothing is left to do |
-| The registration | the test `new-event` writes beside the consumer | the consumer is registered for the event |
+| The registration | the test `add event` writes beside the consumer | the consumer is registered for the event |
 | <!--#if (api && !todoLists)--> |
 | The delivery | an integration test that reads `Fixture.DomainEvents` | the operation reaches the consumer after the commit |
 | <!--#endif--> |

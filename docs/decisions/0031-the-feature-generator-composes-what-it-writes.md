@@ -27,9 +27,9 @@ changed.
 
 ## Decision
 
-- **`new-feature` makes the edits it would print**: each is placed beside a line it finds in the
+- **`add feature` makes the edits it would print**: each is placed beside a line it finds in the
   shared file, with the usings it needs, and the feature's rows join the reference pages.
-  `new-use-case` does the same for its action, its contracts and its route's row.
+  `add use-case` does the same for its action, its contracts and its route's row.
 - **Every edit or none**: every edit is computed in memory and every line it is placed beside found
   before a file is written, the feature's own files included; a missing line writes nothing, prints
   the edits to make by hand and names the one that failed.
@@ -38,15 +38,15 @@ changed.
 - **The manifest records each edit**: the file, the line it is placed beside, before or after it,
   and the lines added, so an edit can be undone exactly; an edit found in place is not recorded.
 - **Before writing**, the command refuses while a context has no initial migration or the business
-  model holds a change no migration holds (`migration-check`). **After writing**, it builds, adds the
+  model holds a change no migration holds (`migrations add --check`). **After writing**, it builds, adds the
   `Add<Features>` migration, then rewrites the OpenAPI reference and what is written from it, and
   stops at the first failure, naming what is done and the commands that remain.
 - **One build per run**: the steps after the build pass `--no-build` and work from it. The check
   before writing builds what `dotnet ef` needs of the tree as it stands, since the build after
   writing cannot serve a check that must pass first.
 - `--dry-run` is the only way to write nothing; nothing skips the migration.
-- **`new-field` edits the members of the feature through their syntax tree**, with Roslyn
-  (`Microsoft.CodeAnalysis.CSharp`, which `Tools/NewFeature.cs` imports). It renders the feature
+- **`add field` edits the members of the feature through their syntax tree**, with Roslyn
+  (`Microsoft.CodeAnalysis.CSharp`, which the project tool carries). It renders the feature
   with the fields its manifest records and with the new ones, and applies the difference member by
   member: a member that differs gets the new one, a new member goes beside its neighbour, a member a
   person added stays, and a member that differs from what was generated, or is gone, refuses the run
@@ -54,13 +54,12 @@ changed.
   formatting. The two coexist: the lines placed beside an anchor for what composes a feature and for
   the Markdown tables, the syntax tree for the members of the classes the generator wrote; a field
   writes every change or none, as the rest does.
-- **A field that cannot be null brings its default**, which its rules must accept; `new-field` sets
+- **A field that cannot be null brings its default**, which its rules must accept; `add field` sets
   it as the `defaultValue` of the `AddColumn` in the migration it has just added, so the rows already
   stored take it, and never as a default of the model, which would make EF Core leave out of an insert
   the value a caller set when it equals the type's empty one.
-- `dotnet run Tools/NewFeature.cs --self-test` and `dotnet run Tools/NewUseCase.cs --self-test`,
-  which `hygiene` and `verify` run, hold each face; the first holds that a field added to an untouched
-  feature leaves each file as `new-feature --fields` writes it with that field.
+- The project tool's own tests hold each face; the first holds that a field added to an untouched
+  feature leaves each file as `add feature --fields` writes it with that field.
 
 ## Alternatives considered
 
@@ -86,14 +85,13 @@ changed.
 - A generated feature builds, composes and has its migration in one command; the shared files keep
   the lines the edits are placed beside, and a team that renames one of them gets a refusal naming the
   edit, never a half-written tree.
-- A feature written this way can be removed the same way: `remove-feature --apply` undoes each edit
+- A feature written this way can be removed the same way: `remove feature --apply` undoes each edit
   its manifest lists, exactly as it was made, deletes its files and adds the migration that drops its
   tables, and refuses, writing nothing, an edit whose lines changed since.
-- The command needs what `build`, `migration-add` and `openapi` need, the restored tools among them,
+- The command needs what `build`, `migrations add` and `openapi` need, the restored tools among them,
   and takes as long as one build and the steps that read it.
-- Changing a shared file's anchor line changes the generator: its self-test names the anchors.
-- `Tools/NewFeature.cs` restores the Roslyn package the first time it runs, which needs the network
-  once, as the local tools do.
+- Changing a shared file's anchor line changes the generator: the tool's tests name the anchors.
+- The tool ships with the Roslyn package it needs, restored with the local tools.
 - A field changes members a person may have changed too; those are refused, not merged, and the
   refusal prints the lines the field adds and removes.
 

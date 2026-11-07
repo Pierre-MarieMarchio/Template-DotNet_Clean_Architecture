@@ -13,7 +13,7 @@ with the one question [feature shapes](../architecture/feature-shapes.md) asks: 
 rules that protect a state?
 
 <!--#if (publicApi)-->
-This project was generated with `--auth none`, and `new-feature` refuses it: both shapes it writes
+This project was generated with `--auth none`, and `add feature` refuses it: both shapes it writes
 need an authenticated caller. Add an authentication scheme and an `ICurrentUser` that reads it first,
 or write a public feature by hand from the steps below.
 
@@ -21,7 +21,7 @@ or write a public feature by hand from the steps below.
 ## Generate it
 
 ```bash
-dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared \
+dotnet cleanarch add feature <Features> <Feature> --access owner|shared \
     [--deletion delete|anonymise] [--operations get,list,create,update,delete] \
     [--model record|aggregate] [--concurrency none|etag] [--fields "<Name:type>, ..."] [--dry-run]
 ```
@@ -43,7 +43,7 @@ Every refused combination is refused before anything is written, with the change
 ### Fields
 
 ```bash
-dotnet run Tools/Tasks.cs new-feature Projects Project --access owner --deletion delete \
+dotnet cleanarch add feature Projects Project --access owner --deletion delete \
     --fields "Title:string(120), Notes:text?, Budget:decimal(12,2)>=0, Due:DateOnly"
 ```
 
@@ -124,20 +124,19 @@ as the [presentation projects](../features/presentation.md#declaring-a-tool) sho
 <!--#endif-->
 
 Before it writes, it refuses while a context has no initial migration, or while
-`dotnet run Tools/Tasks.cs migration-check` finds a model change no migration holds, which the
+`dotnet cleanarch migrations add --check` finds a model change no migration holds, which the
 feature's migration would otherwise carry. After it writes, it runs in this order, and stops at the
 first that fails, naming what is done and the commands that remain:
 
-1. `dotnet run Tools/Tasks.cs build`, the one build of the run
-2. `dotnet run Tools/Tasks.cs -- migration-add Add<Features> --no-build`, on the business context
+1. `dotnet cleanarch build`, the one build of the run
+2. `dotnet cleanarch migrations add Add<Features> --no-build`, on the business context
 <!--#if (api)-->
-3. `dotnet run Tools/Tasks.cs -- openapi --no-build`, then `api-client` when the project holds the .NET
-   client, and `pnpm api --no-build` in the web workspace when it holds one
+3. `dotnet cleanarch openapi`, which also writes the .NET client when the project holds one and runs
+   `pnpm api <reference>` in the web workspace when it holds one
 <!--#endif-->
 
-The steps after the build work from it, so the solution is built once; `--no-build` comes after the
-`--` separator because `dotnet run` claims the name. When a fix after a failed step changes the code,
-build again before the steps that remain.
+The migration step works from that build, so the model is read once. When a fix after a failed step
+changes the code, build again before the steps that remain.
 
 Run again with the same options, it writes nothing and resumes these steps; the migration it added
 is not added twice.
@@ -159,7 +158,7 @@ says how a rule fails.
 ### Application
 
 The validator's rules, the errors the feature can answer, and any use case beyond the five
-operations, which [`new-use-case`](#add-a-use-case) starts. A use case reaches another feature only
+operations, which [`add use-case`](#add-a-use-case) starts. A use case reaches another feature only
 through that feature's ports and events, as [reaching another feature](reaching-another-feature.md)
 shows.
 
@@ -197,22 +196,22 @@ The rules the feature protects, each with a test you have seen fail;
 ### Migration
 
 <!--#if (localAuth)-->
-`new-feature` added `Add<Features>` to the business context; authentication's is untouched. Each
+`add feature` added `Add<Features>` to the business context; authentication's is untouched. Each
 column, index or constraint you add to the record's configuration then needs a migration of its own:
 <!--#endif-->
 <!--#if (!localAuth)-->
-`new-feature` added `Add<Features>` to the business context. Each column, index or constraint you
+`add feature` added `Add<Features>` to the business context. Each column, index or constraint you
 add to the record's configuration then needs a migration of its own:
 <!--#endif-->
 
 ```bash
-dotnet run Tools/Tasks.cs migration-add <Name>
+dotnet cleanarch migrations add <Name>
 ```
 
 A migration a database has applied is never rewritten, as [migrations](migrations.md#add-a-migration)
 says.
 <!--#if (!publicApi)-->
-A field of a feature `new-feature --fields` generated is [`new-field`'s](#add-a-field), which adds
+A field of a feature `add feature --fields` generated is [`add field`'s](#add-a-field), which adds
 its migration itself.
 <!--#endif-->
 
@@ -220,12 +219,12 @@ its migration itself.
 
 <!--#if (!publicApi)-->
 ```bash
-dotnet run Tools/Tasks.cs new-field <Features> "<Name:type>=<default>, ..." [--dry-run]
-dotnet run Tools/Tasks.cs new-field Projects "Budget:decimal(12,2)>=0=0, Code:string(20)='none', Notes:text?"
+dotnet cleanarch add field <Features> "<Name:type>=<default>, ..." [--dry-run]
+dotnet cleanarch add field Projects "Budget:decimal(12,2)>=0=0, Code:string(20)='none', Notes:text?"
 ```
 
-`new-field` adds one or more fields to a feature `new-feature --fields` generated, in every member
-`--fields` writes a field in, and leaves the feature as `new-feature --fields` would have written it
+`add field` adds one or more fields to a feature `add feature --fields` generated, in every member
+`--fields` writes a field in, and leaves the feature as `add feature --fields` would have written it
 with the new fields last. The fields read as [`--fields`](#fields) reads them, with one addition: a
 field that cannot be null takes a default after `=`, the value the rows the table already holds
 receive, which its rules must accept. A number, `true` or `false` is written bare; a string, a text,
@@ -251,7 +250,7 @@ A field that cannot be null changes what the create and update operations take, 
 so: every caller passes it. A nullable field breaks no caller.
 <!--#endif-->
 
-Before it writes, it refuses as `new-feature` does while a context has no initial migration or a
+Before it writes, it refuses as `add feature` does while a context has no initial migration or a
 model change waits for one. After it writes, it builds once, adds the `Add<Field>To<Features>`
 migration (`Add<Field>And<Field>To<Features>` for two fields, `Add<Field>And<N>MoreFieldsTo<Features>`
 for more), sets each default as the `defaultValue` of the migration's `AddColumn`, which `dotnet ef`
@@ -261,7 +260,7 @@ then rewrites the OpenAPI reference and the clients written from it,
 <!--#endif-->
 and stops at the first step that fails; the same command resumes once the failure is fixed. The
 manifest records each field with its default, the new SHA-256 of each file, and under `addedFields`
-the declaration, the migration and each file's change, so `remove-feature` reads the files as
+the declaration, the migration and each file's change, so `remove feature` reads the files as
 untouched.
 <!--#if (accounts)-->
 Why a field is written through the syntax tree while the feature's edits are lines placed beside an
@@ -270,10 +269,10 @@ anchor is [ADR 0031](../decisions/0031-the-feature-generator-composes-what-it-wr
 
 ### By hand
 
-A feature written by hand takes a field by hand, in each place `new-field` reaches:
+A feature written by hand takes a field by hand, in each place `add field` reaches:
 <!--#endif-->
 <!--#if (publicApi)-->
-This project authenticates nobody, so no feature here comes from `new-feature`, and a field goes in
+This project authenticates nobody, so no feature here comes from `add feature`, and a field goes in
 by hand, in each place below:
 <!--#endif-->
 
@@ -290,7 +289,7 @@ by hand, in each place below:
 <!--#endif-->
 - the tests of the validator, the aggregate, the mapper and the configuration, and the integration
   test that creates a resource with the field;
-- a migration, `dotnet run Tools/Tasks.cs migration-add Add<Field>To<Features>`, whose `AddColumn`
+- a migration, `dotnet cleanarch migrations add Add<Field>To<Features>`, whose `AddColumn`
   gives the rows already stored the `defaultValue` the field's rules accept.
 
 ## Add a use case
@@ -298,7 +297,7 @@ by hand, in each place below:
 A feature of the rich shape grows one operation at a time:
 
 ```bash
-dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query [--input id|none|"<Inputs>"]
+dotnet cleanarch add use-case <Features> <UseCase> --kind command|query [--input id|none|"<Inputs>"]
 ```
 
 `<UseCase>` names the operation, a verb and its subject: `Approve<Feature>`, `Get<Feature>Totals`.
@@ -309,8 +308,8 @@ dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 | `--input` | `id` | What the message carries, comma separated. `id`: the id of the aggregate the feature's repository names, which the route carries, first when inputs follow it. `Name:Type`: an input in PascalCase, of any C# type, written as given. `none`: a message without input |
 
 ```bash
-dotnet run Tools/Tasks.cs new-use-case <Features> Find<Features>ByName --kind query --input "Name:string, MaxCount:int"
-dotnet run Tools/Tasks.cs new-use-case <Features> Retag<Feature> --kind command --input "id, Tags:IReadOnlyList<string>"
+dotnet cleanarch add use-case <Features> Find<Features>ByName --kind query --input "Name:string, MaxCount:int"
+dotnet cleanarch add use-case <Features> Retag<Feature> --kind command --input "id, Tags:IReadOnlyList<string>"
 ```
 
 A type may be generic, nullable, an array or a tuple: `Dictionary<string, int>`, `DateOnly?`,
@@ -343,7 +342,7 @@ private ValidatedHandler<<UseCase>Command, Result> UseCase() =>
 
 Nothing is registered by hand: `AddFeature` in `ApplicationModule` finds the validator by folder, and
 each host's generated mediator registers the handler, behind the use-case pipeline that runs the
-validator first. When the feature has a manifest, the files join it, so `remove-feature --apply`
+validator first. When the feature has a manifest, the files join it, so `remove feature --apply`
 removes them with the feature, edited or not.
 
 The handler throws `NotImplementedException` until its body is written: the rule in the aggregate,
@@ -354,9 +353,9 @@ Where the API serves the feature, the command also adds the action that sends th
 to the feature's controller, with its usings and the `ISender` the controller lacks: the id travels in
 the route, the other inputs in a request contract it writes, read from the query string for a query
 and from the body for a command; and for a query it writes the response contract. It adds the
-route's row to the feature's table in `docs/reference/api.md`, every edit or none as `new-feature`
-does, then runs `openapi`, which builds the API, `api-client`, and `pnpm api --no-build` from that
-build. `--dry-run` prints them
+route's row to the feature's table in `docs/reference/api.md`, every edit or none as `add feature`
+does, then runs `openapi`, which builds the API, writes the reference, the .NET client where the
+project holds one and the web schema from it. `--dry-run` prints them
 and writes nothing. The route follows the controller: under a `[Route]` that holds the resource the
 action is routed from the id, and under one routed at the API root the action reuses the resource path
 of the controller's own actions that carry the id, its row then written in full; a root-routed
@@ -379,8 +378,8 @@ A feature of the rich shape announces a fact as a domain event, which other feat
 ([ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md)):
 
 ```bash
-dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction> [--fields "<Name>:<Type>, ..."]
-dotnet run Tools/Tasks.cs new-event <Features> <Event> --unconsumed "<reason>"
+dotnet cleanarch add event <Features> <Event> --consumer <Features>:<Reaction> [--fields "<Name>:<Type>, ..."]
+dotnet cleanarch add event <Features> <Event> --unconsumed "<reason>"
 ```
 
 The event's name ends in `DomainEvent`. `--fields` lists what it carries besides `OccurredOn`, which
@@ -427,12 +426,12 @@ Some lists change only on purpose, and a test fails until they name what you add
 | A registration | `HostComposition` in the architecture tests |
 | <!--#endif--> |
 | <!--#if (api)--> |
-| A route or a contract | the OpenAPI reference, rewritten by `dotnet run Tools/Tasks.cs openapi` and read in the review; the route's row under `## Routes` of [the API reference](../reference/api.md#routes), checked both ways by `ApiRouteTableTests` |
+| A route or a contract | the OpenAPI reference, rewritten by `dotnet cleanarch openapi` and read in the review; the route's row under `## Routes` of [the API reference](../reference/api.md#routes), checked both ways by `ApiRouteTableTests` |
 | An error code | its row and status in [the API reference](../reference/api.md#error-codes), checked both ways by `ErrorCodeTableTests` and against the status by `ErrorCodeStatusTests` |
 | <!--#endif--> |
 | An `IEntityTypeConfiguration` | `AppDbContext`, checked both ways by `PersistenceModelTests` |
 | A new folder word under `Common/` or `Features/<F>/` | the vocabularies in `LayoutConventionTests` |
-| A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed`; `new-event` writes either |
+| A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed`; `add event` writes either |
 | A public interface under `Common/` that is not a port | `ApplicationPorts.NotPorts`, with its reason |
 | <!--#if (api)--> |
 | A use case | a host or a job that sends its message, checked by `MessageRoutingTests` |
@@ -441,7 +440,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 | <!--#if (localAuth)--> |
 | A folder of mail templates | `_templateFolders` in `EmailTemplateCoverageTests`, and its mails in `TheWalk_FindsEveryMailThisTemplateSends` |
 | <!--#endif--> |
-| A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `new-setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
+| A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `add setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
 | A new project | `AppTemplate.slnx`, a `COPY` line in each host's `Dockerfile`, a mirror under `Tests/`, its vocabularies in `LayoutConventionTests`, the module lists of `ModuleDependencyTests`; [adding a project](adding-a-project.md) gives the steps |
 | Anything, eventually | `coverage.minimum`, re-measured as [testing](testing.md#coverage) says |
@@ -451,7 +450,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 1. Replace each prompt line of the feature page with what the feature does: what a caller gets, the
    rules, the routes, the settings, the tests; and the `description` of its frontmatter with the
    question the page answers, in one sentence.
-2. Run `dotnet run Tools/Tasks.cs docs-index`, so that the features index shows the description you
+2. Run `dotnet cleanarch docs-index`, so that the features index shows the description you
    wrote.
 3. A choice another team could have made differently is an ADR: `docs/decisions/`, numbered from 1000,
    linked from the page's `## Decisions`.
@@ -501,7 +500,7 @@ The migration is empty unless the rule needs a column or an index.
 
 ## Web pages for it
 
-`new-feature` and `new-use-case` run `pnpm api` in `Src/Web` once the API serves the routes; run it
+`add feature` and `add use-case` run `openapi`, which runs `pnpm api <reference>`, once the API serves the routes; run it
 yourself after a route you change by hand. The generated client then holds their types, and an app
 calls them through it. [The web front end](../features/web-frontend.md#calling-the-api)
 shows the call.
@@ -509,6 +508,6 @@ shows the call.
 
 ## Undo
 
-`dotnet run Tools/Tasks.cs remove-feature <Features>` reports what removing it involves;
+`dotnet cleanarch remove feature <Features>` reports what removing it involves;
 [removing features](removing-features.md#remove-a-generated-feature) says what `--apply` removes and
 when it refuses.

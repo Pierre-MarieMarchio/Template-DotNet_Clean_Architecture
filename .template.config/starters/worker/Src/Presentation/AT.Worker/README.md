@@ -553,7 +553,7 @@ the other passes are idempotent. The edits, to make by hand where the task stops
   A process of its own for the jobs is the worker, a host beside the API that composes the same
   features and modules, gives every scope no caller and calls `AddBackgroundJobs`. On a committed tree,
   `dotnet new cleanarch-presentation -n Worker --framework worker --project-name AppTemplate` writes it,
-  then `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Worker` moves the API's `Common/Jobs`
+  then `dotnet cleanarch add presentation --name Worker` moves the API's `Common/Jobs`
   and `Features/*/Jobs` folders and their tests into it, their namespaces with them, with the `Jobs`
   settings, and the API stops calling `AddBackgroundJobs`.
   <!--#if (localAuth)-->

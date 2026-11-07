@@ -100,7 +100,7 @@ one does.
 
 ## Check
 
-`dotnet run Tools/Tasks.cs test --no-integration` passes: `UseCasePipelineTests` holds the order and
+`dotnet cleanarch test --no-integration` passes: `UseCasePipelineTests` holds the order and
 what the behaviour does, `ContainerCompositionTests` that every host resolves it, and
 `ContainerCompositionTests.EveryMessage_PassesThroughTheValidationBehaviour` that the validation
 still wraps every message.

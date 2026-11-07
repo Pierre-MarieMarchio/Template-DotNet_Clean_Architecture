@@ -121,11 +121,11 @@ twice: a consumer of the fact is the fast path, and a leased sweep in the mainte
 publication is at most once. Both check that the account is really gone before writing, and both
 are idempotent ([ADR 0012](../decisions/0012-account-deletion-each-feature-decides.md)). Every
 feature this project ships deletes. A generated feature states its choice with
-`new-feature --deletion delete|anonymise` ([Adding a feature](../guides/adding-a-feature.md)).
+`add feature --deletion delete|anonymise` ([Adding a feature](../guides/adding-a-feature.md)).
 <!--#endif-->
 <!--#if (!anyFeature)-->
 No feature reacts to it yet: the first feature that owns user data brings the consumer, the
-policy and the leased sweep, written by `new-feature --deletion delete|anonymise`
+policy and the leased sweep, written by `add feature --deletion delete|anonymise`
 ([Adding a feature](../guides/adding-a-feature.md)).
 <!--#endif-->
 

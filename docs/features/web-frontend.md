@@ -33,16 +33,16 @@ The app is written by its framework's official CLI, at a version pinned in the a
 `create-vite` with its `react-ts`, `vue-ts` or `svelte-ts` template for `vite-react`, `vite-vue`
 and `vite-svelte`; `create-react-router` for
 `react-router`; the Angular CLI's `ng new` for `angular`. `bootstrap` runs that
-step once, through `dotnet run Tools/Tasks.cs web-scaffold`, and needs the network to fetch the CLI.
+step once, as does `dotnet cleanarch add web-app`, and needs the network to fetch the CLI.
 It writes the CLI's starter, lays the wiring over it (the `/api` relay, the package name, the
 `api-client` dependency, the scripts the workspace runs), pins every dependency to the version
 installed, then runs `pnpm install` and `pnpm api`.
 
 The CLI runs with its input closed, from the scratch folder it writes into. A CLI that asks a
-question therefore makes `web-scaffold` fail, leaving the app's folder unchanged, instead of waiting
+question therefore makes `add web-app` fail, leaving the app's folder unchanged, instead of waiting
 for an answer: the descriptor in the app's folder gives the CLI every answer in its arguments.
 
-Commit the app with the lockfile. From then on the app is this project's own: `web-scaffold` leaves
+Commit the app with the lockfile. From then on the app is this project's own: `add web-app` leaves
 it alone, and the pages are yours to write.
 <!--#endif-->
 <!--#if (webServerRendering && webAngular)-->
@@ -62,7 +62,7 @@ adds that server's relay, headers and nonce, described under [images and headers
 
 The app is a Blazor WebAssembly project written by `dotnet new blazorwasm`, from the template package
 and version its folder's descriptor pins, in a template hive of its own. `bootstrap` runs that step
-once, through `dotnet run Tools/Tasks.cs web-scaffold`, and needs the network to fetch the package. It
+once, as does `dotnet cleanarch add web-app`, and needs the network to fetch the package. It
 keeps the template's pages, layout and `wwwroot`, beside the project file and the `Program.cs` this
 project owns, and adds the project to the solution: it builds, formats and is tested with the rest,
 under the same analyzers and central package versions.
@@ -76,7 +76,7 @@ The client asks for the refresh token in the API's `HttpOnly` cookie
 memory.
 <!--#endif-->
 
-Commit the app. From then on it is this project's own: `web-scaffold` leaves it alone, and the pages
+Commit the app. From then on it is this project's own: `add web-app` leaves it alone, and the pages
 are yours to write. `dotnet watch` serves the pages without the relay; a page that calls the API runs
 through the stack.
 <!--#endif-->
@@ -89,7 +89,7 @@ of the front end this project grows into.
 
 ## Running it
 
-With the API running on the host (`dotnet run Tools/Tasks.cs run`), from `Src/Web`:
+With the API running on the host (`dotnet cleanarch run`), from `Src/Web`:
 
 ```bash
 pnpm --filter <app> dev
@@ -108,7 +108,7 @@ each other once the installed lockfile changes.
 `WEB_<APP>_HOST_PORT` gives it, and fails when the page does not load, when the browser reports a
 Content-Security-Policy violation, a console error or an uncaught exception, or when a call from the
 page through `/api/` does not reach the API. An app added later is driven without an edit. It needs
-the Compose stack and Chromium, so it is not part of `pnpm test`: `dotnet run Tools/Tasks.cs end-to-end`
+the Compose stack and Chromium, so it is not part of `pnpm test`: `dotnet cleanarch end-to-end`
 runs it after the end-to-end suite, and [testing](../guides/testing.md) says how to install the browser.
 
 ## Calling the API
@@ -152,12 +152,12 @@ try {
 The generated schema types a problem's `code` as a required string; `unwrap` still checks the body at run
 time, because an answer from a proxy or a crash is not a problem document.
 
-After any change to the API's contract, run `pnpm api` in `Src/Web`: it builds the API, writes its
-OpenAPI document and regenerates `Src/Web/packages/api-client/src/generated/schema.ts`, which is
+After any change to the API's contract, run `pnpm api` in `Src/Web`, or `dotnet cleanarch openapi`: it builds the API,
+writes its OpenAPI reference and regenerates `Src/Web/packages/api-client/src/generated/schema.ts`, which is
 committed so an app type-checks without the .NET SDK
 ([ADR 0019](../decisions/0019-one-generated-api-client.md)). `pnpm api --no-build` writes the
-document from the API's last build instead, as `new-feature`, `new-field` and `new-use-case` run it
-after theirs.
+reference from the API's last build instead. `add feature`, `add field` and `add use-case` run
+`dotnet cleanarch openapi` after theirs, which calls `pnpm api <reference>`.
 
 ## Signing in
 
@@ -329,19 +329,19 @@ dotnet new cleanarch-webapp -n BackOffice --framework angular --audience admin -
 `placeholder`; `--scope` is the package scope of
 `Src/Web/package.json`; `--auth` repeats this project's value. The app's `README.md` lists the lines
 it adds outside its folder: an `include:` entry in `docker-compose.yml` and `WEB_<NAME>_HOST_PORT` in
-`.env.example`. `dotnet run Tools/Tasks.cs web-join BackOffice --web angular --web-audience admin`,
-adding `--web-rendering ssr` for an app rendered on the server, makes them, leaving those in place
-already, then records the app in `cleanarch.json` with the values it was given and the port its
-`compose.yml` holds (`--web-port` states it, and is refused when it differs). Then run
-`dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
-placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
+`.env.example`. `dotnet cleanarch add web-app --name BackOffice --framework angular --audience admin`, run once the
+folder holds the app and adding `--rendering ssr` for an app rendered on the server, makes them,
+leaving those in place already, records the app in `cleanarch.json` with the values it was given and
+the port its `compose.yml` holds (`--port` states it, and is refused when it differs), then creates
+the app for a framework app. A placeholder needs `pnpm install` instead; commit the app with the
+lockfile. CI and Dependabot find apps by folder.
 `--rendering ssr` with `--framework angular` or `react-router` renders the app on its own Node
 server instead, as [images and headers](#images-and-headers) describes; the other frameworks are
 single-page apps only, and `--rendering spa` is the default.
 <!--#if (externalAuth)-->
 Such an app also needs its public origin, `WEB_<NAME>_ORIGIN`, in `.env.example`, and the
 provider's client of [an app rendered on the server](#an-app-rendered-on-the-server), lines its
-`README.md` lists and `web-join` makes too.
+`README.md` lists and `add web-app` makes too.
 <!--#endif-->
 <!--#if (accounts)-->
 
@@ -349,8 +349,8 @@ provider's client of [an app rendered on the server](#an-app-rendered-on-the-ser
 this project's `-n`, and its `--examples`, `--files` and `--agent-files` when they are not the defaults, and
 brings the .NET client of the API, or with `--has-client true` uses the one this project holds. Its
 `README.md` lists the lines it adds outside its folders, which
-`dotnet run Tools/Tasks.cs web-join BackOffice --web blazor-wasm` makes before it records the app,
-and before `web-scaffold` creates it.
+`dotnet cleanarch add web-app --name BackOffice --framework blazor-wasm` makes before it records
+the app, and before it creates it.
 <!--#endif-->
 
 Add a framework-agnostic package, one exported function and its test, the same way:
@@ -359,7 +359,7 @@ Add a framework-agnostic package, one exported function and its test, the same w
 dotnet new cleanarch-webpackage -n tokens --scope app-template
 ```
 
-Record it with `dotnet run Tools/Tasks.cs web-join tokens`, run `pnpm install` in `Src/Web` and add
+Record it with `dotnet cleanarch add web-package --name tokens`, run `pnpm install` in `Src/Web` and add
 `"@app-template/tokens": "workspace:*"` to each app that uses it. Internal packages are private and export their TypeScript sources, which each app's bundler
 compiles. An app never imports another app. A package for one framework is the project's to write.
 
@@ -368,7 +368,7 @@ Removing an app is deleting its folder, its `include:` line and its port line, t
 
 A project generated without a web app adds its first one with the same command plus
 `--workspace`, `--project-name <Project>` and `--scope`, which also creates `Src/Web` and
-`.github/workflows/web.yml`; the API side is in every project already. `web-join` then makes the
+`.github/workflows/web.yml`; the API side is in every project already. `add web-app` then makes the
 lines `Src/Web/README.md` lists for the workspace before the app's, and records both; create the
 app as above.
 

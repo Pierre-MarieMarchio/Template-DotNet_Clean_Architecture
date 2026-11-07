@@ -28,7 +28,7 @@ name, checked out a few folders deep, reaches either limit.
 - **The project's name is unchanged**: the `.csproj` file, the assembly, the root namespace and the
   solution's entries keep the whole name.
 - **The layer folders stay**, so the tree still reads by layer.
-- `ProjectFolderTests` holds every project to its folder; the tasks and the generators compute a
+- `ProjectFolderTests` holds every project to its folder; the project tool and the generators compute a
   folder from the name `cleanarch.json` records.
 
 ## Alternatives considered
@@ -47,7 +47,7 @@ name, checked out a few folders deep, reaches either limit.
   grouped by layer.
 - A module promoted to a project of its own follows the rule, `<Name>.Domain.Billing` in
   `Src/Domain/<Initials>.Domain.Billing`; a second product with the same initials goes in a root
-  folder of its own, as the tasks find a project by its `cleanarch.json`.
+  folder of its own, as the tool finds a project by its `cleanarch.json`.
 - Moving a project means updating the paths that cite it: the solution, the references between
   projects, the `Dockerfile`s, the workflows and the pages.
 

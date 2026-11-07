@@ -12,7 +12,7 @@ Status: Accepted
 ## Context
 
 The solution at the repository root lists every .NET project, in the solution folder of its layer,
-and the tasks, the workflows and the IDEs open it. Two formats describe it. The classic `.sln` is a
+and the tool, the workflows and the IDEs open it. Two formats describe it. The classic `.sln` is a
 line format of its own: each project carries a GUID for its kind and one for itself, and every
 platform configuration is repeated per project, so adding a project rewrites dozens of lines and two
 branches that each add one conflict. The `.slnx` is XML: a project is one `<Project Path="…" />`
@@ -22,8 +22,8 @@ writes an `.slnx`, and `dotnet sln`, `dotnet build`, `dotnet test` and `dotnet f
 ## Decision
 
 - **The root holds one solution, `AppTemplate.slnx`.** Its folders are the layers', under `Src/`
-  and `Tests/`; `presentation-scaffold` and `web-scaffold` add a project with
-  `dotnet sln add --solution-folder`, and the tasks, the solution filters they write and the
+  and `Tests/`; `add presentation` and `add web-app` add a project with
+  `dotnet sln add --solution-folder`, and the tool, the solution filters they write and the
   workflows name it.
 - **No `.sln` beside it or in its place.** `ProjectFileTests` holds that the root's one solution is
   the project's name with the `.slnx` extension.
@@ -43,8 +43,8 @@ writes an `.slnx`, and `dotnet sln`, `dotnet build`, `dotnet test` and `dotnet f
 - Adding or removing a project changes one line of the solution, and a merge of two branches that
   each add one is a merge of two lines.
 - A tool that parses the solution itself, rather than through MSBuild or the SDK, has to read XML.
-- A project generated with an `.sln` keeps it until it takes a `Tools/Tasks.cs` that names the
-  `.slnx`; the launcher finds the project by its `cleanarch.json`, whatever the solution's format.
+- A project generated with an `.sln` keeps it until it moves; `dotnet cleanarch` finds the project by its `cleanarch.json`, whatever the
+  solution's format.
   To move, `dotnet sln <Name>.sln migrate` writes `<Name>.slnx` beside it from the projects the
   `.sln` holds, after which the `.sln` is deleted and each place that names it, such as the
   `SOLUTION` of a workflow, moves to the new file; [upgrading](../guides/upgrading.md#what-the-report-compares) says how the report shows it.

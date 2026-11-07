@@ -335,8 +335,8 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   add:
 
   ```markdown
-  - The WebAssembly app starts from `dotnet new blazorwasm`, which `dotnet run Tools/Tasks.cs web-scaffold`
-    runs once; it is a .NET project of the solution, built and formatted with it, and calls the API
+  - The WebAssembly app starts from `dotnet new blazorwasm`, which `bootstrap` and `dotnet cleanarch add web-app`
+    run once; it is a .NET project of the solution, built and formatted with it, and calls the API
     through the .NET client of `Src/Presentation/AT.Presentation.Client`, never through `@app-template/api-client`.
   ```
 
@@ -406,8 +406,8 @@ Then create the app as above, and commit it. The edits, to make by hand where th
 
   ```markdown
   The .NET client of `Src/Presentation/AT.Presentation.Client` is generated from the reference itself:
-  `dotnet run Tools/Tasks.cs api-client` rewrites its `Generated/` folder with the Kiota the tool
-  manifest pins, and `dotnet run Tools/Tasks.cs api-client --check`, which `verify` runs, fails while
+  `dotnet cleanarch openapi` rewrites its `Generated/` folder with the Kiota the tool
+  manifest pins, and `dotnet cleanarch openapi --check`, which `verify` runs, fails while
   the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
   ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
   ```

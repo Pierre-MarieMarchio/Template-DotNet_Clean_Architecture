@@ -60,7 +60,7 @@ folder per operation such as `CreateTodoList` and `CompleteTodoItem`.
 <!--#endif-->
 <!--#endif-->
 
-`new-use-case` adds one operation to a feature of this shape, as
+`add use-case` adds one operation to a feature of this shape, as
 [adding a feature](../guides/adding-a-feature.md#add-a-use-case) shows.
 
 ## Side by side
@@ -81,7 +81,7 @@ folder per operation such as `CreateTodoList` and `CompleteTodoItem`.
 <!--#endif-->
 <!--#if (canAddFeature)-->
 
-The generator writes either shape: `new-feature --model record` the simple one, and
+The generator writes either shape: `add feature --model record` the simple one, and
 `--model aggregate` the rich one, which needs `--concurrency etag` and at least one write operation.
 [Adding a feature](../guides/adding-a-feature.md) walks through both.
 <!--#endif-->

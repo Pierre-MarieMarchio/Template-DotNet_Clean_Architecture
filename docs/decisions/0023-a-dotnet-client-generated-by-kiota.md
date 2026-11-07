@@ -29,10 +29,10 @@ wrapper, the same for every app.
   beside `Src/Presentation/AT.Presentation.Core`, its tests beside theirs, and the architecture keeps
   its four layers. `Generated/` is what Kiota writes from `Tests/Integration/AT.Api.IntegrationTests/OpenApi/v1.json`: the
   `ApiClient` class in `AppTemplate.Presentation.Client.Generated`, with `--exclude-backward-compatible`.
-  `dotnet run Tools/Tasks.cs api-client` writes it with the Kiota the tool manifest pins, adds the
+  `dotnet cleanarch openapi` writes it with the Kiota the tool manifest pins, adds the
   BOM the C# files carry here, and writes `kiota-lock.json` with the reference's relative path.
   The output is committed.
-- **Drift fails.** `api-client --check` regenerates into a temporary folder and fails on any
+- **Drift fails.** `openapi --check` regenerates into a temporary folder and fails on any
   difference; `verify` runs it.
 <!--#if (ci)-->
   CI runs it on every pull request.
@@ -78,13 +78,13 @@ wrapper, the same for every app.
 ## Consequences
 
 - A change to the API's contract is a compile error in every .NET client that relied on the old
-  one, once `api-client` has run.
+  one, once `openapi` has run.
 - The session's refresh goes through an `HttpClient` of its own, without the resilience handler: a
   rotated refresh token presented twice would end the session.
 - A status the contract does not declare for a route reads as `response.unreadable`, since Kiota
   maps a problem to its type by the declared status.
 - Kiota and `Microsoft.Kiota.Bundle` move together: Dependabot opens them in one pull request, and
-  `api-client` regenerates the output against the new version.
+  `openapi` regenerates the output against the new version.
 
 ## Revisit when
 

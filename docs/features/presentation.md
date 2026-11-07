@@ -57,7 +57,7 @@ Its tests are in `Tests/Presentation/<Initials>.Mcp.UnitTests`.
 <!--#endif-->
 ## Creating the project
 
-`bootstrap` first runs `dotnet run Tools/Tasks.cs presentation-scaffold`, which creates each
+`bootstrap` first creates each
 presentation project the solution does not hold yet, adds it and its tests to the solution, and
 formats what it wrote.
 
@@ -77,7 +77,7 @@ The rest comes from Avalonia's own template: the step runs `dotnet new avalonia.
 template package and version the project's descriptor pins, in a template hive of its own, and
 keeps what it writes under `Assets`, `ViewModels` and `Views`, with `App.axaml`, its view locator
 and `app.manifest`; a file the project already holds is kept. It needs the network once.
-`bootstrap` later writes the client from the API's document with `dotnet run Tools/Tasks.cs api-client`.
+`bootstrap` later writes the client from the API's document with `dotnet cleanarch openapi`.
 
 <!--#endif-->
 <!--#if (presentationWpf)-->
@@ -88,7 +88,7 @@ no version of it can be pinned: the app is written in the shape it gives, a `Win
 its view model. The generator's assembly information file is left out, its theme attribute serving
 custom control themes the app has none of. The step runs no template and adds the .NET client
 beside the app, without the network. `bootstrap` later writes the client from the API's document
-with `dotnet run Tools/Tasks.cs api-client`.
+with `dotnet cleanarch openapi`.
 
 <!--#endif-->
 <!--#if (presentationMcp)-->
@@ -97,15 +97,15 @@ gives a server: its project file, `Program.cs`, its settings, its image, its too
 under `Common/` and `Features/`. No template runs: the step works offline.
 
 <!--#endif-->
-Commit what `bootstrap` adds: from then on `presentation-scaffold` leaves each project alone, and
+Commit what `bootstrap` adds: from then on `bootstrap` leaves each project alone, and
 the pages a framework's template wrote are this project's own.
 
 A project generated without one takes it later from `dotnet new cleanarch-presentation`, which
-writes the project, its tests and this page. `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`
+writes the project, its tests and this page. `dotnet cleanarch add presentation --name <Name>`
 then makes the lines the `README.md` in the project's folder lists outside them, leaving alone those
 in place already and making none when one cannot be placed, and records the project in
-`cleanarch.json`; `presentation-scaffold` creates it the same way. `--framework worker -n Worker` adds
-the worker instead, whose join moves the API's jobs into it, as
+`cleanarch.json`, then creates its pages the same way. `--framework worker -n Worker` adds
+the worker instead, whose `add` moves the API's jobs into it, as
 [background jobs](background-jobs.md#several-instances) says.
 <!--#if (presentationBlazorServer)-->
 
@@ -357,7 +357,7 @@ The app reads two sections from the `appsettings.json` beside it, and validates 
 a window: `Api`, the API's address, and `SignIn`, its client at the provider. The generated file
 leaves `SignIn:Authority` and `SignIn:ClientId` empty, so the app refuses to start until they are
 set. The [configuration reference](../reference/configuration.md#api) has the rows.
-<!--#endif--> Run the API, with `dotnet run Tools/Tasks.cs compose-up` or from its project, then the
+<!--#endif--> Run the API, with `dotnet cleanarch compose up` or from its project, then the
 app with `dotnet run --project Src/Presentation/<Initials>.Desktop`.
 <!--#if (presentationWpf)-->
 The app runs on Windows alone; elsewhere the solution still builds it and runs the `.Core` tests.

@@ -51,4 +51,4 @@ Accepted, and its table shows which inherited choices still hold.
 
 [The index](index.md) lists every decision this project holds, by number, with its status and the
 question it answers, as each ADR's frontmatter says. Add this project's own ADRs from 1000, then run
-`dotnet run Tools/Tasks.cs docs-index`, which lists them after the ones the project shipped with.
+`dotnet cleanarch docs-index`, which lists them after the ones the project shipped with.

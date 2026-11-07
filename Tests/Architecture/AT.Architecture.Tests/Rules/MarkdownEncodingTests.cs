@@ -22,7 +22,7 @@ public sealed class MarkdownEncodingTests
 
         refused.ShouldBeEmpty(
             "a page's frontmatter starts at its first byte, and a reader that does not expect a BOM or a CR "
-            + "reads neither as Markdown; `dotnet run Tools/Tasks.cs format-fix` removes both.");
+            + "reads neither as Markdown; `dotnet cleanarch format` removes both.");
     }
 
     [Fact]

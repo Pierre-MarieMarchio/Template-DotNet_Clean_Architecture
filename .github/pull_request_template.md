@@ -14,8 +14,8 @@ Closes #<issue>
 
 ## What ran
 
-- [ ] `dotnet run Tools/Tasks.cs verify`: <result>
-- [ ] `dotnet run Tools/Tasks.cs coverage`: <result>
+- [ ] `dotnet run --project Launcher/CleanArch.Cli -- verify`: <result>
+- [ ] `dotnet run --project Launcher/CleanArch.Cli -- coverage`: <result>
 - Did not run, and why: <gate and reason, or none>
 
 ## What holds each guarantee

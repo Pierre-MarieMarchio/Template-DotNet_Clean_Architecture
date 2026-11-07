@@ -32,7 +32,7 @@ public sealed class AdoptCommandTests : IDisposable
     [Fact]
     public void Adopt_InfersTheProjectFileThisRepositoryCommits_FromItsTree()
     {
-        ProjectFacts repository = GeneratedProject.Find(Repository.Root).ShouldNotBeNull();
+        ProjectFacts repository = GeneratedProject.At(Repository.Root).ShouldNotBeNull();
 
         JsonObject inferred = WithoutTheShapesOnlyTheTemplateHolds(AdoptCommand.JsonOf(repository, GeneratedProjectFacts.Provenance(repository.Root).ShouldNotBeNull()));
         JsonObject committed = WithoutTheShapesOnlyTheTemplateHolds(File.ReadAllText(Path.Combine(Repository.Root, ProjectLocator.FileName)));

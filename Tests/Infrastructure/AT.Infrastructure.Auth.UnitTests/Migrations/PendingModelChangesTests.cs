@@ -19,7 +19,7 @@ public sealed class PendingModelChangesTests
 
         context.Database.HasPendingModelChanges().ShouldBeFalse(
             "the model has changed since the last migration was generated, or the project has none yet. "
-            + "Without one, run 'dotnet run Tools/Tasks.cs bootstrap', which creates the initial migration; after a model change, "
+            + "Without one, run 'dotnet cleanarch bootstrap', which creates the initial migration; after a model change, "
             + "migration-add targets the business context only, so run 'dotnet ef migrations add <Name>' with the Auth project "
             + "on both --project and --startup-project so the schema change ships with the code that needs it "
             + "(docs/guides/migrations.md).");

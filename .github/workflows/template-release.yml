@@ -84,7 +84,7 @@ jobs:
       - name: Pack the launcher
         run: dotnet pack "$LAUNCHER_PROJECT" --configuration Release --output "${{ runner.temp }}/package" -p:ContinuousIntegrationBuild=true
 
-      # A generated project's bootstrap pins dotnet cleanarch at the version of the template it came from.
+      # A generated project's tool manifest pins dotnet cleanarch at the version of the template it came from.
       - name: Pack the project's tool
         run: dotnet pack "$PROJECT_TOOL_PROJECT" --configuration Release --output "${{ runner.temp }}/package" -p:ContinuousIntegrationBuild=true
 

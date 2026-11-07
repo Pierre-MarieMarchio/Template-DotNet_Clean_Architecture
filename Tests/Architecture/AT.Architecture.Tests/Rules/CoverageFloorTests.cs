@@ -50,7 +50,7 @@ public sealed class CoverageFloorTests
 
         asTasksReads.ShouldBe(
             asAShellWouldRead,
-            "coverage.minimum promises one floor to CI and to `dotnet run Tools/Tasks.cs coverage`.");
+            "coverage.minimum promises one floor to CI and to `dotnet cleanarch coverage`.");
     }
 
     [Fact]

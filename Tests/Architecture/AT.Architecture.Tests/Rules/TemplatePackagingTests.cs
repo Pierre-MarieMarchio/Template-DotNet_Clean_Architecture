@@ -406,6 +406,21 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void TheWindowsMatcherOfTheGeneratedRule_IsTheOneTheToolReadsTestProjectsWith()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var verbatimPattern = new Regex(@"new\(\s*@""(?<pattern>(?:[^""]|"""")*)""", RegexOptions.None, TimeSpan.FromSeconds(2));
+        string Pattern(string file) => verbatimPattern.Match(File.ReadAllText(Path.Combine(root, file))).Groups["pattern"].Value;
+
+        string tool = Pattern("Launcher/CleanArch.Cli.Commands/Kernel/TestProjects.cs");
+
+        tool.ShouldContain("-windows", Case.Sensitive, "TestProjects.cs no longer declares the tool's Windows matcher first, so this rule compares nothing.");
+        Pattern("Tests/Architecture/AT.Architecture.Tests/Rules/WindowsTestProjectTests.cs").ShouldBe(
+            tool,
+            "WindowsTestProjectTests holds a Windows matcher other than the one dotnet cleanarch leaves a Windows test project out with.");
+    }
+
+    [Fact]
     public void TheGeneratedProjectsToolManifest_PinsTheProjectsToolAtTheTemplatesVersion()
     {
         XDocument tool = XDocument.Load(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Launcher", "CleanArch.Cli", "CleanArch.Cli.csproj"));
@@ -1524,77 +1539,13 @@ public sealed class TemplatePackagingTests
     {
         string[] copies =
         [
-            Path.Combine("Tools", "Tasks.cs"),
-            Path.Combine("Tools", "NewFeature.cs"),
-            Path.Combine("Tools", "NewUseCase.cs"),
-            Path.Combine("Tools", "NewSetting.cs"),
-            Path.Combine("Tools", "NewEvent.cs"),
             Path.Combine("Launcher", "CleanArch.Tooling", "ProjectNames.cs"),
         ];
         string own = SegmentInitials(Path.Combine("Tests", "Architecture", ProjectFolders.FolderOf("AppTemplate.Architecture.Tests"), "Fixtures", "ProjectFolders.cs"));
 
         own.ShouldNotBeEmpty("ProjectFolders declares no SegmentInitials, so this rule compares nothing.");
         copies.Where(copy => SegmentInitials(copy) != own).ShouldBeEmpty(
-            "Each file-based tool and the launcher compute a project's folder on their own, and these compute the initials otherwise than ProjectFolders does: make each SegmentInitials read as that one.");
-    }
-
-    [Theory]
-    [InlineData("NewUseCase.cs")]
-    [InlineData("NewSetting.cs")]
-    [InlineData("NewEvent.cs")]
-    [InlineData("RemoveFeature.cs")]
-    public void EveryCopyOfTheSharedFileEdits_ReadsAsNewFeaturesOwn(string generator)
-    {
-        string own = SharedUnit("NewFeature.cs", "internal static class TextEdits", "internal static class TextEdits");
-
-        own.ShouldNotBeEmpty("NewFeature.cs declares no TextEdits, so this rule compares nothing.");
-        SharedUnit(generator, "internal static class TextEdits", "internal static class TextEdits").ShouldBe(
-            own,
-            $"The generators are file-based programs, which share no code, so each closes on its own copy of TextEdits, the one way they "
-            + $"edit files they do not own and write everything or nothing: make {generator}'s copy read as NewFeature.cs's.");
-    }
-
-    [Theory]
-    [InlineData("NewUseCase.cs")]
-    [InlineData("NewSetting.cs")]
-    [InlineData("NewEvent.cs")]
-    [InlineData("RemoveFeature.cs")]
-    public void EveryCopyOfTheFeatureManifest_ReadsAsNewFeaturesOwn(string program)
-    {
-        string own = SharedUnit("NewFeature.cs", "internal sealed class FeatureManifest", "internal sealed class FeatureManifest");
-
-        own.ShouldNotBeEmpty("NewFeature.cs declares no FeatureManifest, so this rule compares nothing.");
-        SharedUnit(program, "internal sealed class FeatureManifest", "internal sealed class FeatureManifest").ShouldBe(
-            own,
-            $"Every program that reads or writes a feature's manifest does it through its own copy of FeatureManifest, the one way a manifest "
-            + $"is read, merged and written, so what one program records another reads back: make {program}'s copy read as NewFeature.cs's.");
-    }
-
-    [Theory]
-    [InlineData("NewUseCase.cs")]
-    [InlineData("NewSetting.cs")]
-    [InlineData("NewEvent.cs")]
-    public void EveryCopyOfTheNameRules_ReadsAsNewFeaturesOwn(string generator)
-    {
-        string own = SharedUnit("NewFeature.cs", "internal static class CSharpNames", "internal static class CSharpNames");
-
-        own.ShouldNotBeEmpty("NewFeature.cs declares no CSharpNames, so this rule compares nothing.");
-        SharedUnit(generator, "internal static class CSharpNames", "internal static class CSharpNames").ShouldBe(
-            own,
-            $"Every generator refuses a name by the same rules, PascalCase and no C# keyword once lowered, from its own copy of CSharpNames: "
-            + $"make {generator}'s copy read as NewFeature.cs's.");
-    }
-
-    [Fact]
-    public void EveryCopyOfTheFieldGrammar_ReadsAsNewFeaturesOwn()
-    {
-        string own = SharedUnit("NewFeature.cs", "internal enum FieldKind", "internal static class FieldGrammar");
-
-        own.ShouldNotBeEmpty("NewFeature.cs declares no FieldGrammar, so this rule compares nothing.");
-        SharedUnit("NewEvent.cs", "internal enum FieldKind", "internal static class FieldGrammar").ShouldBe(
-            own,
-            "new-feature --fields and new-event --fields read one grammar, each from its own copy of the field model and FieldGrammar, "
-            + "an event taking the subset FieldProfile.Event declares: make NewEvent.cs's copy read as NewFeature.cs's.");
+            "The tools compute a project's folder on their own, and these compute the initials otherwise than ProjectFolders does: make each SegmentInitials read as that one.");
     }
 
     [Fact]
@@ -1957,16 +1908,6 @@ public sealed class TemplatePackagingTests
                 yield return $"{relative}:{line}: {text[Math.Max(0, at - 12)..Math.Min(text.Length, at + token.Length + 16)].ReplaceLineEndings(" ")}";
             }
         }
-    }
-
-    private static string SharedUnit(string generator, string first, string last)
-    {
-        string text = File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Tools", generator)).ReplaceLineEndings("\n");
-        int start = text.IndexOf($"\n{first}\n", StringComparison.Ordinal);
-        int lastStart = start < 0 ? -1 : text.IndexOf($"\n{last}\n", start, StringComparison.Ordinal);
-        int end = lastStart < 0 ? -1 : text.IndexOf("\n}\n", lastStart, StringComparison.Ordinal);
-
-        return end < 0 ? string.Empty : text[start..(end + 3)];
     }
 
     private static string SegmentInitials(string relative) =>

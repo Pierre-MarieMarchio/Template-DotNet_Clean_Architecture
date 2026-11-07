@@ -59,10 +59,12 @@ jobs:
       - name: Generate the default project
         run: dotnet new cleanarch-webapi -n Sample.Published.Project -o "${{ runner.temp }}/generated" --debug:custom-hive "${{ runner.temp }}/hive"
 
-      # Bootstrap restores the local tools the project pins from nuget.org, CleanArch.Cli at the template's version among them where the template pins it, so a tool not published beside the template fails here.
+      # The restore takes the local tools the project pins from nuget.org, CleanArch.Cli at the template's version among them, so a tool not published beside the template fails here.
       - name: Bootstrap
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs bootstrap
+        run: |
+          dotnet tool restore
+          dotnet cleanarch bootstrap
 
       # The project's Directory.Build.props sets NuGetAudit to low over every dependency and TreatWarningsAsErrors, so an advisory on a pinned package fails this step as it fails a user's. It names no solution file, since the published version writes an .sln or an .slnx.
       - name: Build with warnings as errors

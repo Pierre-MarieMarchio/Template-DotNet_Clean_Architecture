@@ -708,30 +708,6 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   shows the call.
   ```
 
-- in `docs/guides/build-and-ci.md`, replace the line:
-
-  ```markdown
-  | `bootstrap` | `presentation-scaffold`, format, `docs-index`, write the OpenAPI reference, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, `migration-initial`, then `api-client` where the project holds the .NET client; once, after generation |
-  ```
-
-  with:
-
-  ```markdown
-  | `bootstrap` | `presentation-scaffold`, format, `docs-index`, write the OpenAPI reference, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, `migration-initial`, `api-client` where the project holds the .NET client, then `web-scaffold`; once, after generation |
-  ```
-
-- in `docs/guides/build-and-ci.md`, replace the line:
-
-  ```markdown
-  | `web-scaffold` | create the framework app a first `cleanarch-webapp --workspace` adds |
-  ```
-
-  with:
-
-  ```markdown
-  | `web-scaffold` | create each web app still holding its scaffold.json |
-  ```
-
 - in `docs/guides/build-and-ci.md`, after the line:
 
   ```markdown

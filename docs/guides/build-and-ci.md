@@ -1,109 +1,52 @@
 ---
 type: guide
 title: Build and CI
-description: Which task builds, checks and tests this project, what the gate holds, and what each workflow runs.
+description: Which command builds, checks and tests this project, what the gate holds, and what each workflow runs.
 ---
 
 # Build and CI
 
-## The task launcher
+## The project tool
 
-`Tools/Tasks.cs` wraps the `dotnet` and `docker` commands of this project and prints each one before
-running it, so the printed line gives the same result without the launcher. No task hides a flag that
-changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with their options, and `help <task>` shows the lines of one task
-(`dotnet run` claims a `--help` placed after the file name, so write `-- <task> --help` to ask the same).
-[The project tool](../reference/cli.md) says which of these tasks `dotnet cleanarch` runs as a
-command of its own.
+`dotnet cleanarch`, the tool this project pins in `.config/dotnet-tools.json`, wraps the `dotnet` and
+`docker` commands of this project and prints each one before running it, so the printed line gives
+the same result without the tool. No command hides a flag that changes the meaning of a build.
+`dotnet cleanarch help` lists the commands with their options, and `dotnet cleanarch <command> --help`
+shows one.
+[The project tool](../reference/cli.md) says what each command does and when it is refused;
+`check` and `verify`, the two this page builds on, are below.
 
-| Task | Runs |
-|---|---|
-| <!--#if (anyWeb)--> |
-| `bootstrap` | `presentation-scaffold`, format, `docs-index`, write the OpenAPI reference, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, `migration-initial`, `api-client` where the project holds the .NET client, then `web-scaffold`; once, after generation |
-| <!--#endif--> |
-| <!--#if (!anyWeb && api)--> |
-| `bootstrap` | `presentation-scaffold`, format, `docs-index`, write the OpenAPI reference, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, `migration-initial`, then `api-client` where the project holds the .NET client; once, after generation |
-| <!--#endif--> |
-| <!--#if (!api)--> |
-| `bootstrap` | `presentation-scaffold`, format, `docs-index`, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, then `migration-initial`; once, after generation |
-| <!--#endif--> |
-| `check` | what `verify` would catch on the files you touched, in under a minute once built: [below](#check) |
-| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` builds every test project, runs only the ones that need no Docker, in parallel as over the solution, through solution filters it writes under the ignored artifacts folder, and names each project it built and did not run; off Windows, `test` also names and leaves out [the tests that run on Windows alone](#tests-that-run-on-windows-alone); `format-fix` then names each file and line whose name breaks a naming rule, which `dotnet format` cannot rename, and fails while one is left |
-| `format` | `dotnet format --verify-no-changes` over what the build does not check, as [the gate](#the-gate) says |
-| `coverage` | the tests with coverage, against `coverage.minimum` |
-| <!--#if (api)--> |
-| `run` | the API on the host |
-| <!--#endif--> |
-| `compose-up`, `compose-down` | the local stack, waiting until every service is healthy |
-| <!--#if (api)--> |
-| `end-to-end` | the end-to-end suite against a Compose stack of its own, then with a web app the browser smoke over each app, the stack removed afterwards unless `--keep-stack` |
-| <!--#endif--> |
-| `new-feature`, `remove-feature` | the feature generator and its undo |
-| `new-field` | one or more fields added to a feature `new-feature --fields` generated, in every layer, with its migration |
-| `new-use-case` | one more use case in a feature of the rich shape |
-| `new-setting` | a feature's options class with its validator, registered, its section in each host's `appsettings.json` and in the configuration reference, as [adding a setting](adding-a-setting.md) says |
-| `new-event` | a domain event of a feature of the rich shape, with its consumer or its place among the events nobody consumes, and their tests, as [adding a domain event](adding-a-feature.md#add-a-domain-event) says |
-| `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
-| <!--#if (localAuth)--> |
-| `migration-add`, `database-update` | `dotnet ef` over the business context, or the identity context with `--context auth`, once it has its initial migration; `migration-add` refuses an empty migration |
-| `migration-check` | fail when the business context's model, or the identity context's with `--context auth`, holds a change no migration holds; `new-feature` and `new-field` run it before they write |
-| <!--#endif--> |
-| <!--#if (!localAuth)--> |
-| `migration-add`, `database-update` | `dotnet ef` over the business context, once it has its initial migration; `migration-add` refuses an empty migration |
-| `migration-check` | fail when the business context's model holds a change no migration holds; `new-feature` and `new-field` run it before they write |
-| <!--#endif--> |
-| `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
-| <!--#if (api)--> |
-| `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
-| `api-client` | once the project holds the .NET client, rewrite its `Generated/` folder from the OpenAPI reference, as `bootstrap` does after `migration-initial`; `--check` fails on a difference |
-| <!--#endif--> |
-| <!--#if (sonar)--> |
-| `sonar` | the local Sonar analysis |
-| <!--#endif--> |
-| <!--#if (anyWeb)--> |
-| `web-scaffold` | create each web app still holding its scaffold.json |
-| <!--#endif--> |
-| <!--#if (!anyWeb)--> |
-| `web-scaffold` | create the framework app a first `cleanarch-webapp --workspace` adds |
-| <!--#endif--> |
-| `presentation-scaffold` | create each presentation project still holding its scaffold.json |
-| `presentation-join` | the lines a presentation project added by `cleanarch-presentation` lists in its `README.md`, outside its folders, then records the project in `cleanarch.json`; for the worker it first moves the API's jobs and their tests into it, on a committed tree, and builds the result in a copy before it writes anything |
-| `web-join` | for an app added by `cleanarch-webapp`, the lines its `README.md` lists outside its folders, with those the web workspace's own README lists for a first app and its workspace, then records the app in `cleanarch.json` with `--web`, `--web-audience` and `--web-rendering`, and the port its `Src/Web/apps/<App>/compose.yml` holds, which `--web-port` may state; for a package added by `cleanarch-webpackage`, records it |
-| `docs-index` | the index of each folder under `docs/`, listing its pages and its subfolders by the `title` and `description` of their frontmatter, a decision with its `status`; `--check` fails when one differs from what it writes |
-| `hygiene` | the self-tests of the gates this tree carries, then `docs-index --check` |
-| `verify` | the whole gate, in CI's order |
-| `upgrade-report` | what a newer version of the package that generated the project changes in it, written nowhere in the project, as [upgrading](upgrading.md) says |
+`build`, `test`, `check`, `coverage`, `migrations bundle` and `verify` build in Debug unless
+`--configuration Release` asks otherwise.
 
-`build`, `test`, `check`, `coverage`, `migration-bundle` and `verify` build in Debug unless
-`dotnet run Tools/Tasks.cs -- <task> --configuration Release` asks otherwise: the `--` comes first,
-because `dotnet run` claims `--configuration` for itself.
-
-Everything under `Tools/` is a file-based C# app: the SDK `global.json` requires is all it needs. The
-first run of a file compiles it, which takes a moment, under the same `Directory.Build.props` and
-`.editorconfig` as the solution.
+A file-based C# app under `Tools/` is a command of this project's own, as
+[the project tool](../reference/cli.md#this-projects-own-commands) says: the SDK `global.json`
+requires is all it needs. The first run of a file compiles it, which takes a moment, under the same
+`Directory.Build.props` and `.editorconfig` as the solution.
 
 ## Check
 
-While you work, `dotnet run Tools/Tasks.cs check` runs the part of the gate a change of a few files can
+While you work, `dotnet cleanarch check` runs the part of the gate a change of a few files can
 break, on the files `git diff` touches: the working tree, the files not yet tracked and the commits of
 the branch since its merge-base with `origin/develop`, or with the first of `origin/HEAD`,
 `origin/main`, `origin/master`, `develop`, `main` and `master` that exists, or with `HEAD` when none
 does. With nothing touched it says so and passes. In this order it:
 
-1. verifies the format of the C# files touched, as `format` does for the whole tree;
+1. verifies the format of the C# files touched, as `format --check` does for the whole tree;
 2. builds the projects touched and every project that references them, found through the
    `ProjectReference` graph of the solution, or the whole solution when the change touches a file that
    sets the build for all of them: a project or solution file, `Directory.Build.props`,
    `Directory.Build.targets`, `Directory.Packages.props`, `.editorconfig`, `global.json` or
    `nuget.config`;
 3. builds every test project that needs Docker, touched or not, so that a compile error there fails
-   the task, and names each one as built and not run;
+   the command, and names each one as built and not run;
 4. runs the architecture tests, whatever was touched, and the unit tests of the projects built, which
    are the projects that need no Docker and, off Windows, not
    [the ones that run on Windows alone](#tests-that-run-on-windows-alone).
 
 The build fails on an `IDE1006` naming rule like any warning. `check` stands in for `verify` on a
 small change and for nothing else: it builds the test projects that need Docker and runs none of
-them, and leaves out `coverage`, the migration drift check, the vulnerability listing, the `hygiene` gates and, where the
+them, and leaves out `coverage`, the migration drift check, the vulnerability listing, the `verify` gates and, where the
 project has them, the comparison of the generated clients with the OpenAPI reference. Run
 `verify` and `coverage` before calling a change done.
 <!--#if (templateMaintenance)-->
@@ -121,7 +64,7 @@ filter written under the ignored artifacts folder, and name it before the run an
 Skipped Tests/Presentation/<Folder>: it targets net10.0-windows and runs on Windows alone.
 ```
 
-The run then passes or fails on the other projects; on Windows nothing is left out. The tasks read
+The run then passes or fails on the other projects; on Windows nothing is left out. The commands read
 the target framework in the test project's own file alone, so `WindowsTestProjectTests` fails when a
 test project that targets Windows, or references a project that does, does not set it there, names
 several target frameworks, or takes a Windows one from a `.props` or `.targets` file.
@@ -131,18 +74,18 @@ several target frameworks, or takes a Windows one from a `.props` or `.targets` 
 A change is done when this passes, without overrides:
 
 ```bash
-dotnet run Tools/Tasks.cs verify
+dotnet cleanarch verify
 ```
 
-It refuses to start while a context has no migration, then runs `hygiene`, restore, `format`, the
+It refuses to start while a context has no migration, then runs the documentation index check, restore, `format --check`, the
 build, the tests, the migration drift check for every context, and the vulnerability listing. The
-coverage floor is a separate task, `coverage`.
+coverage floor is a separate command, `coverage`.
 <!--#if (templateMaintenance)-->
 In this repository the acceptance matrix also runs `coverage` in a generated project unlike this
 checkout, against the same `coverage.minimum`, as
 [maintaining the template](../template/maintaining-the-template.md#the-acceptance-matrix) says.
 <!--#endif-->
-When the project holds the .NET client, it runs `api-client --check` after `hygiene`, so a contract
+When the project holds the .NET client, it runs `openapi --check` after `verify`, so a contract
 change without its regenerated client fails.
 <!--#if (anyWeb)-->
 With a web workspace it then runs `pnpm install --frozen-lockfile` and compares
@@ -154,12 +97,10 @@ stops before them and says how to install it, and no option skips them.
 <!--#endif-->
 
 On a machine short of memory, `-m:<N>` caps `restore`, `build`, `test`, `coverage` and `verify` at
-N MSBuild nodes and N test projects running at once, as in `dotnet run Tools/Tasks.cs verify -m:4`.
+N MSBuild nodes and N test projects running at once, as in `dotnet cleanarch verify -m:4`.
 
-Each gate proves it can fail before it judges the tree: `hygiene` runs the `--self-test` of the
-generator, the removal command and the coverage gate, each against faulted and sound fixtures, then
-fails when a folder's index under `docs/` no longer lists its pages as their frontmatter says. A
-gate also refuses to pass on nothing: a test run that executed no test and a coverage total over no
+`verify` fails when a folder's index under `docs/` no longer lists its pages as their frontmatter
+says. A gate refuses to pass on nothing: a test run that executed no test and a coverage total over no
 assembly both fail. A rule added to a gate comes with the fixture that fails without it.
 
 `TreatWarningsAsErrors`, set in `Directory.Build.props`, fails the build on a compiler's warning, and
@@ -218,7 +159,7 @@ tool's and keeps the directives the tool writes.
 | `S1075` | `.editorconfig` `Src/Presentation/AT.Api/Common/Errors/ProblemTypes.cs` | The default problem-type base, on the reserved `.example` domain; `ProblemTypeOptions.BaseUri` replaces it. |
 | <!--#endif--> |
 | `generated_code`, `IDE0005` | `.editorconfig` `**/Migrations/*.cs` | `dotnet ef` writes the migrations, and one a database has applied is never rewritten. |
-| `generated_code` | `.editorconfig` `**/Generated/**.cs` | Kiota writes the .NET client's `Generated/` folder, and `api-client` rewrites it whole. |
+| `generated_code` | `.editorconfig` `**/Generated/**.cs` | Kiota writes the .NET client's `Generated/` folder, and `openapi` rewrites it whole. |
 | `CA1707` | `.editorconfig` `Tests/**/*.cs` | A test's name reads as its claim, its parts separated by underscores. |
 | <!--#if (templateMaintenance)--> |
 | `CA1707` | `Launcher/.editorconfig` `CleanArch.Create.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
@@ -231,12 +172,12 @@ compilation, so a formatting defect (IDE0055), a private field without its under
 unused `using` (IDE0005) fails `dotnet build` like any warning. IDE0055 and IDE1006 need their
 `dotnet_diagnostic` severity in `.editorconfig`, and IDE0005 needs the documentation file every
 project generates; `CodeStyleEnforcementTests` fails when either is missing. What the build cannot
-see is left to `format`: the order of using directives, the encoding and line endings, and IDE0003
+see is left to `format --check`: the order of using directives, the encoding and line endings, and IDE0003
 and IDE0049, whose analyzers the SDK's build does not carry. `verify` runs it before the build.
 
-`.cs` files are UTF-8 with BOM: one created without it fails `format`, and `format-fix` adds it.
+`.cs` files are UTF-8 with BOM: one created without it fails `format --check`, and `format` adds it.
 `.md` files are UTF-8 without BOM, with LF line endings: `MarkdownEncodingTests` fails on a BOM or a
-CR, and `format-fix` removes both.
+CR, and `format` removes both.
 <!--#if (ci)-->
 
 ## Workflows
@@ -245,10 +186,10 @@ CR, and `format-fix` removes both.
 |---|---|---|
 | <!--#endif--> |
 | <!--#if (ci && api)--> |
-| `.github/workflows/ci.yml` | push and pull request to `main` or `develop`, and a manual run | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack, then the browser smoke with a web app; the load smoke |
+| `.github/workflows/ci.yml` | push and pull request to `main` or `develop`, and a manual run | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `verify` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack, then the browser smoke with a web app; the load smoke |
 | <!--#endif--> |
 | <!--#if (ci && !api)--> |
-| `.github/workflows/ci.yml` | push and pull request to `main` or `develop`, and a manual run | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the Compose manifest |
+| `.github/workflows/ci.yml` | push and pull request to `main` or `develop`, and a manual run | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `verify` gates; the vulnerability listing; the Compose manifest |
 | <!--#endif--> |
 | <!--#if (ci && serverDatabase && api)--> |
 | `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the API's image, with the worker's when the project holds one, pushed to GHCR |
@@ -313,7 +254,7 @@ Locally:
 
 ```bash
 docker compose --profile sonar up -d --wait sonarqube   # http://localhost:9111, admin/admin
-dotnet run Tools/Tasks.cs sonar                         # after setting SONAR_TOKEN in .env
+dotnet cleanarch sonar                         # after setting SONAR_TOKEN in .env
 ```
 
 The scanner needs a JRE, which `Tools/sonar-scanner.Dockerfile` supplies, so your machine needs none.

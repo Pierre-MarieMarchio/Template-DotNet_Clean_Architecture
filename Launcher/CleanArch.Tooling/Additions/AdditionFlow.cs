@@ -105,7 +105,9 @@ internal sealed class AdditionFlow(AdditionContext context)
         Conversation.Perform($"Adding {name}", $"Added {name}", () => context.Engine.Run(project.Root, engine, performed));
     }
 
-    public string CompletedBy(string command, string name) => $"{Invocation} {command} --name {name}";
+    public string Completion(string command) => $"{Invocation} {command} --name";
+
+    public string CompletedBy(string command, string name) => $"{Completion(command)} {name}";
 
     public Dictionary<string, string> GivenOptions(TemplateManifest manifest) =>
         manifest.Options

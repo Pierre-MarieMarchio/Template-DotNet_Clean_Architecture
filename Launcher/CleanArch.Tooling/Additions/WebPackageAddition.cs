@@ -39,7 +39,7 @@ internal sealed partial class WebPackageAddition(AdditionFlow flow)
             return;
         }
 
-        flow.Generate(project, name, engine, [ItemAdditions.WebJoinTask]);
+        flow.Generate(project, name, engine, [flow.Completion(_command)]);
         string rerun = flow.CompletedBy(_command, name);
         int done = flow.RunSteps(project.Root, steps, rerun);
 

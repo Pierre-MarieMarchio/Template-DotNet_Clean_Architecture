@@ -17,7 +17,7 @@ The folder starts with the wiring only: scaffold.json names the template package
 pinned to and the arguments of `dotnet new blazorwasm`. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs web-scaffold FrameworkSite
+dotnet cleanarch add web-app --name FrameworkSite
 ```
 
 `bootstrap` runs the same step. It needs the network once, to fetch the template package. It keeps
@@ -155,19 +155,19 @@ template refuses it.
 It writes this folder, the .NET client in `Src/Presentation/AT.Presentation.Client` with its tests, and the client's decision;
 `--has-client true` leaves the client, its tests and its decision out, and its edits below with them.
 <!--#if (externalAuth)-->
-With `--auth external` it also writes the app's unit tests under `Tests`, which `web-scaffold` adds to
+With `--auth external` it also writes the app's unit tests under `Tests`, which its creation adds to
 the solution with the app.
 <!--#endif-->
 The lines `--web blazor-wasm` writes in files the item template cannot edit are listed below, each
-placed by the lines it goes beside. One task makes them all, leaving those in place already, or
+placed by the lines it goes beside. One command makes them all, leaving those in place already, or
 none when one of those lines is not found exactly once; with `--workspace` it first makes those
 `Src/Web/README.md` lists for the workspace:
 
 ```bash
-dotnet run Tools/Tasks.cs web-join FrameworkSite --web blazor-wasm
+dotnet cleanarch add web-app --name FrameworkSite --framework blazor-wasm
 ```
 
-Then create the app as above, and commit it. The edits, to make by hand where the task stops:
+It then creates the app as above; commit it. The edits, to make by hand where the command stops:
 
 - in `docker-compose.yml`, after the line:
 

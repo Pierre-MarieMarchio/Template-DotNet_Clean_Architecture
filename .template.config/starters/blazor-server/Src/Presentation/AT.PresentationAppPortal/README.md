@@ -10,7 +10,7 @@ The folder starts with the project's own files: scaffold.json names the template
 version and the arguments of `dotnet new blazor`. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationAppPortal
+dotnet cleanarch add presentation --name PresentationAppPortal
 ```
 
 `bootstrap` runs the same step. It needs the network once, to fetch the template package. It keeps
@@ -31,16 +31,16 @@ when they are not the defaults: the project's files are written for them.
 
 It writes this folder, its tests and `docs/features/presentation.md`. The lines `--presentation`
 writes in files the item template cannot edit are listed below, each placed by the lines it goes
-beside. One task makes them all, leaving those in place already, or none when one of those lines is
+beside. One command makes them all, leaving those in place already, or none when one of those lines is
 not found exactly once:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppPortal
+dotnet cleanarch add presentation --name PresentationAppPortal
 ```
 
-Then create the project as above and commit it. `dotnet cleanarch add presentation` runs the three
-commands in turn, reading the options from `cleanarch.json`. The edits, to make by hand where the
-task stops:
+It then creates the project as above; commit it. `dotnet cleanarch add presentation` alone also
+runs the `dotnet new`, reading the options from `cleanarch.json`. The edits, to make by hand where
+the command stops:
 
 - in `.dockerignore`, after the line:
 

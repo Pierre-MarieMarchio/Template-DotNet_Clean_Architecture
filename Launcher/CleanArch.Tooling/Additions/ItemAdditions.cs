@@ -8,10 +8,6 @@ namespace CleanArch.Tooling.Additions;
 
 public sealed class ItemAdditions
 {
-    public const string PresentationJoinTask = "presentation-join";
-    public const string WebJoinTask = "web-join";
-    public const string PresentationScaffoldTask = "presentation-scaffold";
-    public const string WebScaffoldTask = "web-scaffold";
     public const string JoiningSection = "## Joining a project generated without one";
     public const string PresentationCreateSection = "## Create the project";
     public const string Stopped = "Stopped. Nothing was written.";

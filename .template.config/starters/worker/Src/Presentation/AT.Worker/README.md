@@ -10,7 +10,7 @@ The folder holds the whole project, written in the shape `dotnet new worker` giv
 version scaffold.json names; no template runs. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.Worker
+dotnet cleanarch add presentation --name Worker
 ```
 
 `bootstrap` runs the same step. It needs no network: it removes scaffold.json, adds the project and
@@ -25,8 +25,7 @@ on a git tree with nothing to commit:
 
 ```bash
 dotnet new cleanarch-presentation -n Worker --framework worker --project-name AppTemplate
-dotnet run Tools/Tasks.cs presentation-join AppTemplate.Worker
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.Worker
+dotnet cleanarch add presentation --name Worker
 ```
 
 Pass the project's `--auth`, `--examples`, `--files`, `--database` and `--ci` too when they are not
@@ -34,7 +33,7 @@ the defaults: the project's files are written for them. The item template refuse
 `--database sqlite`, whose file serves one process, and in a project without the API, whose jobs run
 in a worker already.
 
-It writes this folder, its tests and the worker's decision. `presentation-join` then moves the API's
+It writes this folder, its tests and the worker's decision. The command then moves the API's
 `Common/Jobs` and `Features/*/Jobs` folders into this project, and the `Features/*/Jobs` folders of
 the API's unit tests into its tests, renames each namespace they declare from the API's to the
 worker's wherever the project names it, and makes the lines `--presentation worker` writes in files the item template cannot edit,
@@ -44,12 +43,12 @@ undoes a move; an edit in place already is left alone, and the others are made a
 builds the API and the worker: a job that uses a type only the API declares stops it there, naming
 the type, which then moves to the application layer or into the job's folder. Last, it removes this
 section from this README, as `--presentation worker` writes it: the files it cites have moved. Then
-create the project as above and commit it.
+it creates the project as above; commit it.
 
 ADR 0011 stays, superseded by ADR 0025, since it held while the API ran the jobs.
 The move is safe in a rolling deployment: a pass that must not run twice takes its `ILeaderLease`
 inside its use case, so the API still running the jobs and the new worker never run it together, and
-the other passes are idempotent. The edits, to make by hand where the task stops:
+the other passes are idempotent. The edits, to make by hand where the command stops:
 
 - in `.dockerignore`, after the line:
 

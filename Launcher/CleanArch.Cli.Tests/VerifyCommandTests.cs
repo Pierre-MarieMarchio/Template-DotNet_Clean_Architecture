@@ -284,7 +284,7 @@ public sealed class VerifyCommandTests : IDisposable
             lines.ShouldContain($"dotnet run {Path.Combine("Tools", gate)} {project.Root}");
         }
 
-        lines.ShouldContain($"dotnet run {Path.Combine("Tools", "Tasks.cs")} web-lockfiles --check");
+        lines.ShouldContain($"dotnet run {Path.Combine("Tools", "WebLockfiles.cs")} --check");
         string launcher = Path.Combine("Launcher", "CleanArch.Create.slnx");
         lines.ShouldContain($"dotnet restore {launcher}");
         lines.ShouldContain($"dotnet format {launcher} --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore");

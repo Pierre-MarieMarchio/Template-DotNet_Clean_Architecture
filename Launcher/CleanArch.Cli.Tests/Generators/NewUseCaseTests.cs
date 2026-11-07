@@ -184,7 +184,7 @@ public sealed class NewUseCaseTests
 
         expect(usings.SequenceEqual(usings.Order(StringComparer.OrdinalIgnoreCase)), $"The controller's usings are out of order: {string.Join(" ", usings)}");
         expect(
-            ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs openapi"]),
+            ran.Select(command => command.Display).SequenceEqual(["dotnet cleanarch openapi"]),
             $"The applied use case did not rewrite the OpenAPI reference alone: {string.Join(" | ", ran.Select(command => command.Display))}");
 
         var again = Invoke(root, "Invoices", "FindByCustomer", "--kind", "query", "--input", "id, Customer:string");
@@ -248,10 +248,10 @@ public sealed class NewUseCaseTests
             "A dry run did not print the edit it would make.");
 
         string failing = NewTree(scratch);
-        var failed = Invoke(failing, Recording([], failing: "dotnet run Tools/Tasks.cs openapi"), "Invoices", "ApproveInvoice", "--kind", "command");
+        var failed = Invoke(failing, Recording([], failing: "dotnet cleanarch openapi"), "Invoices", "ApproveInvoice", "--kind", "command");
 
         expect(
-            failed.Code == 1 && failed.Error.Contains("  dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal) && Occurrences(failing, _controller, "ISender sender,") == 1,
+            failed.Code == 1 && failed.Error.Contains("  dotnet cleanarch openapi", StringComparison.Ordinal) && Occurrences(failing, _controller, "ISender sender,") == 1,
             "A failed OpenAPI step did not fail the command and name what remains, or undid the edit.");
     }
 
@@ -309,7 +309,7 @@ public sealed class NewUseCaseTests
         }
     }
 
-    private const string _outputDigest = "59500638cf42cafe496b4700494bc490670b8468071c4721f11c18acd3f6b884";
+    private const string _outputDigest = "60685b4d06479eb63130d62ef7eda83306cb5c1727dca9c9d962a032ea12b38a";
 
     private static void OutputCases(string scratch, Action<bool, string> expect)
     {
@@ -622,10 +622,7 @@ public sealed class NewUseCaseTests
                 before.Where(pair => !_servingFiles.Contains(pair.Key)).All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
                 $"[{label}] changed a file it neither owns nor serves the use case through.");
             expect(!Directory.Exists(Path.Combine(root, FeatureManifest.Folder)), $"[{label}] wrote a manifest where the feature had none.");
-            expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), $"[{label}] did not print the OpenAPI step.");
-            expect(
-                !result.Output.Contains("api-client", StringComparison.Ordinal) && !result.Output.Contains("pnpm api", StringComparison.Ordinal),
-                $"[{label}] printed a step for a client and a web workspace the project does not hold.");
+            expect(result.Output.Contains("dotnet cleanarch openapi", StringComparison.Ordinal), $"[{label}] did not print the OpenAPI step.");
             expect(result.Output.Contains("Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs", StringComparison.Ordinal), $"[{label}] did not name the feature's controller.");
 
             string row = args[0] switch
@@ -650,22 +647,6 @@ public sealed class NewUseCaseTests
                 }
             }
         }
-
-        string contractRoot = NewTree(scratch);
-
-        Directory.CreateDirectory(Path.Combine(contractRoot, "Src/Presentation/A.Presentation.Client"));
-        Directory.CreateDirectory(Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts"));
-        File.WriteAllText(Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts/generate.mjs"), "// the script pnpm api runs\n");
-
-        var ran = new List<TextEdits.Command>();
-        var contract = Invoke(contractRoot, Recording(ran), "Invoices", "ApproveInvoice", "--kind", "command");
-
-        string[] launched = [.. ran.Select(command => string.Join(' ', [Path.GetFileNameWithoutExtension(command.FileName), .. command.Arguments]))];
-
-        expect(
-            contract.Code == 0
-                && launched.SequenceEqual(["dotnet run Tools/Tasks.cs openapi", "dotnet run Tools/Tasks.cs api-client", "pnpm api --no-build"]),
-            $"The OpenAPI reference, which builds the API, then the client and the web schema from that build were not all run, in that order, for a project that holds the client and the web workspace: {string.Join(" | ", launched)}");
 
         string untested = NewTree(scratch);
         Directory.Delete(Path.Combine(untested, "Tests/Application/A.Application.UnitTests"), recursive: true);

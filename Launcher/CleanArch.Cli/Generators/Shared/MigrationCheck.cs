@@ -4,7 +4,7 @@ internal static class MigrationCheck
 {
     internal static string? Refusal(string root, TextWriter output, IExecutor executor, string migration)
     {
-        var check = TextEdits.Task(root, "migration-check");
+        var check = TextEdits.ToolCommand(root, "migrations", "add", "--check");
 
         output.WriteLine($"Checking that no model change waits for a migration: {check.Display}");
         output.Flush();

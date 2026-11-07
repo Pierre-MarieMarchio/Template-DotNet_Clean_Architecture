@@ -65,11 +65,8 @@ public sealed class RemoveFeatureTests
     {
         ran.Add(command);
 
-        int at = Array.IndexOf(command.Arguments, "migration-add");
-
-        if (at >= 0 && command.Display != failing)
+        if (command.Arguments is ["migrations", "add", { } name, ..] && name != "--check" && command.Display != failing)
         {
-            string name = command.Arguments[at + 1];
 
             string migration = _removeMigration.Replace("{0}", name, StringComparison.Ordinal);
 
@@ -168,7 +165,7 @@ public sealed class RemoveFeatureTests
 
         expect(result.Code == 1, $"{name}: --apply did not refuse: {result.Output}");
         expect(Same(snapshot, Snapshot(tree)), $"{name}: a refusal changed the tree: {Differences(snapshot, Snapshot(tree))}");
-        expect(ran.All(command => command.Display.EndsWith("migration-check", StringComparison.Ordinal)), $"{name}: a refusal ran {string.Join(", ", Launched(ran))}.");
+        expect(ran.All(command => command.Display.EndsWith("migrations add --check", StringComparison.Ordinal)), $"{name}: a refusal ran {string.Join(", ", Launched(ran))}.");
 
         foreach (string text in expected)
         {
@@ -195,7 +192,7 @@ public sealed class RemoveFeatureTests
         expect(!after.Keys.Any(key => key.Contains("Widgets", StringComparison.Ordinal)), "A folder of the feature was left behind.");
         expect(File.Exists(Path.Combine(root, "README.md")) && File.Exists(Path.Combine(root, "Src/Presentation/A.Api/Program.cs")), "A file the feature did not own was deleted.");
         expect(
-            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            Launched(ran).SequenceEqual(["dotnet cleanarch docs-index", "dotnet cleanarch build", "dotnet cleanarch openapi --no-build"]),
             $"A feature without a migration did not build once and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
 
         var again = Invoke(root, "Widgets", "--apply");
@@ -292,10 +289,10 @@ public sealed class RemoveFeatureTests
 
         var pending = Snapshot(checkedTree);
         var checks = new List<TextEdits.Command>();
-        var waiting = Invoke(checkedTree, Recording(checks, "dotnet run Tools/Tasks.cs migration-check"), "Widgets", "--apply");
+        var waiting = Invoke(checkedTree, Recording(checks, "dotnet cleanarch migrations add --check"), "Widgets", "--apply");
 
         expect(waiting.Code == 1 && Same(pending, Snapshot(checkedTree)), "A model change waiting for a migration did not stop --apply before it changed anything.");
-        expect(waiting.Error.Contains("migration-check` failed", StringComparison.Ordinal) && Launched(checks).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check"]), $"The refusal for a waiting model change does not say why, or ran more: {waiting.Error}");
+        expect(waiting.Error.Contains("migrations add --check` failed", StringComparison.Ordinal) && Launched(checks).SequenceEqual(["dotnet cleanarch migrations add --check"]), $"The refusal for a waiting model change does not say why, or ran more: {waiting.Error}");
 
         var auth = Invoke(Skeleton(scratch), "Auth", "--apply");
 
@@ -543,7 +540,7 @@ public sealed class RemoveFeatureTests
             expect(applied.Code == 0, $"A composed {features}, one of its files edited, was refused: {applied.Output}{applied.Error}");
             expect(Same(original, after), $"After removing {features} the tree is not the one that was there before it was generated: {Differences(original, after)}");
             expect(
-                Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+                Launched(ran).SequenceEqual(["dotnet cleanarch migrations add --check", "dotnet cleanarch docs-index", "dotnet cleanarch build", "dotnet cleanarch openapi --no-build"]),
                 $"Removing {features} did not check the model, then rewrite the index, build once and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
 
             foreach (string empty in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).Where(folder => !folder.Contains($"{Path.DirectorySeparatorChar}.git", StringComparison.Ordinal) && !Directory.EnumerateFileSystemEntries(folder).Any()))
@@ -574,7 +571,7 @@ public sealed class RemoveFeatureTests
 
         expect(applied.Code == 0, $"A feature with its migration was refused: {applied.Output}{applied.Error}");
         expect(
-            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- migration-add RemoveWidgets --no-build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            Launched(ran).SequenceEqual(["dotnet cleanarch migrations add --check", "dotnet cleanarch docs-index", "dotnet cleanarch build", "dotnet cleanarch migrations add RemoveWidgets --no-build", "dotnet cleanarch openapi --no-build"]),
             $"--apply did not check, build once, then add RemoveWidgets and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
         expect(File.Exists(Path.Combine(root, Added)) && Sha(root, Added) == addedBefore, "The migration that added the feature, which a database may have applied, was deleted or rewritten.");
 
@@ -597,7 +594,7 @@ public sealed class RemoveFeatureTests
         var second = new List<TextEdits.Command>();
 
         expect(Invoke(again, Recording(second), "Widgets", "--apply").Code == 0, "A feature removed once before was refused.");
-        expect(Launched(second).Contains("dotnet run Tools/Tasks.cs -- migration-add RemoveWidgets2 --no-build"), $"A second removal did not name its migration apart from the first: {string.Join(" | ", Launched(second))}");
+        expect(Launched(second).Contains("dotnet cleanarch migrations add RemoveWidgets2 --no-build"), $"A second removal did not name its migration apart from the first: {string.Join(" | ", Launched(second))}");
         expect(!File.ReadAllText(Path.Combine(again, Migrations, "20990101000000_RemoveWidgets2.cs")).Contains("DropSchema", StringComparison.Ordinal), "A schema the feature's migration did not create was dropped.");
 
         string widened = Skeleton(scratch);
@@ -641,7 +638,7 @@ public sealed class RemoveFeatureTests
         expect(Generate(failed, "Widgets", "Widget", "--access", "shared") == 0, "The generator refused Widgets for the failed build.");
         Commit(failed);
 
-        var stopped = Invoke(failed, Recording([], "dotnet run Tools/Tasks.cs build"), "Widgets", "--apply");
+        var stopped = Invoke(failed, Recording([], "dotnet cleanarch build"), "Widgets", "--apply");
 
         expect(
             stopped.Code == 1 && stopped.Error.Contains("What remains", StringComparison.Ordinal) && stopped.Error.Contains("openapi --no-build", StringComparison.Ordinal),
@@ -995,7 +992,7 @@ public sealed class RemoveFeatureTests
             expect(applied.Code == 0, $"A fresh {features} without the API was refused: {applied.Output}{applied.Error}");
             expect(Same(original, Snapshot(root)), $"After removing {features} without the API the tree is not the one that was there before it was generated: {Differences(original, Snapshot(root))}");
             expect(
-                Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build"]),
+                Launched(ran).SequenceEqual(["dotnet cleanarch migrations add --check", "dotnet cleanarch docs-index", "dotnet cleanarch build"]),
                 $"Removing {features} without the API ran more than the check and the build: {string.Join(" | ", Launched(ran))}");
         }
     }

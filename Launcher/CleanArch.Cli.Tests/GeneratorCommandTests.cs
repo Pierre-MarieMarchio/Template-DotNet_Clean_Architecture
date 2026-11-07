@@ -10,7 +10,7 @@ namespace CleanArch.Cli.Tests;
 
 public sealed class GeneratorCommandTests : IDisposable
 {
-    private const string _migrationCheck = "dotnet run Tools/Tasks.cs migration-check";
+    private const string _migrationCheck = "dotnet cleanarch migrations add --check";
 
     private readonly string _scratch = Directory.CreateTempSubdirectory("cleanarch-cli-generators-").FullName;
     private readonly StringWriter _output = new();
@@ -30,6 +30,7 @@ public sealed class GeneratorCommandTests : IDisposable
             }
 
             _calls.Add(call);
+            Build(call);
             return CleanArchCommand.Succeeded;
         });
     }
@@ -66,7 +67,7 @@ public sealed class GeneratorCommandTests : IDisposable
 
         _calls.ShouldNotBeEmpty();
         _calls.ShouldAllBe(call => call.WorkingDirectory == root && call.FileName == "dotnet");
-        string.Join(' ', _calls[0].Arguments).ShouldBe("run Tools/Tasks.cs migration-check");
+        string.Join(' ', _calls[0].Arguments).ShouldStartWith("ef migrations has-pending-model-changes");
         string[] lines = _output.ToString().ReplaceLineEndings("\n").Split('\n');
         lines.ShouldNotContain(_migrationCheck);
         lines.ShouldContain(line => line.EndsWith(_migrationCheck, StringComparison.Ordinal));
@@ -109,7 +110,7 @@ public sealed class GeneratorCommandTests : IDisposable
 
         File.Exists(Path.Combine(root, FeatureManifest.PathOf("Widgets"))).ShouldBeFalse();
         _calls.ShouldNotBeEmpty();
-        string.Join(' ', _calls[0].Arguments).ShouldBe("run Tools/Tasks.cs migration-check");
+        string.Join(' ', _calls[0].Arguments).ShouldStartWith("ef migrations has-pending-model-changes");
     }
 
     public void Dispose()
@@ -131,7 +132,27 @@ public sealed class GeneratorCommandTests : IDisposable
               "presentation": [ { "name": "Api", "framework": "api" } ]
             }
             """);
+        foreach (string page in Directory.EnumerateFiles(Path.Combine(root, "docs"), "*.md", SearchOption.AllDirectories).Where(page => !File.ReadAllText(page).StartsWith("---", StringComparison.Ordinal)))
+        {
+            File.WriteAllText(page, $"---\ntype: reference\ntitle: {Path.GetFileNameWithoutExtension(page)}\ndescription: A page.\n---\n\n{File.ReadAllText(page)}");
+        }
+
         return root;
+    }
+
+    private static void Build(ExternalCall call)
+    {
+        if (call.Arguments is ["build", ..])
+        {
+            string built = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, "Src", "Presentation", "A.Api", "bin")).FullName;
+            File.WriteAllText(Path.Combine(built, "Acme.Api.dll"), string.Empty);
+        }
+
+        const string documents = "-p:OpenApiDocumentsDirectory=";
+        if (call.Arguments.FirstOrDefault(argument => argument.StartsWith(documents, StringComparison.Ordinal)) is { } folder)
+        {
+            File.WriteAllText(Path.Combine(Directory.CreateDirectory(folder[documents.Length..]).FullName, "v1.json"), "{}");
+        }
     }
 
     private static Dictionary<string, string> Snapshot(string root) =>

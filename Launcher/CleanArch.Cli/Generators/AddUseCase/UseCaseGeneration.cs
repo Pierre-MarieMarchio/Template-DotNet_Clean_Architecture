@@ -1,5 +1,4 @@
 ﻿using CleanArch.Cli.Generators.Shared;
-using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Generators.AddUseCase;
 
@@ -57,7 +56,7 @@ internal sealed class UseCaseGeneration(UseCaseSpec spec, GenerationContext cont
 
     protected override int Finish() =>
         _contracts.Count == 0 && _editor.Applied.Count == 0
-        || TextEdits.RunAll(TextEdits.ContractSteps(Root, FolderOf(spec.Prefix, "Presentation.Client"), built: false), Context.Executor.Run, Output, Error, "the use case's files, its action, its contracts and its route's row")
+        || TextEdits.RunAll(TextEdits.ContractSteps(Root, built: false), Context.Executor.Run, Output, Error, "the use case's files, its action, its contracts and its route's row")
             ? Succeeded
             : Failed;
 }

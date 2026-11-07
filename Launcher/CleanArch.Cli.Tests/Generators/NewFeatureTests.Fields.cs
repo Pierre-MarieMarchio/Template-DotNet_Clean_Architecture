@@ -40,9 +40,8 @@ public sealed partial class NewFeatureTests
         {
             ran.Add(command);
 
-            if (command.Arguments.Contains("migration-add", StringComparer.Ordinal))
+            if (command.Arguments is ["migrations", "add", { } name, ..] && name != "--check")
             {
-                string name = command.Arguments[command.Arguments.ToList().IndexOf("migration-add") + 1];
                 var manifest = JsonNode.Parse(File.ReadAllText(Directory.EnumerateFiles(System.IO.Path.Combine(root, FeatureManifest.Folder)).Single()))!;
                 var fields = FieldGrammar.Parse(
                     manifest["addedFields"]!.AsArray()[^1]!["declaration"]!.GetValue<string>(),
@@ -142,10 +141,10 @@ public sealed partial class NewFeatureTests
             expect(
                 ran.Select(command => command.Display).SequenceEqual(
                 [
-                    "dotnet run Tools/Tasks.cs migration-check",
-                    "dotnet run Tools/Tasks.cs build",
-                    "dotnet run Tools/Tasks.cs -- migration-add AddNicknameAnd12MoreFieldsToThings --no-build",
-                    "dotnet run Tools/Tasks.cs -- openapi --no-build",
+                    "dotnet cleanarch migrations add --check",
+                    "dotnet cleanarch build",
+                    "dotnet cleanarch migrations add AddNicknameAnd12MoreFieldsToThings --no-build",
+                    "dotnet cleanarch openapi --no-build",
                 ]),
                 $"[{label}] new-field did not check, build once, add the migration and rewrite the OpenAPI reference, in that order: {string.Join(" | ", ran.Select(command => command.Display))}");
 
@@ -417,7 +416,7 @@ public sealed partial class NewFeatureTests
 
         expect(
             resumed.Code == 0 && resumed.Output.Contains("so nothing is written again", StringComparison.Ordinal)
-                && ran.Any(command => command.Display.Contains("migration-add AddBudgetToThings", StringComparison.Ordinal)),
+                && ran.Any(command => command.Display.Contains("migrations add AddBudgetToThings", StringComparison.Ordinal)),
             $"The same new-field after a failed step did not resume its steps: {resumed.Error}");
         expect(
             Same(written, FeatureFiles(root)) && manifest == File.ReadAllText(System.IO.Path.Combine(root, ".feature-manifest/Things.json")),
@@ -436,7 +435,7 @@ public sealed partial class NewFeatureTests
         Invoke(pending, "Things", "Thing", "--access", "shared", "--fields", _existingFields);
 
         var untouched = Snapshot(pending);
-        var check = InvokeField(pending, Recording([], failing: "dotnet run Tools/Tasks.cs migration-check"), "Things", "Budget:decimal(12,2)>=0=5");
+        var check = InvokeField(pending, Recording([], failing: "dotnet cleanarch migrations add --check"), "Things", "Budget:decimal(12,2)>=0=5");
 
         expect(
             check.Code == 1 && Same(untouched, Snapshot(pending)) && check.Error.Contains("dotnet cleanarch migrations add <Name>", StringComparison.Ordinal),
@@ -462,7 +461,7 @@ public sealed partial class NewFeatureTests
 
         int Blocked(TextEdits.Command command)
         {
-            if (command.Display.EndsWith("migration-check", StringComparison.Ordinal))
+            if (command.Display.EndsWith("migrations add --check", StringComparison.Ordinal))
             {
                 File.Delete(record);
                 Directory.CreateDirectory(record);

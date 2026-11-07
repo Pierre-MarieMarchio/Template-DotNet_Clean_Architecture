@@ -16,8 +16,6 @@ internal static class TextEdits
 
     private const string _noBuild = "--no-build";
 
-    private const string _web = $"{ProjectFolders.Src}/Web";
-
     internal sealed class Sheet
     {
         private readonly bool _bom;
@@ -559,19 +557,12 @@ internal static class TextEdits
     internal static IEnumerable<(string Path, byte[] Original, byte[] Bytes)> Replacements(Editor editor) =>
         editor.Changed.Select(sheet => (sheet.Path, sheet.Original, sheet.Bytes()));
 
-    internal static Command Task(string root, params string[] task) =>
-        new($"dotnet run {ProjectLayout.Tasks.Replace('\\', '/')} {string.Join(' ', task)}", root, "dotnet", ["run", ProjectLayout.Tasks, .. task]);
+    internal static Command ToolCommand(string root, params string[] arguments) =>
+        new($"{Tool.Name} {string.Join(' ', arguments)}", root, Tool.Name, arguments);
 
-    internal static Command FromLastBuild(string root, params string[] task) => Task(root, ["--", .. task, _noBuild]);
+    internal static Command FromLastBuild(string root, params string[] arguments) => ToolCommand(root, [.. arguments, _noBuild]);
 
-    internal static List<Command> ContractSteps(string root, string client, bool built) =>
-    [
-        built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
-        .. client.Length > 0 && Directory.Exists(ProjectFolders.Full(root, $"{ProjectFolders.Presentation}/{client}")) ? [Task(root, "api-client")] : Array.Empty<Command>(),
-        .. File.Exists(ProjectFolders.Full(root, $"{_web}/packages/api-client/scripts/generate.mjs"))
-            ? [new Command($"cd {_web} && pnpm api {_noBuild}", ProjectFolders.Full(root, _web), "pnpm", ["api", _noBuild])]
-            : Array.Empty<Command>(),
-    ];
+    internal static List<Command> ContractSteps(string root, bool built) => [built ? FromLastBuild(root, "openapi") : ToolCommand(root, "openapi")];
 
     internal static bool RunAll(IReadOnlyList<Command> steps, Func<Command, int> run, TextWriter output, TextWriter error, string done)
     {

@@ -68,7 +68,10 @@ internal sealed class ProjectExecutor(IProcessLauncher processes, TextWriter out
 {
     private static readonly string[] _windowsShims = ["pnpm"];
 
-    public int Run(TextEdits.Command command) => processes.Launch(CallOf(OnThisSystem(command)), output, error);
+    public int Run(TextEdits.Command command) =>
+        command.FileName == Tool.Name
+            ? BuiltInCommands.Run(command.Arguments, command.WorkingDirectory, output, error, processes)
+            : processes.Launch(CallOf(OnThisSystem(command)), output, error);
 
     public (int Code, string Output) Read(TextEdits.Command command)
     {

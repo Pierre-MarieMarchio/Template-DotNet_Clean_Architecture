@@ -4,7 +4,6 @@ using System.Text.Json.Nodes;
 using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using static CleanArch.Cli.Generators.Shared.FeatureCode;
-using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Generators.AddFeature;
 
@@ -127,10 +126,10 @@ internal sealed class FeatureGeneration(FeatureSpec spec, IReadOnlyList<string> 
 
     internal static List<TextEdits.Command> Steps(string root, FeatureSpec spec, bool migrated = false) =>
     [
-        TextEdits.Task(root, "docs-index"),
-        TextEdits.Task(root, "build"),
-        .. migrated ? Array.Empty<TextEdits.Command>() : [TextEdits.FromLastBuild(root, "migration-add", $"Add{spec.Features}")],
-        .. spec.HasApi ? TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Presentation.Client"), built: true) : [],
+        TextEdits.ToolCommand(root, "docs-index"),
+        TextEdits.ToolCommand(root, "build"),
+        .. migrated ? Array.Empty<TextEdits.Command>() : [TextEdits.FromLastBuild(root, "migrations", "add", $"Add{spec.Features}")],
+        .. spec.HasApi ? TextEdits.ContractSteps(root, built: true) : [],
     ];
 
     internal static Emission ManifestOf(FeatureSpec spec, List<Emission> plan, Emission? page, TextEdits.Editor editor, string version)

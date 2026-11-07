@@ -254,7 +254,7 @@ internal sealed class UseCaseReport
             ? "Then a run without --dry-run rewrites what the contract feeds, in this order:"
             : "Then rewrite what the contract feeds, once the edit is made:");
 
-        foreach (var step in TextEdits.ContractSteps(_root, FolderOf(_spec.Prefix, "Presentation.Client"), built: false))
+        foreach (var step in TextEdits.ContractSteps(_root, built: false))
         {
             _output.WriteLine($"  {step.Display}");
         }

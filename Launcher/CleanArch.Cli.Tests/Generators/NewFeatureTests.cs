@@ -491,36 +491,9 @@ public sealed partial class NewFeatureTests
 
         expect(result.Output.Contains("AddTodoLists", StringComparison.Ordinal), "The composition steps do not name AddTodoLists.");
         expect(result.Output.Contains("TodoListsSchema", StringComparison.Ordinal), "The composition steps do not name the schema constant.");
-        expect(result.Output.Contains("migration-add", StringComparison.Ordinal), "The migration step is not printed.");
+        expect(result.Output.Contains("dotnet cleanarch migrations add AddTodoLists --no-build", StringComparison.Ordinal), "The migration step is not printed.");
         expect(result.Output.Contains("last-write-wins", StringComparison.Ordinal), "The last-write-wins consequence of --concurrency none is not printed.");
-        expect(result.Output.Contains("dotnet run Tools/Tasks.cs -- openapi --no-build", StringComparison.Ordinal), "The OpenAPI step is not printed.");
-        expect(
-            !result.Output.Contains("api-client", StringComparison.Ordinal) && !result.Output.Contains("pnpm api", StringComparison.Ordinal),
-            "A step is printed for a client and a web workspace the project does not hold.");
-
-        string contractRoot = NewTree(scratch);
-
-        Directory.CreateDirectory(System.IO.Path.Combine(contractRoot, "Src/Presentation/A.Presentation.Client"));
-        Directory.CreateDirectory(System.IO.Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts"));
-        File.WriteAllText(System.IO.Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts/generate.mjs"), "// the script pnpm api runs\n");
-
-        var ran = new List<TextEdits.Command>();
-        var contract = Invoke(contractRoot, Recording(ran), "Notes", "Note", "--access", "shared");
-
-        expect(
-            Launched(ran).SequenceEqual(
-            [
-                "dotnet run Tools/Tasks.cs migration-check",
-                "dotnet run Tools/Tasks.cs docs-index",
-                "dotnet run Tools/Tasks.cs build",
-                "dotnet run Tools/Tasks.cs -- migration-add AddNotes --no-build",
-                "dotnet run Tools/Tasks.cs -- openapi --no-build",
-                "dotnet run Tools/Tasks.cs api-client",
-                "pnpm api --no-build",
-            ]),
-            $"The check, the one build, then the migration, the OpenAPI reference, the client and the web schema from that build were not run in that order: {string.Join(" | ", Launched(ran))}");
-        expect(ran[^1].WorkingDirectory == System.IO.Path.Combine(contractRoot, "Src", "Web"), "pnpm api did not run in Src/Web.");
-        expect(contract.Output.Contains("Running cd Src/Web && pnpm api --no-build", StringComparison.Ordinal), "The web step was not announced.");
+        expect(result.Output.Contains("dotnet cleanarch openapi --no-build", StringComparison.Ordinal), "The OpenAPI step is not printed.");
 
         string vowelRoot = NewTree(scratch);
         var vowel = Invoke(vowelRoot, "Invoices", "Invoice", "--access", "shared");
@@ -657,11 +630,11 @@ public sealed partial class NewFeatureTests
         expect(
             Launched(ran).SequenceEqual(
             [
-                "dotnet run Tools/Tasks.cs migration-check",
-                "dotnet run Tools/Tasks.cs docs-index",
-                "dotnet run Tools/Tasks.cs build",
-                "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build",
-                "dotnet run Tools/Tasks.cs -- openapi --no-build",
+                "dotnet cleanarch migrations add --check",
+                "dotnet cleanarch docs-index",
+                "dotnet cleanarch build",
+                "dotnet cleanarch migrations add AddWidgets --no-build",
+                "dotnet cleanarch openapi --no-build",
             ]),
             $"The applied run did not check, build once, then migrate and rewrite the OpenAPI reference from that build, in that order: {string.Join(" | ", Launched(ran))}");
         expect(ran.All(command => command.WorkingDirectory == root || command.WorkingDirectory.StartsWith(root, StringComparison.Ordinal)), "A step ran outside the tree.");
@@ -752,7 +725,7 @@ public sealed partial class NewFeatureTests
             afterFirst.All(pair => afterAgain.TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
             "Running the same command again changed a file.");
         expect(
-            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            Launched(ran).SequenceEqual(["dotnet cleanarch docs-index", "dotnet cleanarch build", "dotnet cleanarch openapi --no-build"]),
             $"Running the same command again did not resume with the index, the build and the OpenAPI reference from it alone: {string.Join(" | ", Launched(ran))}");
 
         foreach (string line in new[] { "builder.Services.AddWidgets();", "using Acme.Application;" })
@@ -779,7 +752,7 @@ public sealed partial class NewFeatureTests
         expect(
             result.Output.Contains("Eleven edits", StringComparison.Ordinal)
                 && result.Output.Contains("  1. Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", StringComparison.Ordinal)
-                && result.Output.Contains("dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build", StringComparison.Ordinal)
+                && result.Output.Contains("dotnet cleanarch migrations add AddWidgets --no-build", StringComparison.Ordinal)
                 && result.Output.Contains("nothing was written and nothing was run", StringComparison.Ordinal),
             "A dry run did not print the edits and the steps a run makes.");
     }
@@ -789,11 +762,11 @@ public sealed partial class NewFeatureTests
         string pending = NewTree(scratch);
         var before = Snapshot(pending);
         var ran = new List<TextEdits.Command>();
-        var refused = Invoke(pending, Recording(ran, failing: "dotnet run Tools/Tasks.cs migration-check"), "Widgets", "Widget", "--access", "shared");
+        var refused = Invoke(pending, Recording(ran, failing: "dotnet cleanarch migrations add --check"), "Widgets", "Widget", "--access", "shared");
 
         expect(refused.Code == 1 && Same(before, Snapshot(pending)), "A model change no migration holds did not stop the run before it wrote.");
         expect(
-            ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check"]),
+            ran.Select(command => command.Display).SequenceEqual(["dotnet cleanarch migrations add --check"]),
             "A run refused for a pending model change ran more than the check.");
         expect(
             refused.Error.Contains("dotnet cleanarch migrations add <Name>", StringComparison.Ordinal) && refused.Error.Contains("Nothing was written.", StringComparison.Ordinal),
@@ -823,16 +796,16 @@ public sealed partial class NewFeatureTests
     {
         string root = NewTree(scratch);
         var ran = new List<TextEdits.Command>();
-        var result = Invoke(root, Recording(ran, failing: "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build"), "Widgets", "Widget", "--access", "shared");
+        var result = Invoke(root, Recording(ran, failing: "dotnet cleanarch migrations add AddWidgets --no-build"), "Widgets", "Widget", "--access", "shared");
 
         expect(result.Code == 1, "A failed step did not fail the command.");
         expect(
             ran.Select(command => command.Display).SequenceEqual(
-                ["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build"]),
+                ["dotnet cleanarch migrations add --check", "dotnet cleanarch docs-index", "dotnet cleanarch build", "dotnet cleanarch migrations add AddWidgets --no-build"]),
             $"The steps did not stop at the one that failed: {string.Join(" | ", ran.Select(command => command.Display))}");
         expect(
-            result.Error.Contains("then `dotnet run Tools/Tasks.cs build`", StringComparison.Ordinal)
-                && result.Error.Contains("  dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build\n  dotnet run Tools/Tasks.cs -- openapi --no-build\n", StringComparison.Ordinal)
+            result.Error.Contains("then `dotnet cleanarch build`", StringComparison.Ordinal)
+                && result.Error.Contains("  dotnet cleanarch migrations add AddWidgets --no-build\n  dotnet cleanarch openapi --no-build\n", StringComparison.Ordinal)
                 && result.Error.Contains("run `dotnet cleanarch build` before it", StringComparison.Ordinal),
             $"A failed step does not say what is done and the commands that remain: {result.Error}");
         expect(File.Exists(System.IO.Path.Combine(root, ".feature-manifest/Widgets.json")), "A failed step undid the files written, which are consistent without it.");
@@ -1933,16 +1906,16 @@ public sealed partial class NewFeatureTests
 
     private static readonly (string Group, string Digest)[] _withoutFieldsDigests =
     [
-        ("record, owner, delete", "27a93843db9c4c24156282c4f4dcdb4116d0ae89bd6742267dbdd7dfebe1ba99"),
-        ("record, owner, anonymise", "61919d29133b0234a3ebb4f3319c5945037b29bd745cc7ea747440133b44794e"),
-        ("record, shared", "78f1a9dda6255f71f49a06520c7a08946a5e55d9aab44e0d903c4718637cd981"),
-        ("aggregate, owner, delete", "9fb7d8fae221e8ba6c938f811a94a3e82b468eaf2d84d55ce061c52d33d1b01c"),
-        ("aggregate, owner, anonymise", "b75cd337189f8fa7ceea03b159f7a29aee35dc71ed9a51d60a8ea03f292cbf44"),
-        ("aggregate, shared", "cde473dce83dd44af2dfa21c48105bf56508fdd9cd1cd7188b765309f735dc54"),
-        ("record, owner, delete, the project's first owner feature", "f9df11152b8c8393401a8a9e2c1e51bc1f76b0140c4bb542237a5f1ed44eeb78"),
-        ("record, owner, delete, on SQL Server", "27a93843db9c4c24156282c4f4dcdb4116d0ae89bd6742267dbdd7dfebe1ba99"),
-        ("record, owner, delete, on SQLite", "cf57998851c5f9d075f51351b09e479e1532cbf032ee9b643f672b82a4d2b8fd"),
-        ("record, owner, delete, without the API", "0e4f85486a903bfb582e1dd07d6de601d917fa047edd20f56aeca0c73bac0468"),
+        ("record, owner, delete", "320e7600f286ba50ce36c6fc6b69d08e8d473dd89db4f2a6bb2a96d7c19abbaa"),
+        ("record, owner, anonymise", "772fd3c4140ba51322e884fda5d92996eb4f2a24fbcdd8649d5d38ed855e4c31"),
+        ("record, shared", "4666c2e4a325fb077d4a153157db88af143d2bdbfe686645dd1bf81044039886"),
+        ("aggregate, owner, delete", "c487f564afdd660b8c4db8a74015fa817b7213b680667e981253e6f9f7ca3d56"),
+        ("aggregate, owner, anonymise", "65fad86298542b41168376eea14bb6f200f6a051b92f7c6a16e9ea1c9cfb95c2"),
+        ("aggregate, shared", "e6e180e6504e5c0303ae84b88f5e64ef6ed44e26a2d84cc59170c64d6ff958b5"),
+        ("record, owner, delete, the project's first owner feature", "c1bf45bec7b211d8027b1596fab7f2ae845b2178b0600fb1e4aa7bcd43267341"),
+        ("record, owner, delete, on SQL Server", "320e7600f286ba50ce36c6fc6b69d08e8d473dd89db4f2a6bb2a96d7c19abbaa"),
+        ("record, owner, delete, on SQLite", "0b8d5032816cec362f680153501f87c1615c0cb4c4429a2e8cc72dde8f648a6e"),
+        ("record, owner, delete, without the API", "f307df27180895547b861bbc62cf6e4df67fc6aba6467c37571270e484c5eaf9"),
     ];
 
     private static void InstantCases(string scratch, Action<bool, string> expect)

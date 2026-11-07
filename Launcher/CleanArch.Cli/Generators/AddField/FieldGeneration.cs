@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using static CleanArch.Cli.Generators.Shared.FeatureCode;
-using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Generators.AddField;
 
@@ -164,7 +163,7 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
 
         return
         [
-            .. written ? Array.Empty<TextEdits.Command>() : [TextEdits.Task(root, "build"), TextEdits.FromLastBuild(root, "migration-add", addition.Migration)],
+            .. written ? Array.Empty<TextEdits.Command>() : [TextEdits.ToolCommand(root, "build"), TextEdits.FromLastBuild(root, "migrations", "add", addition.Migration)],
             .. defaults.Count == 0
                 ? Array.Empty<TextEdits.Command>()
                 : [new TextEdits.Command(
@@ -173,7 +172,7 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
                     root,
                     _inProcess,
                     [])],
-            .. addition.After.HasApi ? TextEdits.ContractSteps(root, FolderOf(addition.After.Prefix, "Presentation.Client"), built: !written) : [],
+            .. addition.After.HasApi ? TextEdits.ContractSteps(root, built: !written) : [],
         ];
     }
 

@@ -131,9 +131,9 @@ internal sealed class Removal(Analysis analysis, GenerationContext context) : Ge
 
     internal static List<TextEdits.Command> Steps(string root, Analysis analysis) =>
     [
-        TextEdits.Task(root, "docs-index"),
-        TextEdits.Task(root, "build"),
-        .. analysis.Migration is { } migration ? [TextEdits.FromLastBuild(root, "migration-add", migration.Name)] : Array.Empty<TextEdits.Command>(),
+        TextEdits.ToolCommand(root, "docs-index"),
+        TextEdits.ToolCommand(root, "build"),
+        .. analysis.Migration is { } migration ? [TextEdits.FromLastBuild(root, "migrations", "add", migration.Name)] : Array.Empty<TextEdits.Command>(),
     ];
 
     internal static List<TextEdits.Command> ContractSteps(string root)
@@ -145,9 +145,7 @@ internal sealed class Removal(Analysis analysis, GenerationContext context) : Ge
             return [];
         }
 
-        string client = Directory.EnumerateDirectories(presentation, "*.Presentation.Client").Select(Path.GetFileName).OfType<string>().FirstOrDefault() ?? string.Empty;
-
-        return TextEdits.ContractSteps(root, client, built: true);
+        return TextEdits.ContractSteps(root, built: true);
     }
 
     private static bool DropSchema(string root, Migration migration, string schema)

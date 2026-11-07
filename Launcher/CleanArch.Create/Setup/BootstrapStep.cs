@@ -5,7 +5,7 @@ using CleanArch.Tooling.Processes;
 namespace CleanArch.Create.Setup;
 
 public sealed partial class BootstrapStep()
-    : SetupStep("Bootstrap", DescriptionFor(_ => false), "Running bootstrap, this takes a few minutes", Command)
+    : SetupStep("Bootstrap", DescriptionFor(_ => false), "Running bootstrap, this takes a few minutes", [Command])
 {
     public const string Task = "bootstrap";
     public const string Command = "dotnet run Tools/Tasks.cs " + Task;

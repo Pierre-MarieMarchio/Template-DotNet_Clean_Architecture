@@ -70,7 +70,7 @@ public static class NewCommand
         string[] left = [.. ProjectSetup.Left(outcomes)];
         string? section = Without(
             MarkdownSection.Of(Path.Combine(target, "README.md"), "## Run it"),
-            [.. outcomes.Where(outcome => outcome.Status == SetupStatus.Done && outcome.Step.Replaces is not null).Select(outcome => outcome.Step.Replaces!), .. left]);
+            [.. outcomes.Where(outcome => outcome.Status == SetupStatus.Done).SelectMany(outcome => outcome.Step.Replaces), .. left]);
         string[] moveInto = SameFolder(target, session.Machine.WorkingDirectory) ? [] : [TemplateEngine.CommandLine("cd", [output])];
         session.Conversation.Close(new Closing(
             null,

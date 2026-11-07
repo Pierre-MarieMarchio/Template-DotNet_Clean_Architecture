@@ -73,12 +73,15 @@ public sealed class VerifyCommandTests : IDisposable
     {
         using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
         AsBootstrapped(project, withAuth: true);
+        foreach (string script in new[] { "Tasks.cs", "CoverageGate.cs", "CheckComments.cs" })
+        {
+            File.WriteAllText(Path.Combine(project.Folder("Tools"), script), string.Empty);
+        }
 
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
         string[] expected =
         [
-            .. GateLines(),
             "The 0 index files under docs/ list their folders' pages as their frontmatter says.",
             $"dotnet restore {_solution}",
             $"dotnet format {_solution} --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore",
@@ -103,7 +106,7 @@ public sealed class VerifyCommandTests : IDisposable
 
         Run(["verify"], project.Root).ShouldBe(7);
 
-        _calls.Count.ShouldBe(GateLines().Length + 3);
+        _calls.Count.ShouldBe(3);
         _calls[^1].Arguments.ShouldBe(["build", _solution, "--configuration", "Debug", "--no-restore"]);
         _output.ToString().ShouldContain($"dotnet build {_solution}");
         _output.ToString().ShouldNotContain("dotnet test");
@@ -228,7 +231,7 @@ public sealed class VerifyCommandTests : IDisposable
 
         Run(["verify"], project.Root).ShouldBe(9);
 
-        _calls.Count.ShouldBe(GateLines().Length + 1);
+        _calls.Count.ShouldBe(1);
         _calls.ShouldNotContain(call => call.Arguments.Contains("has-pending-model-changes"));
         _kiotaOutput.ShouldNotBeNull();
         Directory.Exists(_kiotaOutput).ShouldBeFalse();
@@ -345,14 +348,6 @@ public sealed class VerifyCommandTests : IDisposable
 
     private int Run(string[] arguments, string workingDirectory) =>
         BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
-
-    private static readonly string[] _gateFiles =
-    [
-        "Tasks.cs", "NewFeature.cs", "NewUseCase.cs", "NewSetting.cs", "NewEvent.cs", "RemoveFeature.cs", "UpgradeReport.cs", "CoverageGate.cs",
-    ];
-
-    private static string[] GateLines() =>
-        [.. _gateFiles.Select(gate => $"dotnet run {Path.Combine("Tools", gate)} --self-test")];
 
     private static void AsBootstrapped(SampleProject project, bool withAuth)
     {

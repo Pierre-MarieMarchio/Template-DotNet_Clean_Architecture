@@ -10,16 +10,7 @@ internal static class VerifyCommand
 
     public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
-    private static readonly string[] _selfTestedGates =
-    [
-        "Tasks.cs",
-        "NewFeature.cs",
-        "NewUseCase.cs",
-        "NewSetting.cs",
-        "NewEvent.cs",
-        "RemoveFeature.cs",
-        "UpgradeReport.cs",
-    ];
+    private static readonly string[] _templateGates = ["CheckDocPaths.cs", "CheckWorkflows.cs", "CheckComments.cs"];
 
     private static readonly string[][] _webChecks = [["audit"], ["install", "--frozen-lockfile"], ["lint"], ["test"], ["build"]];
 
@@ -52,7 +43,7 @@ internal static class VerifyCommand
         bool web = project.File.Web is not null;
         return
         [
-            .. Running(shell, GateCalls(project)),
+            .. Running(shell, TemplateGateCalls(project)),
             () => DocumentationIndex.Checked(project, shell),
             .. Running(shell, web ? [Pnpm.Call(root, "--version")] : []),
             .. project.File.Client ? [() => ApiClientCheck(project, shell)] : Array.Empty<Func<int>>(),
@@ -76,21 +67,13 @@ internal static class VerifyCommand
     private static IEnumerable<Func<int>> Running(Shell shell, IEnumerable<ExternalCall> calls) =>
         calls.Select(call => (Func<int>)(() => shell.Run(call)));
 
-    private static IEnumerable<ExternalCall> GateCalls(LocatedProject project) =>
-    [
-        .. _selfTestedGates.Select(gate => SelfTest(project, gate)),
-        .. OptionalGate(project, "CheckDocPaths.cs"),
-        .. OptionalGate(project, "CheckWorkflows.cs"),
-        SelfTest(project, "CoverageGate.cs"),
-        .. OptionalGate(project, "CheckComments.cs"),
-    ];
-
-    private static ExternalCall SelfTest(LocatedProject project, string gate) =>
-        Dotnet.RunFile(project.Root, ProjectLayout.Tool(gate), "--self-test");
-
-    private static IEnumerable<ExternalCall> OptionalGate(LocatedProject project, string gate) =>
-        File.Exists(Path.Combine(project.Root, ProjectLayout.Tool(gate)))
-            ? [SelfTest(project, gate), Dotnet.RunFile(project.Root, ProjectLayout.Tool(gate), project.Root)]
+    private static IEnumerable<ExternalCall> TemplateGateCalls(LocatedProject project) =>
+        TemplateMaintenance(project)
+            ? _templateGates.SelectMany(gate => new[]
+            {
+                Dotnet.RunFile(project.Root, ProjectLayout.Tool(gate), "--self-test"),
+                Dotnet.RunFile(project.Root, ProjectLayout.Tool(gate), project.Root),
+            })
             : [];
 
     private static IEnumerable<ExternalCall> LauncherCalls(LocatedProject project, BuildSettings settings)

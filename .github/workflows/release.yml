@@ -41,18 +41,27 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore "$SOLUTION"
+        run: |
+          dotnet restore "$SOLUTION"
+          dotnet tool restore
 
       #if (templateMaintenance)
+      # Template repository only: its tool manifest pins no dotnet cleanarch, so the tool is packed from its sources and put on the PATH.
+      - name: Put dotnet cleanarch on the PATH from its sources
+        run: |
+          dotnet pack Launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release -p:Version=0.0.0-checkout --output "${{ runner.temp }}/cleanarch-package"
+          dotnet tool install CleanArch.Cli --version 0.0.0-checkout --add-source "${{ runner.temp }}/cleanarch-package" --tool-path "${{ runner.temp }}/cleanarch"
+          echo "${{ runner.temp }}/cleanarch" >> "$GITHUB_PATH"
+
       # Template repository only: it ships no migration, so each context's first one is created here, as bootstrap creates a project's.
       - name: Create the initial migrations
         run: |
-          dotnet tool restore
-          dotnet run Tools/Tasks.cs migration-initial
+          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
+          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 
       #endif
       - name: Verify the formatting the build does not
-        run: dotnet run Tools/Tasks.cs format
+        run: dotnet cleanarch format --check
 
       - name: Build
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
@@ -107,7 +116,9 @@ jobs:
       #if (templateMaintenance)
       # Template repository only: the bundles carry the migrations created here, as bootstrap creates a project's.
       - name: Create the initial migrations
-        run: dotnet run Tools/Tasks.cs migration-initial
+        run: |
+          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
+          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 
       #endif
       #if (localAuth)

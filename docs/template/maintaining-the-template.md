@@ -30,7 +30,9 @@ that fails without it. These three files are excluded from generation, and `veri
 where `.template.config/template.json` exists, so one command serves both.
 
 CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a generated project
-does not receive. Its end-to-end job skips its steps in this repository, whose stack includes web
+does not receive. Its `Docs and workflows` job also runs
+`dotnet run --project Launcher/CleanArch.Cli -- docs-index --check`, since this repository's tool
+manifest pins no `dotnet cleanarch`. Its end-to-end job skips its steps in this repository, whose stack includes web
 apps no CLI has created yet, among them those that install the workspace and Chromium for the browser
 smoke; the acceptance matrix runs the suite and the smoke instead.
 
@@ -441,13 +443,6 @@ leaves out what it cannot know: a namespace from a package, and the projects an 
 whose `scaffold.json` has the kind `dotnet`; the acceptance check covers those in the shapes the legs
 build.
 A form the test reports runs with the options it names: generate it and build it to see IDE0005.
-
-The same holds for a tool's own methods: a method of a file under `Tools` stands under the condition
-of its callers, no narrower, or a form keeps a call to a method its markers removed and
-`dotnet run` cannot compile the tool there. No project builds a tool, so
-`Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedToolMethodTests.cs` judges it: in every
-form `template.json` can generate, a call kept to a method the file declares, with no declaration
-kept, fails, naming the tool, the method and the options of a form that keeps the call.
 
 ## Web sources
 

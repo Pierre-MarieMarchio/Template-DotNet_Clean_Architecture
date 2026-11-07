@@ -122,11 +122,11 @@ tests.
 ## Everyday commands
 
 ```bash
-dotnet run Tools/Tasks.cs test --no-integration   # the tests that need no Docker
-dotnet run Tools/Tasks.cs verify                  # the whole gate, Docker needed
-dotnet run Tools/Tasks.cs help                    # every task and its options
-dotnet run Tools/Tasks.cs help verify             # one task alone
-docker compose down                               # stop the stack
+dotnet cleanarch test --no-integration   # the tests that need no Docker
+dotnet cleanarch verify                  # the whole gate, Docker needed
+dotnet cleanarch help                    # every command and its options
+dotnet cleanarch help verify             # one command alone
+docker compose down                      # stop the stack
 ```
 
 ## Documentation

@@ -95,29 +95,36 @@ jobs:
         run: dotnet --info
 
       - name: Restore
-        run: dotnet restore "$SOLUTION"
+        run: |
+          dotnet restore "$SOLUTION"
+          dotnet tool restore
 
       #if (templateMaintenance)
+      # Template repository only: its tool manifest pins no dotnet cleanarch, so the tool is packed from its sources and put on the PATH.
+      - name: Put dotnet cleanarch on the PATH from its sources
+        run: |
+          dotnet pack Launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release -p:Version=0.0.0-checkout --output "${{ runner.temp }}/cleanarch-package"
+          dotnet tool install CleanArch.Cli --version 0.0.0-checkout --add-source "${{ runner.temp }}/cleanarch-package" --tool-path "${{ runner.temp }}/cleanarch"
+          echo "${{ runner.temp }}/cleanarch" >> "$GITHUB_PATH"
+
       # Template repository only: it ships no migration, so each context's first one is created here, as bootstrap creates a project's.
       - name: Create the initial migrations
         run: |
-          dotnet tool restore
-          dotnet run Tools/Tasks.cs migration-initial
+          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
+          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 
       #endif
       # Generated is committed, so Kiota at the version the tool manifest pins writes it again from the OpenAPI reference and any difference fails.
       - name: The .NET client is what Kiota writes from the OpenAPI reference
         if: hashFiles('Src/Presentation/*.Presentation.Client/*.csproj') != ''
-        run: |
-          dotnet tool restore
-          dotnet run Tools/Tasks.cs api-client --check
+        run: dotnet cleanarch openapi --check
 
       # Using order, the BOM, line endings, IDE0003 and IDE0049, which the build's code-style analysis does not check; before the build, to fail fast.
       - name: Verify the formatting the build does not
-        run: dotnet run Tools/Tasks.cs format
+        run: dotnet cleanarch format --check
 
       #if (sonarWorkflow)
-      # The quality gate is a required check through this job: a red gate, or a SonarCloud that cannot be reached, fails it. The mail templates are excluded from duplication only; the report pattern matches the extension, as Tools/CoverageGate.cs does.
+      # The quality gate is a required check through this job: a red gate, or a SonarCloud that cannot be reached, fails it. The mail templates are excluded from duplication only; the report pattern matches the extension, as dotnet cleanarch coverage does.
       - name: Begin Sonar analysis
         if: env.SONAR_ENABLED == 'true'
         run: |
@@ -189,32 +196,17 @@ jobs:
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
       #endif
-      # The totals read from the TRX files; a run that produced none fails.
+      # The totals read from the TRX files, appended to the step summary GITHUB_STEP_SUMMARY names; a run that produced none fails.
       - name: Summarise test results
         if: always()
-        run: |
-          dotnet run Tools/TestSummary.cs \
-            --root TestResults \
-            --summary "$GITHUB_STEP_SUMMARY"
+        run: dotnet cleanarch test --reports-only
 
+      # The floor coverage.minimum states, the table appended to the step summary.
       - name: Enforce coverage floor
         if: always()
-        run: |
-          set -euo pipefail
-          # The first line that is a number: a BOM in front of a leading # defeats a comment filter.
-          minimum=$(tr -d '\r' < coverage.minimum | grep -oE '^[0-9]+(\.[0-9]+)?$' | head -n 1)
-          if [ -z "$minimum" ]; then
-            echo "::error title=No coverage floor::coverage.minimum states no bare number."
-            exit 1
-          fi
-          echo "Coverage floor from coverage.minimum: ${minimum}%"
-          dotnet run Tools/CoverageGate.cs \
-            --root TestResults \
-            --minimum "$minimum" \
-            --summary "$GITHUB_STEP_SUMMARY" \
-            --json TestResults/coverage-summary.json
+        run: dotnet cleanarch coverage --reports-only --json TestResults/coverage-summary.json
 
-      # The extension, as Tools/CoverageGate.cs matches it; if-no-files-found cannot see one pattern that matches nothing.
+      # The extension, as dotnet cleanarch coverage matches it; if-no-files-found cannot see one pattern that matches nothing.
       - name: Upload test results and coverage
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -254,14 +246,15 @@ jobs:
       - name: Workflows are structurally sound
         run: dotnet run Tools/CheckWorkflows.cs .
 
-      - name: The coverage gate can fail
-        run: dotnet run Tools/CoverageGate.cs --self-test
-
       - name: The comment gate can fail
         run: dotnet run Tools/CheckComments.cs --self-test
 
       - name: No comment outside the allowlist
         run: dotnet run Tools/CheckComments.cs .
+
+      # dotnet cleanarch from its sources, since this repository's tool manifest pins none.
+      - name: The documentation indexes list their folders' pages
+        run: dotnet run --project Launcher/CleanArch.Cli -- docs-index --check
 
   # Template repository only: dnx CleanArch.Create and the dotnet cleanarch tool, tested against this checkout's templates, generation included.
   launcher:
@@ -281,7 +274,7 @@ jobs:
       - name: Restore
         run: dotnet restore Launcher/CleanArch.Create.slnx
 
-      # What the build's code-style analysis does not check, as Tools/Tasks.cs's verify runs it.
+      # What the build's code-style analysis does not check, as dotnet cleanarch verify runs it.
       - name: Formatting the build does not check
         run: dotnet format Launcher/CleanArch.Create.slnx --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore
 
@@ -314,8 +307,11 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Every carried gate, after its self-test
-        run: dotnet run Tools/Tasks.cs hygiene
+      - name: Restore the local tools
+        run: dotnet tool restore
+
+      - name: The documentation indexes list their folders' pages
+        run: dotnet cleanarch docs-index --check
   #endif
 
   vulnerable-packages:
@@ -414,7 +410,8 @@ jobs:
       - name: Create the initial migrations
         run: |
           dotnet tool restore
-          dotnet run Tools/Tasks.cs migration-initial
+          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
+          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 
       #endif
       - name: Start the stack
@@ -540,7 +537,9 @@ jobs:
         #if (templateMaintenance)
         if: hashFiles('.template.config/template.json') == ''
         #endif
-        run: dotnet run Tools/Tasks.cs end-to-end
+        run: |
+          dotnet tool restore
+          dotnet cleanarch end-to-end
 
   #endif
   compose:

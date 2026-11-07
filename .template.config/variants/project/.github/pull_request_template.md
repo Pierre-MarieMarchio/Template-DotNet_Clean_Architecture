@@ -14,10 +14,10 @@ Closes #<issue>
 
 ## What ran
 
-- [ ] `dotnet run Tools/Tasks.cs verify`: <result>
-- [ ] `dotnet run Tools/Tasks.cs coverage`: <result>
+- [ ] `dotnet cleanarch verify`: <result>
+- [ ] `dotnet cleanarch coverage`: <result>
 <!--#if (api)-->
-- [ ] `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client`, after a change to a route or a contract: <result, or not applicable>
+- [ ] `dotnet cleanarch openapi`, after a change to a route or a contract: <result, or not applicable>
 <!--#endif-->
 - [ ] `pnpm lint`, `pnpm test` and `pnpm build` in the web workspace, after a change to it: <result, or not applicable>
 - Did not run, and why: <gate and reason, or none>

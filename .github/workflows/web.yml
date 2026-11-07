@@ -95,7 +95,7 @@ jobs:
           set -euo pipefail
           apps=$(find Src/Web/apps -mindepth 2 -maxdepth 2 -name Dockerfile -printf '%h\n' | while read -r app; do if [ -f "$app/package.json" ]; then basename "$app"; fi; done | sort | jq -R . | jq -cs .)
           if [ "$apps" = "[]" ]; then
-            echo "::error title=No web app::Src/Web/apps holds no app with a Dockerfile and a package.json: run dotnet run Tools/Tasks.cs web-scaffold and commit the app it creates."
+            echo "::error title=No web app::Src/Web/apps holds no app with a Dockerfile and a package.json: run dotnet cleanarch bootstrap, or dotnet cleanarch add web-app --name <App> for one app, and commit the app it creates."
             exit 1
           fi
           echo "apps=$apps" >> "$GITHUB_OUTPUT"

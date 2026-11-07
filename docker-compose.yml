@@ -383,7 +383,7 @@ services:
       start_period: 60s
     networks: [backend]
 
-  # The one-shot analysis that dotnet run Tools/Tasks.cs sonar drives.
+  # The one-shot analysis that dotnet cleanarch sonar drives.
   sonar-scanner:
     profiles: [sonar]
     build:

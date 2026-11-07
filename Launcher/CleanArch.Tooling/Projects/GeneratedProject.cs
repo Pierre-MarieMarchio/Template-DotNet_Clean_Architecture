@@ -8,14 +8,19 @@ public static class GeneratedProject
     {
         for (DirectoryInfo? current = new(directory); current is not null; current = current.Parent)
         {
-            string[] solutions = [.. Directory.EnumerateFiles(current.FullName, "*.sln"), .. Directory.EnumerateFiles(current.FullName, "*.slnx")];
-            if (solutions.Length == 1 && File.Exists(Path.Combine(current.FullName, "Tools", "Tasks.cs")))
+            if (File.Exists(Path.Combine(current.FullName, "Tools", "Tasks.cs")) && At(current.FullName) is { } facts)
             {
-                return Read(current.FullName, Path.GetFileNameWithoutExtension(solutions[0]));
+                return facts;
             }
         }
 
         return null;
+    }
+
+    public static ProjectFacts? At(string root)
+    {
+        string[] solutions = [.. Directory.EnumerateFiles(root, "*.sln"), .. Directory.EnumerateFiles(root, "*.slnx")];
+        return solutions.Length == 1 ? Read(root, Path.GetFileNameWithoutExtension(solutions[0])) : null;
     }
 
     private static ProjectFacts Read(string root, string name)

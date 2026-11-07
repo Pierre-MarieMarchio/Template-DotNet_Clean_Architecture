@@ -55,7 +55,7 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
 
         File.Exists(reference).ShouldBeTrue(
             $"There is no reviewed OpenAPI reference at {reference}. Write it with " +
-            "`dotnet run Tools/Tasks.cs openapi`, read it, and commit it.");
+            "`dotnet cleanarch openapi`, read it, and commit it.");
 
         var reviewed = JsonNode.Parse(await File.ReadAllTextAsync(reference, TestToken))!.AsObject();
         var live = JsonNode.Parse(await GetDocumentTextAsync(_documentPath))!.AsObject();
@@ -67,7 +67,7 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
 
         differences.ShouldBeEmpty(
             "The contract a client builds on has changed. If the change is meant, run " +
-            "`dotnet run Tools/Tasks.cs openapi` and commit the reference with it, so the review sees " +
+            "`dotnet cleanarch openapi` and commit the reference with it, so the review sees " +
             "what a client will see.");
     }
 

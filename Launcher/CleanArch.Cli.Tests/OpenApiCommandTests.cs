@@ -273,7 +273,7 @@ public sealed class OpenApiCommandTests : IDisposable
         File.WriteAllText(Path.Combine(package, "scripts", "generate.mjs"), "");
 
         Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
-        _calls[^1].Arguments.ShouldBe(["api", "--no-build"]);
+        _calls[^1].Arguments.ShouldBe(["api", Path.Combine(project.Root, _referencePath)]);
         _calls[^1].WorkingDirectory.ShouldBe(Path.Combine(project.Root, "Src", "Web"));
         _calls.Clear();
 

@@ -49,7 +49,7 @@ internal static class VerifyCommand
             .. project.File.Client ? [() => ApiClientCheck(project, shell)] : Array.Empty<Func<int>>(),
             .. web ? [() => WebSchemaCheck(project, shell)] : Array.Empty<Func<int>>(),
             .. Running(shell, web ? _webChecks.Select(arguments => Pnpm.In(project, ProjectLayout.Web, arguments)) : []),
-            .. Running(shell, TemplateMaintenance(project) ? [Dotnet.RunFile(root, ProjectLayout.Tasks, "web-lockfiles", "--check")] : []),
+            .. Running(shell, TemplateMaintenance(project) ? [Dotnet.RunFile(root, ProjectLayout.Tool("WebLockfiles.cs"), "--check")] : []),
             .. Running(
                 shell,
                 [

@@ -50,9 +50,9 @@ jobs:
 
       # Written rather than checked, so the lockfiles a stale shape needs exist to be uploaded.
       - name: Write each generated web shape's lockfile
-        run: dotnet run Tools/Tasks.cs web-lockfiles
+        run: dotnet run Tools/WebLockfiles.cs
 
-      - name: Collect the lockfiles the task changed
+      - name: Collect the lockfiles the script changed
         id: changed
         run: |
           set -euo pipefail
@@ -71,7 +71,7 @@ jobs:
           git status --short -- .template.config/variants
 
       # The variants sit under a dot folder, which the action leaves out unless told.
-      - name: Upload the lockfiles the task wrote
+      - name: Upload the lockfiles the script wrote
         if: steps.changed.outputs.stale == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -84,5 +84,5 @@ jobs:
       - name: Fail on a stale lockfile
         if: steps.changed.outputs.stale == 'true'
         run: |
-          echo "::error title=Stale web lockfile::A generated web shape's lockfile differs from what the pinned pnpm writes for it. Run dotnet run Tools/Tasks.cs web-lockfiles and commit what it writes; on a Dependabot pull request, template-web-lockfiles-commit.yml commits it."
+          echo "::error title=Stale web lockfile::A generated web shape's lockfile differs from what the pinned pnpm writes for it. Run dotnet run Tools/WebLockfiles.cs and commit what it writes; on a Dependabot pull request, template-web-lockfiles-commit.yml commits it."
           exit 1

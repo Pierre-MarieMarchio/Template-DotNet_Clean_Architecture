@@ -1613,6 +1613,7 @@
             "Tools/CheckDocPaths.cs",
             "Tools/CheckWorkflows.cs",
             "Tools/CheckComments.cs",
+            "Tools/WebLockfiles.cs",
             "Launcher/**",
             "Src/Web/**/node_modules/**",
             "Src/Web/**/dist/**",

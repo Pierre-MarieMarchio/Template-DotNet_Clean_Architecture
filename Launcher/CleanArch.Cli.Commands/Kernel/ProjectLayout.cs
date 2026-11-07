@@ -17,8 +17,6 @@ internal static class ProjectLayout
 
     public static string Solution(LocatedProject project) => project.File.Name + ".slnx";
 
-    public static string Tasks => Tool("Tasks.cs");
-
     public static string Tool(string fileName) => Path.Combine("Tools", fileName);
 
     public static string Web => Path.Combine("Src", "Web");

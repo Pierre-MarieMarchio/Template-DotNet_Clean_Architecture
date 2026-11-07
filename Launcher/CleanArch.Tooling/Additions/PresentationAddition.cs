@@ -53,7 +53,7 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
             return;
         }
 
-        flow.Generate(project, name, engine, [ItemAdditions.PresentationJoinTask, ItemAdditions.PresentationScaffoldTask]);
+        flow.Generate(project, name, engine, [flow.Completion(_command)]);
         string rerun = flow.CompletedBy(_command, name);
         int done = flow.RunSteps(project.Root, steps, rerun);
 

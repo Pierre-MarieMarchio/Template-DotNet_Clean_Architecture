@@ -23,12 +23,12 @@
       "isRequired": true,
       "choices": [
         { "choice": "placeholder", "description": "A static page served by nginx, relaying /api to the API." },
-        { "choice": "angular", "description": "An Angular app, created by the Angular CLI (ng new) when web-scaffold runs." },
-        { "choice": "vite-react", "description": "A React app, created by Vite's official CLI (create-vite, react-ts) when web-scaffold runs." },
-        { "choice": "vite-vue", "description": "A Vue app, created by Vite's official CLI (create-vite, vue-ts) when web-scaffold runs." },
-        { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when web-scaffold runs." },
-        { "choice": "react-router", "description": "A React app, created by React Router's official CLI (create-react-router) when web-scaffold runs: a single-page app, or rendered on the server with --rendering ssr." },
-        { "choice": "blazor-wasm", "description": "A Blazor WebAssembly app, created by dotnet new blazorwasm when web-scaffold runs, calling the API through the .NET client in Src/Presentation, which comes with it." }
+        { "choice": "angular", "description": "An Angular app, created by the Angular CLI (ng new) when its scaffold runs." },
+        { "choice": "vite-react", "description": "A React app, created by Vite's official CLI (create-vite, react-ts) when its scaffold runs." },
+        { "choice": "vite-vue", "description": "A Vue app, created by Vite's official CLI (create-vite, vue-ts) when its scaffold runs." },
+        { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when its scaffold runs." },
+        { "choice": "react-router", "description": "A React app, created by React Router's official CLI (create-react-router) when its scaffold runs: a single-page app, or rendered on the server with --rendering ssr." },
+        { "choice": "blazor-wasm", "description": "A Blazor WebAssembly app, created by dotnet new blazorwasm when its scaffold runs, calling the API through the .NET client in Src/Presentation, which comes with it." }
       ],
       "description": "The app's framework."
     },
@@ -625,7 +625,7 @@
       "description": "Join the app to the project.",
       "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name> --web <framework>, with --web-audience and --web-rendering when --audience and --rendering were not public and spa, and --web-port when --port was given. It makes the lines --web writes outside the app's folder, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one' (its include: line in docker-compose.yml, its port in .env.example and what its framework adds), with those Src/Web/README.md lists for a first app and its workspace, leaves those in place already, then records the app in cleanarch.json."
+          "text": "At the project root, run dotnet cleanarch add web-app --name <name> --framework <framework>, with --audience, --rendering and --port as given here when they were given. It makes the lines --web writes outside the app's folder, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one' (its include: line in docker-compose.yml, its port in .env.example and what its framework adds), with those Src/Web/README.md lists for a first app and its workspace, leaves those in place already, then records the app in cleanarch.json."
         }
       ],
       "continueOnError": true
@@ -636,7 +636,7 @@
       "description": "Create the app.",
       "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs web-scaffold <name>, which creates the app as Src/Web/apps/<name>/scaffold.json describes and installs the web workspace; it needs Node.js, pnpm (corepack enable once per machine) and the network. Commit the app with Src/Web/pnpm-lock.yaml."
+          "text": "The same dotnet cleanarch add web-app --name <name> then creates the app as Src/Web/apps/<name>/scaffold.json describes and installs the web workspace; it needs Node.js, pnpm (corepack enable once per machine) and the network. Commit the app with Src/Web/pnpm-lock.yaml."
         }
       ],
       "continueOnError": true

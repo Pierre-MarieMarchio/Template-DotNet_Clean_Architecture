@@ -60,7 +60,7 @@ The folder starts with the wiring only: scaffold.json names the CLI, the version
 and its arguments, and overlay/ holds what is laid over the CLI's starter. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs web-scaffold FrameworkSite
+dotnet cleanarch add web-app --name FrameworkSite
 ```
 
 `bootstrap` runs the same step. It needs the network once, to fetch the CLI. It writes the starter,
@@ -423,7 +423,7 @@ Confirmation, password-reset and email-change mails link to pages this app does 
 
 ## Run it
 
-With the API running (`dotnet run Tools/Tasks.cs run` at the project root), from `Src/Web`:
+With the API running (`dotnet cleanarch run` at the project root), from `Src/Web`:
 
 ```bash
 pnpm --filter framework-site dev
@@ -496,17 +496,17 @@ A project whose workspace holds other apps takes this one later, at the project 
 
 ```bash
 dotnet new cleanarch-webapp -n FrameworkSite --framework <framework> --scope app-template
-dotnet run Tools/Tasks.cs web-join FrameworkSite --web <framework>
+dotnet cleanarch add web-app --name FrameworkSite --framework <framework>
 ```
 
 `Src/Web/README.md` gives the first app's command, with the workspace. The lines `--web` writes for
 this app in files the item template cannot edit are listed below, each placed by the lines it goes
-beside. `web-join` makes them all, leaves those in place already, or makes none when one of those
+beside. The command makes them all, leaves those in place already, or makes none when one of those
 lines is not found exactly once, then records the app in `cleanarch.json`.
 <!--#if (webServerRendering)-->
 A server-rendered app also brings the decision that describes it,
 `docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md`, which `cleanarch-webapp`
-writes in this folder and `web-join` moves to `docs/decisions` unless the project holds it already;
+writes in this folder and the command moves to `docs/decisions` unless the project holds it already;
 the lines citing it are among those below.
 <!--#endif-->
 

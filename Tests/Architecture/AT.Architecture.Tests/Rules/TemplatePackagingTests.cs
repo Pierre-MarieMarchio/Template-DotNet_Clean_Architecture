@@ -922,13 +922,13 @@ public sealed class TemplatePackagingTests
     [InlineData(".template.config", "(!refusedOptions && scaffoldedAtBootstrap)", "scaffold.json")]
     [InlineData(".template.config", "(!refusedOptions && dotnetClient)", "the client in Src/Presentation")]
     [InlineData(".template.config", "(!refusedOptions && anyWeb)", "Node.js and pnpm")]
-    [InlineData(".template.config/webapp/.template.config", null, "web-join <name> --web <framework>")]
-    [InlineData(".template.config/webpackage/.template.config", null, "web-join <name>")]
-    [InlineData(".template.config/webapp/.template.config", "(webFramework)", "web-scaffold <name>")]
+    [InlineData(".template.config/webapp/.template.config", null, "dotnet cleanarch add web-app --name <name> --framework <framework>")]
+    [InlineData(".template.config/webpackage/.template.config", null, "dotnet cleanarch add web-package --name <name>")]
+    [InlineData(".template.config/webapp/.template.config", "(webFramework)", "dotnet cleanarch add web-app --name <name>")]
     [InlineData(".template.config/webapp/.template.config", "(webFramework)", "Node.js, pnpm")]
     [InlineData(".template.config/webapp/.template.config", "(webPlaceholder)", "pnpm install")]
-    [InlineData(".template.config/presentation/.template.config", null, "presentation-join <project>.<name>")]
-    [InlineData(".template.config/presentation/.template.config", null, "presentation-scaffold <project>.<name>")]
+    [InlineData(".template.config/presentation/.template.config", null, "dotnet cleanarch add presentation --name <name>")]
+    [InlineData(".template.config/presentation/.template.config", null, "creates the project as its scaffold.json describes")]
     public void Generation_EndsWithWhatToRunNext_ForTheShapeGenerated(string folder, string? condition, string named)
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));

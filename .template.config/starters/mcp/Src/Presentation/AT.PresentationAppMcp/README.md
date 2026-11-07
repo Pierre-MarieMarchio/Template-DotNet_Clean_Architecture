@@ -10,7 +10,7 @@ The folder holds the whole project, written in the shape `dotnet new mcpserver -
 gives an MCP server at the version scaffold.json names; no template runs. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationAppMcp
+dotnet cleanarch add presentation --name PresentationAppMcp
 ```
 
 `bootstrap` runs the same step. It needs no network: it removes scaffold.json, adds the project and
@@ -46,26 +46,25 @@ It writes this folder, its tests, `docs/features/presentation.md` and its decisi
 It also writes the access keys' own files, their tests and their decision.
 <!--#endif-->
 The lines `--presentation` writes in files the item template cannot edit are listed below, each placed by the
-lines it goes beside. One task makes them all, leaving those in place already, or none when one of
+lines it goes beside. One command makes them all, leaving those in place already, or none when one of
 those lines is not found exactly once:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppMcp
+dotnet cleanarch add presentation --name PresentationAppMcp
 ```
 
-Then create the project as above and commit it.
+It then creates the project as above; commit it.
 <!--#if (localAuth)-->
 The edits bring the access keys the server's callers present, whose table changes the
 identity context's model: in a project whose migrations exist already, add one:
 
 ```bash
-dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth
+dotnet cleanarch migrations add AddAccessKeys --context auth
 ```
 
 <!--#endif-->
-`dotnet cleanarch add presentation` runs the three
-commands in turn, reading the options from `cleanarch.json`. The edits, to make by hand where the
-task stops:
+`dotnet cleanarch add presentation` alone also runs the `dotnet new`, reading the options from
+`cleanarch.json`. The edits, to make by hand where the command stops:
 
 <!--#if (localAuth)-->
 - in `Src/Infrastructure/AT.Infrastructure.Auth/AuthModule.cs`, before the line:

@@ -18,9 +18,9 @@ pnpm api                 # regenerate packages/api-client from the API's OpenAPI
 pnpm --filter "*browser-smoke" smoke   # drive every app in Chromium; needs the stack, as below
 ```
 
-`dotnet run Tools/Tasks.cs web-scaffold` at the project root creates each framework app that still
-holds its scaffold.json, with its framework's official CLI, then installs and runs `pnpm api`;
-`bootstrap` runs the same step.
+`bootstrap` creates each framework app that still holds its scaffold.json, with its framework's
+official CLI, then installs and runs `pnpm api`; `dotnet cleanarch add web-app --name <App>` at the
+project root does the same for one app.
 
 ## Lint
 
@@ -38,7 +38,7 @@ is split while a long flat one stays whole. A finding is fixed in the code, neve
 Compose stack: its page loads, the browser reports no Content-Security-Policy violation, console
 error or uncaught exception, and a call through its `/api/` relay reaches the API. It finds each
 app's port from `WEB_<APP>_HOST_PORT` in the environment, then in `.env`, then in `.env.example`
-(`SMOKE_ENV_FILE` names another file), so a new app needs no edit. `dotnet run Tools/Tasks.cs end-to-end`
+(`SMOKE_ENV_FILE` names another file), so a new app needs no edit. `dotnet cleanarch end-to-end`
 runs it after the end-to-end suite. `pnpm test` runs only the unit tests of how the apps are found.
 
 Chromium comes apart from `pnpm install`; install it once per machine, adding `--with-deps` on a
@@ -53,17 +53,16 @@ pnpm --filter "*browser-smoke" exec playwright install --only-shell chromium
 At the project root, `@app-template` being this workspace's scope:
 
 ```bash
-dotnet new cleanarch-webapp -n BackOffice --framework vite-react --scope app-template --audience admin
-dotnet run Tools/Tasks.cs web-join BackOffice --web vite-react --web-audience admin
-dotnet new cleanarch-webpackage -n tokens --scope app-template
-dotnet run Tools/Tasks.cs web-join tokens
+dotnet cleanarch add web-app --name BackOffice --framework vite-react --audience admin
+dotnet cleanarch add web-package --name tokens
 ```
 
-Pass the project's `--auth` to `cleanarch-webapp` when it is not the default. For an app, `web-join`
-first makes the lines its `README.md` lists under "Joining a project generated without one", its
+Each runs `dotnet new cleanarch-webapp` or `dotnet new cleanarch-webpackage` with the options
+`cleanarch.json` records. For an app, it first makes the lines its `README.md` lists under "Joining a project generated without one", its
 `include:` line in `docker-compose.yml` and its port in `.env.example` among them, leaving those in
 place already; then it records the app or the package in `cleanarch.json`, with the values the app
-was given.
+was given, and creates a framework app with its framework's official CLI. After a `dotnet new` of
+its own, the same command with the item's name completes it.
 
 ## Joining a project generated without one
 
@@ -72,7 +71,7 @@ the project root:
 
 ```bash
 dotnet new cleanarch-webapp -n PlaceholderSite --framework <vue|vite-react|vite-vue|vite-svelte|react-router|angular|placeholder> --project-name <Project> --scope app-template --workspace
-dotnet run Tools/Tasks.cs web-join PlaceholderSite --web <framework>
+dotnet cleanarch add web-app --name PlaceholderSite --framework <framework>
 ```
 
 Pass the project's `--auth`, `--ci` and `--agent-files` too when they are not the defaults.
@@ -82,11 +81,11 @@ the web apps' end-to-end tests, `docs/features/web-frontend.md`,
 `docs/decisions/0019-one-generated-api-client.md`, `docs/decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md`, the server-rendered app's decision under
 `--rendering ssr` and, unless `--ci false`, `.github/workflows/web.yml`. The API side is in every project already. The lines `--web` writes in
 files the item template cannot edit are listed below, then those of the app's own `README.md`.
-`web-join`, the first time it joins an app to a project whose `cleanarch.json` records no
-workspace, makes all of them, leaves those in place already, or makes none when one of the lines an
-edit is placed by is not found exactly once; then it records the workspace and the app. Run
-`dotnet run Tools/Tasks.cs web-scaffold` next for a framework app, or `pnpm install` here for a
-placeholder, and commit the workspace with its `pnpm-lock.yaml`.
+`dotnet cleanarch add web-app`, the first time it joins an app to a project whose `cleanarch.json`
+records no workspace, makes all of them, leaves those in place already, or makes none when one of
+the lines an edit is placed by is not found exactly once; then it records the workspace and the app,
+and creates a framework app. Run `pnpm install` here for a placeholder, and commit the workspace with
+its `pnpm-lock.yaml`.
 
 - in `docker-compose.yml`, before the line:
 

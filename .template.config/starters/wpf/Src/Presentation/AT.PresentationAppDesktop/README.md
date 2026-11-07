@@ -11,13 +11,13 @@ names that generator and the version it follows, which ships with the .NET SDK a
 pinned. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationAppDesktop
+dotnet cleanarch add presentation --name PresentationAppDesktop
 ```
 
 `bootstrap` runs the same step, which needs no network: it removes scaffold.json, then adds the
 project, its tests and the .NET client to the solution. Run outside `bootstrap`, once the OpenAPI
-reference exists, it then restores the tools and writes the client with
-`dotnet run Tools/Tasks.cs api-client`. Commit the project: from then on its files are this project's
+reference exists, it then writes the client as
+`dotnet cleanarch openapi` does. Commit the project: from then on its files are this project's
 own, and the step leaves it alone.
 
 The app is one project on `net10.0-windows`, its XAML, view models, settings, host and session
@@ -83,16 +83,16 @@ It writes this folder, its tests, the .NET client in `Src/Presentation/AT.Presen
 `docs/features/presentation.md` and the client's decision; `--has-client true` leaves the client, its
 tests and its decision out, and its edits below with them. The lines `--presentation` writes in
 files the item template cannot edit are listed below, each placed by the lines it goes beside. One
-task makes them all, leaving those in place already, or none when one of those lines is not found
+command makes them all, leaving those in place already, or none when one of those lines is not found
 exactly once:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppDesktop
+dotnet cleanarch add presentation --name PresentationAppDesktop
 ```
 
-Then create the project as above and commit it. `dotnet cleanarch add presentation` runs the three
-commands in turn, reading the options from `cleanarch.json`. The edits, to make by hand where the
-task stops:
+It then creates the project as above; commit it. `dotnet cleanarch add presentation` alone also
+runs the `dotnet new`, reading the options from `cleanarch.json`. The edits, to make by hand where
+the command stops:
 
 <!--#if (!hasClient)-->
 - in `.config/dotnet-tools.json`, replace the lines:

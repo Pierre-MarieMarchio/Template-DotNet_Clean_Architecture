@@ -295,11 +295,25 @@ public sealed class AddCommandTests : IDisposable
         _output.ToString().ShouldNotContain("migrations add");
     }
 
+    [Theory]
+    [InlineData("presentation", "presentation", 1)]
+    [InlineData("webapp", "web-app", 2)]
+    [InlineData("webpackage", "web-package", 1)]
+    public void TheItemTemplatesInstructions_NameTheAdditionThatRunsTheirSteps_SoItLeavesThemOut(string folder, string item, int steps)
+    {
+        JsonNode template = JsonNode.Parse(File.ReadAllText(Path.Combine(Repository.Root, ".template.config", folder, ".template.config", "template.json")))!;
+
+        template["postActions"]!.AsArray()
+            .Select(action => action!["manualInstructions"]![0]!["text"]!.GetValue<string>())
+            .Count(text => text.Contains($"dotnet cleanarch add {item} --name <name>", StringComparison.Ordinal))
+            .ShouldBe(steps, $"The instructions of cleanarch-{folder} name the steps dotnet cleanarch add {item} runs in another form, so it relays them as left to do.");
+    }
+
     [Fact]
     public void ThePartsOfTheReadmesAnAdditionPrints_AreInTheTemplate()
     {
         MarkdownSection.Of(Path.Combine(Repository.Root, "Src", "Web", "README.md"), ItemAdditions.JoiningSection)
-            .ShouldNotBeNull().ShouldContain(ItemAdditions.WebJoinTask);
+            .ShouldNotBeNull().ShouldContain("dotnet cleanarch add web-app --name");
         MarkdownSection.Of(Path.Combine(Repository.Root, "Src", "Web", "apps", "FrameworkSite", "README.md"), "## Join the stack")
             .ShouldNotBeNullOrWhiteSpace();
         MarkdownSection.Of(Path.Combine(Repository.Root, "Src", "Web", "apps", "PlaceholderSite", "README.md"), "## Join the stack")
@@ -307,10 +321,10 @@ public sealed class AddCommandTests : IDisposable
         MarkdownSection.Of(Path.Combine(Repository.Root, ".template.config", "variants", "project", "README.md"), "## Run it")
             .ShouldNotBeNullOrWhiteSpace();
         string presentation = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-server", "Src", "Presentation", "AT.PresentationAppPortal", "README.md");
-        MarkdownSection.Of(presentation, ItemAdditions.JoiningSection).ShouldNotBeNull().ShouldContain(ItemAdditions.PresentationJoinTask);
-        MarkdownSection.Of(presentation, ItemAdditions.PresentationCreateSection).ShouldNotBeNull().ShouldContain(ItemAdditions.PresentationScaffoldTask);
+        MarkdownSection.Of(presentation, ItemAdditions.JoiningSection).ShouldNotBeNull().ShouldContain("dotnet cleanarch add presentation --name PresentationAppPortal");
+        MarkdownSection.Of(presentation, ItemAdditions.PresentationCreateSection).ShouldNotBeNull().ShouldContain("dotnet cleanarch add presentation --name PresentationAppPortal");
         MarkdownSection.Of(Path.Combine(Repository.Root, ".template.config", "starters", "blazor-wasm", "FrameworkSite", "README.md"), ItemAdditions.JoiningSection)
-            .ShouldNotBeNull().ShouldContain(ItemAdditions.WebJoinTask);
+            .ShouldNotBeNull().ShouldContain("dotnet cleanarch add web-app --name FrameworkSite");
     }
 
     [Theory]

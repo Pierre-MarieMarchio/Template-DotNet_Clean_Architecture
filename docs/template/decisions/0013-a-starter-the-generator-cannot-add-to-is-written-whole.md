@@ -12,7 +12,7 @@ Status: Accepted
 ## Context
 
 [0009](0009-a-dotnet-project-comes-from-a-starter.md) makes a .NET project a starter: a descriptor
-names a template package at an exact version, `presentation-scaffold` runs it in a hive of its own
+names a template package at an exact version, `add presentation` runs it in a hive of its own
 and keeps the folders the descriptor names, and the starter owns the rest. For the worker of
 `--presentation worker`, the generator writes nothing the project would keep, and the WPF app of
 `--presentation wpf` has no generator a descriptor could pin:
@@ -26,7 +26,7 @@ and keeps the folders the descriptor names, and the starter owns the rest. For t
 
 - **Such a starter holds the whole project.** Its descriptor says `"kind": "written"` and names the
   generator, the package and the version whose shape it follows; it names no template to run and
-  keeps no folder. `presentation-scaffold` adds the project and its tests to the solution, in the solution folders of their layer, formats
+  keeps no folder. `add presentation` adds the project and its tests to the solution, in the solution folders of their layer, formats
   them and deletes the descriptor, as for any starter, without the network.
 - **It follows its generator's shape.** The SDK, the entry point and the settings files are the ones
   the generator writes at the version the descriptor names, under the repository's rules: central

@@ -36,7 +36,7 @@ a server:
 - **Access keys come with it.** Under `--auth local` the server's callers present access keys, and
   `accessKeys` (`localAuth && presentationMcp`) brings their slice of the Auth context and the API,
   which the server then needs; a project without the server carries none. `cleanarch-presentation`
-  writes the slice's own files and lists the lines it adds elsewhere for `presentation-join`.
+  writes the slice's own files and lists the lines it adds elsewhere for `add presentation`.
 - **Its name is `Mcp`.** The starter carries its own token, `PresentationAppMcp`, which the project
   template replaces with `Mcp` by a constant symbol. `cleanarch-presentation` keeps `Portal` as
   `-n`'s default, which the engine fixes before it reads `--framework`, and its README passes

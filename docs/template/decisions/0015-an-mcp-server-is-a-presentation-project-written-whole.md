@@ -35,7 +35,7 @@ the other way to add a host, an option of its own beside `--presentation`. Micro
 - **Access keys come with it.** Under `--auth local` the server's callers present access keys, and
   `accessKeys` (`localAuth && presentationMcp`) brings their slice of the Auth context and the API;
   a project without the server carries none. `cleanarch-presentation` writes the slice's own files
-  and lists the lines it adds elsewhere for `presentation-join`.
+  and lists the lines it adds elsewhere for `add presentation`.
 - **Its name is `Mcp`.** The starter carries its own token, `PresentationAppMcp`, which the project
   template replaces with `Mcp` ([0020](0020-a-project-is-the-presentation-projects-it-holds.md)).
   `cleanarch-presentation` keeps `Portal` as `-n`'s default, which the engine fixes before it reads

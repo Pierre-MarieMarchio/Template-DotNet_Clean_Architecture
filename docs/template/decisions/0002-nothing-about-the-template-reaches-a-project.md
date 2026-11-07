@@ -36,7 +36,7 @@ from, and nothing in the generated tree says so.
   generation, true for ever. The `templateVersion` symbol of `template.json` writes it, in one
   sentence of `docs/getting-started/overview.md`; nothing else about the template reaches a project.
 - **A project keeps one documentation check.** `DocumentationCitationTests`, in `Tests/Architecture`,
-  holds that every task and option a page cites exists in `Tools/Tasks.cs`, and that every path and
+  holds that every command and option a page cites exists in `docs/reference/cli.md`, and that every path and
   link in the root pages and the `AGENTS.md` files a project has resolves. It reads the project's own tree, so it
   stays true after the team edits its pages; the tree-auditing tools stay here.
 

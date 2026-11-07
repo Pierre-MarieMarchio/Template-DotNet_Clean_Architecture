@@ -42,7 +42,7 @@ jobs outgrow the API.
 - **The worker is added later by an item template and a task.** The engine adds files and never moves
   or edits the project's own, so `cleanarch-presentation --framework worker -n Worker` writes the
   starter and ADR 0025, refusing a project without the API (`workerTakesTheJobsOfTheApi`), and the
-  project's `presentation-join` does the rest of what generation does: it moves the jobs and their
+  project's `add presentation` does the rest of what generation does: it moves the jobs and their
   tests, renames their namespaces by the switch symbols' rule, and makes the edits the starter's
   `README.md` lists, which set ADR 0011 to `Superseded by` ADR 0025 rather than remove it, since a
   decision is never erased. It refuses while git reports a change to a file it would touch, since a

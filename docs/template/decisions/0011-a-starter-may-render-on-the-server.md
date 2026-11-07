@@ -86,7 +86,7 @@ records those choices. This one records how the template offers it.
 - **A `--web` value per rendering, `angular-ssr` beside `angular`.** Every value that renders both
   ways doubles, the launcher shows both, and the starters to come that render both ways, SvelteKit,
   Nuxt and Analog, would double again.
-- **One `scaffold.json` and one overlay, with markers.** `web-scaffold` parses the descriptor, and
+- **One `scaffold.json` and one overlay, with markers.** `add web-app` parses the descriptor, and
   the server files exist in one rendering only, which a path condition says better than markers.
 - **Server rendering only, as each generator's default.** Angular and React Router would lose the
   static form their projects already take, and with it nginx and the hashes.

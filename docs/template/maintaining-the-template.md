@@ -12,22 +12,22 @@ still holds.
 
 ## The template gates
 
-`dotnet run Tools/Tasks.cs verify` runs the project's gate plus what only the template carries:
+`dotnet run --project Launcher/CleanArch.Cli -- verify`, the project tool run from its source, runs the project's gate plus what only the template carries:
 
 | Gate | Checks |
 |---|---|
 | `Tools/CheckDocPaths.cs` | every repository path in a Markdown code span exists, and every `docs/` path a workflow, script or `.http` file names; `CHANGELOG.md` and the plans folder are exempt |
 | `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job, a job that runs `dotnet` on the runner image's SDK |
 | `Tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
-| `web-lockfiles --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
-| `api-client --check` | `Src/Presentation/AT.Presentation.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
+| `Tools/WebLockfiles.cs --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
+| `openapi --check` | `Src/Presentation/AT.Presentation.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
 
 The launcher's own build is a gate too: its analysis row under [the launcher](#the-launcher) gives the rules it holds.
 
 Each gate runs its `--self-test` first, against fixtures that must make it fire and fixtures that
 must leave it silent, and fails when it examined nothing. A rule added to a gate comes with the fixture
-that fails without it. These three files are excluded from generation, and the project's `hygiene`
-task asks the filesystem which gates its tree carries, so one task serves both.
+that fails without it. These three files are excluded from generation, and `verify` runs them only
+where `.template.config/template.json` exists, so one command serves both.
 
 CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a generated project
 does not receive. Its end-to-end job skips its steps in this repository, whose stack includes web
@@ -60,11 +60,11 @@ there on Mondays. The workflow is excluded from generation and from the package,
 ## Migrations in this checkout
 
 The template ships no migration, so this checkout has none until
-`dotnet run Tools/Tasks.cs migration-initial` creates them, as bootstrap does in a project; the
+`dotnet run --project Launcher/CleanArch.Cli -- bootstrap` creates them, as it does in a project; the
 tests, `verify` and the drift check need them. They are git-ignored here only, by a `templateMaintenance` block of `.gitignore`, and
 both `template.json` and `.template.config/TemplatePackage.csproj` exclude them, so a project
 generated from this checkout or from its package starts without them; `TemplatePackagingTests` holds
-the three. After a model change, delete each context's `Migrations` folder and run the task again. The
+the three. After a model change, delete each context's `Migrations` folder and run the command again. The
 CI and release workflows run it before building, under `templateMaintenance` blocks.
 
 ## The acceptance matrix
@@ -74,45 +74,45 @@ change can affect, and per leg installs that `.nupkg`, generates under another n
 its `cleanarch.json` against the leg's options with `.template.config/acceptance/CheckProjectFile.cs`, bootstraps
 (the project's tool pinned from that packed `CleanArch.Cli`, which `dotnet cleanarch` then names
 the project with, the formatting, which fails the leg if it removes one of those usings, as
-[usings under a marker](#usings-under-a-marker) says, then `migration-initial` after asserting no migration was generated, and once more to
+[usings under a marker](#usings-under-a-marker) says, then `bootstrap` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs `format` for what the build does not check, runs the Docker-free tests, checks every generated context for
-pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
+pending model changes, runs the generated project's `verify`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The legs that set `integration` also run the
 integration suites, on the runner's Docker through Testcontainers, and the defaults, SQL Server and
-SQLite defaults legs then run the generated project's `dotnet run Tools/Tasks.cs end-to-end` against
+SQLite defaults legs then run the generated project's `dotnet cleanarch end-to-end` against
 its Compose stack. The leg that sets `coverage`, the worker, MCP and Blazor WebAssembly leg with
-external sign-in and every example, then runs the generated project's `coverage` task, every suite
+external sign-in and every example, then runs the generated project's `coverage`, every suite
 again under coverage, against the `coverage.minimum` it carries, which every shape shares and nothing
 lowers to pass; its suites take under a minute, so the step adds about two minutes to a leg of about
 seven and a half. The defaults leg, the local-auth leg without examples and the external-auth leg
-without examples also run the generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
+without examples also run the generator round trip: `add feature` writes an owner feature, a shared one, an aggregate one and an
 aggregate one on `get,list,create` in turn, the first and the third with `--fields` naming a field of
-every type, nullable ones and bounds among them, the aggregates after `new-use-case` adds a command, a
+every type, nullable ones and bounds among them, the aggregates after `add use-case` adds a command, a
 query, a command without input, a query with typed inputs and a command with the id and a body to
 each while refusing the others. Each command makes its own edits, the account-deletion wiring of a
 project's first owner feature among them, adds the feature's migration and rewrites the OpenAPI
 reference and the client; the leg fails when a manifest records no edit or no migration was added.
 The whole solution then builds with warnings as errors, the architecture tests pass, the feature's own
 tests pass in every Docker-free test project, and the business context has no pending model change.
-The next case starts from the commit generation made. Then all four are written together, `new-field`
+The next case starts from the commit generation made. Then all four are written together, `add field`
 adds a required string and a required int, each with its default, and a nullable decimal to the
 record and to the aggregate written with `--fields`, and the leg fails when it does not name the
 breaking change, record the addition in the manifest, or give the stored rows each default in the
-migration it adds; the two runs add about a minute and a half. `new-setting` then adds a section with
-a default to Invoices and `new-event` an event nothing consumes, each recording its files and edits in
+migration it adds; the two runs add about a minute and a half. `add setting` then adds a section with
+a default to Invoices and `add event` an event nothing consumes, each recording its files and edits in
 that feature's manifest. The four are proved the same way, and on the defaults leg, which has Docker,
-the integration tests `--fields` and `new-field` wrote run against PostgreSQL, about half a minute
-more; `hygiene` passes. The tree is committed, and `remove-feature --apply` takes the four out last in
+the integration tests `--fields` and `add field` wrote run against PostgreSQL, about half a minute
+more; `verify` passes. The tree is committed, and `remove feature --apply` takes the four out last in
 first out, each from a committed tree, its edits undone and `Remove<Features>` added after
 `Add<Features>`; the leg fails unless the tree then differs from the commit generation made by those
-migrations and the `Add<Field>To<Features>` ones of `new-field` alone, each with its designer file,
+migrations and the `Add<Field>To<Features>` ones of `add field` alone, each with its designer file,
 so the model snapshot, the references and every file an edit touched read as they did. The solution
 then builds with warnings as errors and the model holds no pending change. Each removal checks the
 model, builds once and adds its migration, under half a minute once the first build is warm, so the
 four removals and the build after them add about seven minutes to the leg. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
 install, lint, test and build, fails when an app with a build script has no built page, checks a
-second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page, its
+a second scaffold changes nothing, starts the whole stack and asks each app for its page, its
 headers and an answer only the API gives; it fails when a served page holds an event-handler
 attribute or an inline script the served `script-src` allows neither by its hash nor by the
 script's nonce, or when two responses share a nonce, or when a server-rendered app with accounts
@@ -126,12 +126,12 @@ it, since that job starts no stack.
 The every-starter leg adds
 each framework starter its first app is not, so one workspace proves them all together. Every app,
 package and presentation project a leg adds with an item template is recorded by the project's
-`web-join` or `presentation-join` task, and a web leg runs `ProjectFileTests` once more after its
-last addition. Every leg
-runs `presentation-scaffold` before the formatting, a step that does nothing without a presentation
+`add web-app`, `add web-package` or `add presentation`, and a web leg runs `ProjectFileTests` once more after its
+last addition. Every leg's
+`bootstrap` creates the presentation projects before the formatting, a step that does nothing without a presentation
 project, and a web leg creates the WebAssembly app of `--web blazor-wasm` there too, so the build
 compiles it and its tests run with the others. After the build, every leg checks that bootstrap left
-whitespace and encoding unchanged; the `defaults` leg alone runs the `format` task, whose rules need a
+whitespace and encoding unchanged; the `defaults` leg alone runs `format --check`, whose rules need a
 compilation, as `ci.yml` runs it on the template, and, once the initial migrations and the OpenAPI
 reference are written, the project's `upgrade-report` against this checkout packed again under the
 next patch version, which may name no file but the version in `cleanarch.json` and in
@@ -141,7 +141,7 @@ blazor-server`, one per authentication mode, create the presentation project, bu
 ask it in the stack for its page or its redirect to the sign-in page, for the sign-in form under local accounts,
 and for `/health`. The leg that adds a first app adds the presentation project too, with
 `cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's
-`presentation-join` task, and from there runs as those three do. The legs that pass `--presentation worker`
+`add presentation`, and from there runs as those three do. The legs that pass `--presentation worker`
 build and test the worker with the rest; the generator leg among them writes the deleted-account sweep
 into the worker, and the two that start the stack fail unless the worker, still running, logs a
 completed pass within two minutes of the stack being up, and the API starts no job loop. Each of
@@ -171,8 +171,8 @@ hosts.
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
 | sqlite, defaults | `--database sqlite`, then `cleanarch-presentation --framework wpf` |
 | web placeholder, sqlite, smallest project | `--web placeholder --database sqlite --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
-| web react back office, local auth | `--web vite-react --web-audience admin --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
-| web angular, external auth, notes | `--web angular --web-rendering ssr --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `web-join` before the build |
+| web react back office, local auth | `--web vite-react --web-audience admin --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `add web-app` before the build |
+| web angular, external auth, notes | `--web angular --web-rendering ssr --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `add web-app` before the build |
 | no web, then a react app, its workspace and an angular back office | none, then `cleanarch-webapp --framework vite-react --workspace`, `cleanarch-presentation --framework avalonia`, `cleanarch-webapp --framework blazor-wasm --has-client true` and `cleanarch-webapp --framework angular --audience admin --rendering ssr` |
 | web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port`, and once more for React Router with `--rendering ssr` |
 | windows, wpf, local auth | `--presentation wpf`, every other option at its default, on `windows-latest` |
@@ -190,7 +190,7 @@ Every leg also greps its project for the other database providers' packages and 
 `database`; the SQLite legs run their integration suites on a file and start no database container, and
 the SQL Server leg starts one large image, so it has the longest timeout. A leg without a web app asserts no workflow, Dependabot entry, Compose file or ignore file names a
 workspace. The leg that adds a first app runs that assertion, then `cleanarch-webapp --workspace` and
-`web-join`, which makes the lines `Src/Web/README.md` and the app's `README.md` list, and is a web leg
+`add web-app`, which makes the lines `Src/Web/README.md` and the app's `README.md` list, and is a web leg
 from there. `--workspace` only adds files, and
 the engine refuses to overwrite one, so everything a web app needs from the API ships with every
 project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job asserts each refused combination exits non-zero and writes no file. The legs
@@ -199,8 +199,8 @@ are the shapes the options produce, not their cross product, and run with `fail-
 A leg whose `runner` is `windows-latest` runs in the `template-windows` job instead, as a Windows
 user runs the project ([template decision 0014](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)):
 from PowerShell, one command a step, it installs the package, generates, checks its `cleanarch.json`,
-asserts the source name leaked nowhere, then runs `bootstrap`, the `build` task with warnings as errors,
-`test --no-integration`, `hygiene` and the citation check. A Windows runner runs no Linux image, so
+asserts the source name leaked nowhere, then runs `bootstrap`, `build` with warnings as errors,
+`test --no-integration`, `verify` and the citation check. A Windows runner runs no Linux image, so
 the job starts no container and sets up no web workspace. It checks out the root files, `Tools` and
 `.template.config/acceptance` with the files beside it alone, since the package brings the template and a starter's deepest path exceeds the 260 characters
 git for Windows allows by default; their `.gitattributes` keeps them LF whatever the runner's
@@ -465,7 +465,7 @@ The app itself comes from a starter, one folder per `--web` value under `.templa
 ([template decision 0023](decisions/0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md)): `angular`,
 `vite-react`, `vite-vue`, `vite-svelte` and `react-router`, each holding
 `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`, which both templates copy into the app's
-folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither template copies anything else from there. A
+folder by the framework chosen and the scaffold step consumes at bootstrap. Neither template copies anything else from there. A
 framework has one value: React and Vue come from Vite's CLI, so `vite-react` and `vite-vue` hold
 them, and no second value creates the same framework another way.
 
@@ -548,14 +548,14 @@ writes at its root and in `Assets`, `ViewModels` and `Views`, owns the project f
 `.template.config/starters/mcp` holds an MCP server written whole
 ([template decision 0025](decisions/0025-an-mcp-server-is-a-presentation-project-written-whole.md)),
 copied under `presentationMcp`: its `scaffold.json` is of kind `written`, in the shape of
-`dotnet new mcpserver --transport remote`, so `presentation-scaffold` only adds it to the solution;
+`dotnet new mcpserver --transport remote`, so the scaffold step only adds it to the solution;
 it owns the project file, `Program.cs`, the settings, the image, the caller's authentication (an
 access key under `localAuth`, the provider's token under `externalAuth`) and one tools class per
 example feature, each excluded with its feature. Under local accounts the access keys its callers
 present come with it: `accessKeys` (`localAuth && presentationMcp`) keeps their files in the Auth
 context and the API, their tests and ADR 0026, leaves them out otherwise, and conditions the lines
 they add to shared files; `cleanarch-presentation` brings the same files and its `README.md` lists
-those lines for `presentation-join`.
+those lines for `add presentation`.
 `.template.config/starters/wpf`, copied under `presentationWpf`, which sets `dotnetClient` too, is
 written whole ([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
 the WPF app is one project on `net10.0-windows`, with `EnableWindowsTargeting` so that it builds on
@@ -587,7 +587,7 @@ folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` an
 `Src/Presentation/AT.Presentation.Client`, `Tests/Presentation/AT.Presentation.Client.UnitTests` and ADR 0023, which a project without a client lacks. For `worker`
 it brings ADR 0025 instead of the page, refuses every `-n` but `Worker` (`workerIsNamedWorker`), a
 project without the API (`workerTakesTheJobsOfTheApi`) and SQLite (`workerNeedsServerDatabase`), and
-the project's `presentation-join` moves the jobs, as [the worker](#the-worker) says. `--has-api`, true by default, says whether the project holds the
+the project's `add presentation` moves the jobs, as [the worker](#the-worker) says. `--has-api`, true by default, says whether the project holds the
 API: its computed `api` conditions the README's lines, and `presentationNeedsTheApi` refuses a
 desktop client, or the MCP server under local accounts, in a project without it. It cannot read the project it runs
 in, so it declares what the starter's markers read as parameters and computed symbols of the same
@@ -603,39 +603,39 @@ without one", as an edit placed after or before the lines around it, or in their
 starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
 `anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
 Avalonia, `presentationWpf`, `dotnetClient` or `anyPresentation` for WPF, `presentationMcp` or `anyPresentation` for the MCP server, `jobsWorker` for the worker but the lines of a project without the API, outside the files the item template brings whole and the solution, which
-`presentation-scaffold` completes. The Blazor WebAssembly starter's `README.md` answers to the same
-rule for `webBlazorWasm` and `dotnetClient`, read by the project's `web-join` task, and
+the scaffold step of `add presentation` completes. The Blazor WebAssembly starter's `README.md` answers to the same
+rule for `webBlazorWasm` and `dotnetClient`, read by the project's `add web-app`, and
 `TheWebReadme_ListsEveryLineItsAppOrItsWorkspaceWritesOutsideItsFolders` holds it for
 `Src/Web/apps/FrameworkSite/README.md` (the framework symbols and `webServerRendering`),
 `Src/Web/apps/PlaceholderSite/README.md` (`webPlaceholder`) and `Src/Web/README.md` (`anyWeb`, the
-lines of a first app's workspace, which `web-join` makes before the app's while `cleanarch.json`
+lines of a first app's workspace, which `add web-app` makes before the app's while `cleanarch.json`
 records no workspace), each leaving to the others the lines their symbols write. For an app added to
 a workspace, the overview, the first run and the web front end page stay as they are, since they
 describe the app the project was generated with; a first app's workspace brings the web front end
 page and the end-to-end tests of the web apps whole. A server-rendered app brings ADR 0024 into its own
-folder, since the engine refuses to overwrite the copy an earlier one placed, and `web-join` moves it
+folder, since the engine refuses to overwrite the copy an earlier one placed, and `add web-app` moves it
 to `docs/decisions` or drops it when the project holds it already; the app's `README.md` lists the
 lines citing it.
 Under `externalAuth` the WebAssembly app has code of its own, and its unit tests come from
 `.template.config/variants/blazor-wasm-sign-in/`, which both templates copy to the project's root,
-since the starter's folder lands in `Src/Web/apps/`; `web-scaffold` adds them to the solution with
+since the starter's folder lands in `Src/Web/apps/`; the scaffold step adds them to the solution with
 the app. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
-`presentation-join` task reads that section and makes the edits, every one or none, so a bullet keeps
+`add presentation` reads that section and makes the edits, every one or none, so a bullet keeps
 the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced
 lines, then the added ones. A page a part brings, its feature page or its ADR, needs no edit to be
-listed: `presentation-join` and `web-join` run `docs-index` once their edits are made, and the
+listed: `add presentation` and `add web-app` run `docs-index` once their edits are made, and the
 folder's index lists the page as it lists those of a project generated with the part, so no shared
 file under `docs/` conditions a listing of pages on a part.
 
-`presentation-scaffold` installs the template package `scaffold.json` pins into a hive of its own,
+the scaffold step of `add presentation` installs the template package `scaffold.json` pins into a hive of its own,
 runs `dotnet new` with its input closed and, when the template offers `--allow-scripts`, its
 post-action scripts declined: `dotnet new` asks again for ever on a closed input, and accepts the
 option only from a template that has such a script, so one that would ask fails instead of waiting
 for an answer. It keeps the folders and files the descriptor names, a file the starter holds
 winning, and refuses a generated project file that declares a package or a property the starter's
 lacks. It adds the project and its tests to the solution, each in the solution folder its path gives (`Src/Presentation`, `Tests/Presentation`). A project that references the .NET client
-brings the client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
+brings the client and its tests into the solution with it, and, once the OpenAPI reference exists, `openapi` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
 `--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires: the
 starter keeps its own `Components/App.razor`, a copy of the one the template writes without its `<ImportMap />`, so
@@ -654,7 +654,7 @@ reference ([ADR 0032](../decisions/0032-the-app-host-follows-compose.md)). Its s
 and tested in this checkout like `Src/Presentation/AT.Presentation.Client`, and `template.json` leaves it out with its
 integration tests, `LocalStackParityTests`, its page and its ADR under `!aspire`; `ProjectFileTests`
 reads it as absent here. It starts the hosts and the web apps `cleanarch.json` records rather than
-a list of its own, so `presentation-join` and `web-join` need no edit of it, and its C# conditions
+a list of its own, so `add presentation` and `add web-app` need no edit of it, and its C# conditions
 only on the options a project cannot change: the database, the authentication, Files and the
 examples. A host's settings are the ones `docker-compose.yml` gives it, and its secrets Aspire
 parameters.
@@ -689,7 +689,7 @@ are a starter written whole, `.template.config/starters/worker`
 ([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
 its project file, `Program.cs`, settings, `Dockerfile`, caller identity and the compositions of the
 directories its passes read, with its test project and `WorkerCompositionTests`. Its `scaffold.json`
-is of kind `written`, so `presentation-scaffold` only adds the two projects to the solution and
+is of kind `written`, so the scaffold step only adds the two projects to the solution and
 formats them. The jobs themselves stay where they are in this checkout, the API's `Common/Jobs` and
 `Features/*/Jobs` with their unit tests: under `jobsWorker` the API's source leaves them out, or the
 API is left out whole, and two
@@ -700,7 +700,7 @@ own files condition what composes the jobs (`AddBackgroundJobs`, `AddAuthMainten
 sweep's registration and the `Jobs` settings) on `!jobsWorker`.
 
 A project generated without the worker takes it later: `cleanarch-presentation --framework worker
--n Worker` writes the starter and ADR 0025, and the project's `presentation-join` does what the
+-n Worker` writes the starter and ADR 0025, and the project's `add presentation` does what the
 template's sources and symbols do at generation. It moves the API's `Common/Jobs` and
 `Features/*/Jobs`, and the `Features/*/Jobs` of its unit tests, into the worker and its tests;
 renames each namespace they declare, in every file of the project, from `<Project>.Api.` to
@@ -721,13 +721,13 @@ tree's index as bootstrap would.
 ## Web lockfiles
 
 The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
-`dotnet run Tools/Tasks.cs web-lockfiles` writes the lockfile of each shape holding a `package.json`
-into `.template.config/variants/web-<App>/Src/Web/`; a framework app gets none, since `web-scaffold`
-writes it where the app is created. Run the task after any change to the union lockfile; `--check`
+`dotnet run Tools/WebLockfiles.cs` writes the lockfile of each shape holding a `package.json`
+into `.template.config/variants/web-<App>/Src/Web/`; a framework app gets none, since the scaffold step
+writes it where the app is created. Run it after any change to the union lockfile; `--check`
 fails until you do.
 
 On every pull request, the `Web lockfiles` job of `.github/workflows/template-web-lockfiles.yml` runs
-the task, uploads the lockfiles it changed and fails, naming the command. On a Dependabot pull request
+it, uploads the lockfiles it changed and fails, naming the command. On a Dependabot pull request
 of the web workspace, `.github/workflows/template-web-lockfiles-commit.yml` then commits them to the
 pull request's branch:
 
@@ -749,15 +749,17 @@ of a secret that can push, which this repository does not hold.
 generated project only when `dotnetClient` is true, which `--presentation avalonia` and
 `--presentation wpf` set, or through `cleanarch-presentation --framework avalonia` or `wpf`. Its session is written under `localAuth`, its
 validation problem under `localAuth || anyFeature`, the two shapes whose document holds them.
-`dotnetClient` also brings the Kiota entry of the tool manifest; the `api-client` task, the CI step
-that runs `api-client --check`, the Dependabot group and the `Generated` exclusions are in every
+`dotnetClient` also brings the Kiota entry of the tool manifest; the `openapi` command, the CI step
+that runs `openapi --check`, the Dependabot group and the `Generated` exclusions are in every
 project and act once `Src/Presentation/AT.Presentation.Client` holds the client. `Generated/` is copied as Kiota wrote it:
 `template.json` gives `**/Generated/**.cs` a conditional syntax no line uses, so Kiota's own `#if`
-lines survive and only the names are replaced. The tool manifest therefore comes in four shapes:
-`.config/dotnet-tools.json` with every tool, and `no-sonar`, `no-client` and `no-sonar-no-client`
-under `.template.config/variants/`, each the full manifest minus its tools, which
-`EachVariantToolManifest_IsTheToolManifestMinusItsTools` holds. A Kiota bump changes the full
-manifest and the `no-sonar` one, and its pull request runs `dotnet run Tools/Tasks.cs api-client`
+lines survive and only the names are replaced. The tool manifest therefore comes in five shapes:
+`.config/dotnet-tools.json` with every tool but the project's own, which this checkout runs from its
+source, `project` under `.template.config/variants/`, which replaces it in a generated project and
+adds `cleanarch.cli` at `0.0.0-checkout`, the version `templateVersion` replaces at generation, and
+`no-sonar`, `no-client` and `no-sonar-no-client` there too, each the `project` manifest minus its
+tools, which `EachToolManifest_IsTheGeneratedProjectsMinusItsTools` holds. A Kiota bump changes the
+checkout's manifest, `project` and the `no-sonar` one, and its pull request runs `dotnet cleanarch openapi`
 and commits what it writes.
 
 ## The project file
@@ -766,14 +768,14 @@ and commits what it writes.
 project's name, every option that is not a part under its value, `client` when `Src/Presentation/AT.Presentation.Client`
 holds the .NET client, the web workspace with its apps and packages, and the presentation project
 ([template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)).
-This checkout holds the file the defaults generate; `Tools/Tasks.cs` finds the root by it and reads
+This checkout holds the file the defaults generate; `dotnet cleanarch` finds the root by it and reads
 the options there rather than through markers.
 
 | Facet | Where |
 |---|---|
 | Values | one generated symbol per recorded value, whose `replaces` names the key with the checkout's value, such as `"auth": "local"`, so that no other file holds the token; the name, the version, the scope and the part names follow the tokens the rest of the tree uses |
 | Parts | `.template.config/variants/project-file-web`, the checkout's file plus the web workspace, copied in its place by `anyWeb` |
-| Additions | `presentation-join` and `web-join` record the part they join, `client` with it, and `web-join` a package of the workspace; every writer keeps the key order and any key it does not know |
+| Additions | `add presentation` and `add web-app` record the part they join, `client` with it, and `add web-package` a package of the workspace; every writer keeps the key order and any key it does not know |
 | Tests | `ProjectFileTests` holds the file to the tree in every project; `TemplatePackagingTests` holds the checkout's file to the defaults, each variant to it, and every value to a symbol that replaces it; `CheckProjectFile.cs` holds each leg's file to its options |
 
 In this checkout `Src/Web`, `Src/Presentation/AT.Presentation.Client` and the API's external-identity mapping are the sources of
@@ -803,19 +805,15 @@ program shares no code.
 
 ## The generators' shared code
 
-`Tools/NewFeature.cs`, `Tools/NewUseCase.cs`, `Tools/NewSetting.cs`, `Tools/NewEvent.cs` and
-`Tools/RemoveFeature.cs` are file-based programs, which share no code, so each closes on its own copy
-of what they hold in common, and `Tools/NewFeature.cs` holds the copy the others read as. A change to
-a shared unit is made in `Tools/NewFeature.cs` and copied as is.
+The generators of the project tool, `Launcher/CleanArch.Cli/Generators`, share one copy of what they
+hold in common under `Launcher/CleanArch.Cli/Generators/Shared`: `TextEdits.cs`, the edits in files a
+generator does not own, placed beside a line or computed on the whole text, and the write of every
+file or none; `FeatureManifest.cs`, a feature's manifest read in either schema version, its files,
+hashes, edits and the fields `add field` added merged, and written; `CSharpNames.cs`, a name in
+PascalCase and the C# keywords it must not become once lowered; and `FieldGrammar.cs`, the field
+model with the subset of each field profile. A change to a shared unit is made there once.
 
-| Unit | Copied in | Test |
-|---|---|---|
-| `TextEdits`, the edits in files a generator does not own, placed beside a line or computed on the whole text, and the write of every file or none | the four generators and `Tools/RemoveFeature.cs` | `TemplatePackagingTests.EveryCopyOfTheSharedFileEdits_ReadsAsNewFeaturesOwn` |
-| `FeatureManifest`, a feature's manifest read in either schema version, its files, hashes, edits and the fields `new-field` added merged, and written | the four generators and `Tools/RemoveFeature.cs` | `TemplatePackagingTests.EveryCopyOfTheFeatureManifest_ReadsAsNewFeaturesOwn` |
-| `CSharpNames`, a name in PascalCase and the C# keywords it must not become once lowered | the four generators | `TemplatePackagingTests.EveryCopyOfTheNameRules_ReadsAsNewFeaturesOwn` |
-| The field model and `FieldGrammar`, with the subset of each `FieldProfile` | `Tools/NewFeature.cs` and `Tools/NewEvent.cs` | `TemplatePackagingTests.EveryCopyOfTheFieldGrammar_ReadsAsNewFeaturesOwn` |
-
-`new-setting --keys` reads its own grammar: a key is a bounded configuration value with a default,
+`add setting --keys` reads its own grammar: a key is a bounded configuration value with a default,
 `duration` and `secret` among its types, which no field has; its names follow `CSharpNames`.
 
 ## The package
@@ -920,7 +918,7 @@ The tests that read the manifests through the launcher's own settings stay in
 
 | Option | Read from |
 |---|---|
-| `-n` | the one solution file beside `Tools/Tasks.cs` |
+| `-n` | the one solution file beside `cleanarch.json` |
 | `--auth` | `local` with the `Application.Auth` project, `external` with the JWT bearer package in `Directory.Packages.props`, `none` otherwise |
 | `--examples` | `all` with `Features/TodoLists` in the application project, `notes` with `Features/Notes` alone, `none` otherwise |
 | `--files` | the `Infrastructure.Storage` project |
@@ -937,7 +935,7 @@ templates, runs the launcher without a terminal for a project and compares the t
 `dotnet new` writes from the same answers. Another generates a
 project with `--web`, once as a React single-page app and once as an Angular app rendered on the
 server under an external provider, and the same project without it, to which `cleanarch-webapp
---workspace` and `web-join` add the app: the two trees must match but for the options the overview
+--workspace` and `add web-app` add the app: the two trees must match but for the options the overview
 records, so an edit of `Src/Web/README.md` or of the app's `README.md` that is missing, wrong or
 placed elsewhere than the project template writes its lines fails it. A third adds two
 server-rendered apps to a project generated with a single-page app and requires ADR 0024, its line
@@ -964,7 +962,7 @@ runs it from the checkout; pass `--template-source` a `.nupkg` to try a packed o
 
 ## The upgrade report
 
-A project's `upgrade-report` task runs `Tools/UpgradeReport.cs`, which generates the project from
+A project's `upgrade-report` command generates the project from
 the package at the version `cleanarch.json` records and at a newer one, then compares both with the
 project's files ([template decision 0021](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md));
 `docs/guides/upgrading.md` is its page. It holds three things in step with the rest of this
@@ -972,12 +970,12 @@ repository:
 
 | What | Kept in step with |
 |---|---|
-| `_writtenByBootstrap` and `_editedByBootstrap` | the files `bootstrap` in `Tools/Tasks.cs` writes or edits |
+| `_writtenByBootstrap` and `_editedByBootstrap` | the files `bootstrap` writes or edits |
 | `PlanOf`, which turns `cleanarch.json` into a generation and item templates | the options the project file records, the names generation gives each host, and the item templates' options |
 | the changelog range | the version headings release-please writes in `CHANGELOG.md`, which the package carries |
 | the packages of the released versions | each stays on a NuGet source a project reaches: the report installs the version `cleanarch.json` records from the sources, and a version no source holds cannot be generated again |
 
-Its `--self-test`, which `hygiene` runs, judges the comparison on fixtures. The `defaults` leg of
+Its `--self-test`, which `verify` runs, judges the comparison on fixtures. The `defaults` leg of
 the acceptance runs the real path on a bootstrapped project, with a version as the only change. A
 change that touches more runs by hand: pack a copy of the checkout under two `templateVersion`
 values, generate a project from the first in a scratch hive, and run

@@ -140,7 +140,7 @@ project file records `auth: none`, since every feature they write needs an authe
 caller, and are refused with that reason.
 
 `adopt` is for a project generated before the tool, which has no project file yet: it finds the
-folder that holds one solution beside `Tools/Tasks.cs`, reads the options, the web workspace and
+folder that holds one solution beside the task launcher a project of that time carried, reads the options, the web workspace and
 the presentation projects from the files, and the template's version from the provenance sentence
 of `docs/getting-started/overview.md` (or `--template-version` where that sentence is gone), then
 writes `cleanarch.json` and prints it. It writes nothing where a fact cannot be read from the files,
@@ -158,8 +158,8 @@ command, and `help --json` gives each a `local` key naming its file, with `repla
 for one that replaces a built-in command.
 
 Only a file named as a command is one: lower-case words joined by hyphens, as `end-to-end` is.
-`Tools/Tasks.cs`, the generators such as `Tools/NewFeature.cs` and every other file named in
-PascalCase stay scripts run with `dotnet run`, and a file named `help` is no command: `help` stays
+Every file named in
+PascalCase stays a script run with `dotnet run`, and a file named `help` is no command: `help` stays
 the tool's, since it says which commands are this project's own.
 
 ## Ejecting a command

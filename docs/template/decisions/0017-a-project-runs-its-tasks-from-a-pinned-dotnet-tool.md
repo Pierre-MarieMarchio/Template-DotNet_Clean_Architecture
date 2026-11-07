@@ -11,17 +11,17 @@ Status: Accepted
 
 ## Context
 
-Every generated project receives `Tools/Tasks.cs` and what it runs: the generators
-`Tools/NewFeature.cs` (`new-feature` and `new-field`), `Tools/NewUseCase.cs`, `Tools/NewSetting.cs`,
-`Tools/NewEvent.cs` and `Tools/RemoveFeature.cs`, the upgrade report `Tools/UpgradeReport.cs`, and
-`Tools/CoverageGate.cs` and `Tools/TestSummary.cs`. That is about 31,800 lines in a project of the
+Every generated project received a task launcher script and what it ran: the generators
+(`new-feature` and `new-field`, one more use case, a setting, an event and the removal of a
+feature), the upgrade report, the coverage gate and the test summary, each a file-based program
+under `Tools/`. That is about 31,800 lines in a project of the
 default options, which the engine conditions per option through `//#if` blocks. A fix to a
 generator reaches only the projects generated after it: an older project keeps its copy, and its
 team keeps that copy in step by hand, if it does at all. The copy is also what lets a team change a task, add one, or reshape the code a
 generator writes. A tool installed from NuGet, the way `dotnet-ef` is, would take that away unless
 it leaves room for it.
 
-A project is worked on through three surfaces that overlap. `Tools/Tasks.cs` holds 33 tasks in a
+A project is worked on through three surfaces that overlap. The task launcher held 33 tasks in a
 project of the default options. The launcher `CleanArch.Create`, a .NET tool packed from this
 repository under the template's version, creates projects but also adds web apps, web packages and
 presentation projects to an existing one.
@@ -38,11 +38,14 @@ expose one by one.
 - **The project's tool ships as a .NET tool.** `CleanArch.Cli` is packed from this repository under
   the `templateVersion` of `.template.config/template.json`, as the launcher is. Its command is
   `dotnet-cleanarch`, run as `dotnet cleanarch <command>`, and its commands, help and completion
-  come from System.CommandLine. A generated project pins it in `.config/dotnet-tools.json` beside
-  `dotnet-ef`, and `bootstrap` restores it.
+  come from System.CommandLine. A generated project holds it in `.config/dotnet-tools.json` beside
+  `dotnet-ef` from the generation on, pinned at the template's version, so the first step is
+  `dotnet tool restore`, then `dotnet cleanarch bootstrap`, which the launcher runs. `bootstrap` does
+  not install the tool; it is the tool.
 - **A project records what it was generated with.** A project file written at generation holds the
-  project's name, its options, the template version and the parts added since. The tool finds the
-  project root by this file and reads it where `Tools/Tasks.cs` reads a `//#if`.
+  project's name, its options, the template version and the parts added since, and the tool
+  manifest is written at generation too. The tool finds the
+  project root by this file and reads it where the task launcher read a `//#if`.
   `dotnet cleanarch adopt` writes it for a project generated before the tool, from the facts the
   launcher already infers from a project's files.
 - **The commands follow five rules:**
@@ -81,8 +84,8 @@ expose one by one.
      generator makes to existing files are the tool's code, outside this depth.
   3. **Local commands.** A file-based app `Tools/<name>.cs` runs as `dotnet cleanarch <name>`. A new
      name adds a command, a built-in name is replaced by it, and `help` says which is which. Only a
-     name of lower-case words joined by hyphens is a command, so `Tools/Tasks.cs` and the other
-     scripts named in PascalCase stay scripts, and `help` stays the tool's, since it says which
+     name of lower-case words joined by hyphens is a command, so the scripts named in PascalCase
+     stay scripts, and `help` stays the tool's, since it says which
      commands are the project's own.
   4. **Ejection.** `dotnet cleanarch eject <command>` copies a command's source into `Tools/`,
      where the third depth takes it over. That one command stops following the tool's releases.
@@ -95,7 +98,7 @@ expose one by one.
   `Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs` and the web lockfiles' task audit this
   repository and the generated trees, and the tool never carries them. This repository runs the tool
   from its source, and the acceptance matrix packs it into a local feed that each generated project
-  restores from.
+  restores from with `dotnet tool restore --add-source`.
 - **Tests hold it.** `TemplatePackagingTests` holds the pinned version to `templateVersion`, and
   the tool's own tests run each command against the project file of every leg of the acceptance
   matrix.
@@ -112,7 +115,7 @@ expose one by one.
   cannot edit the registrations, the closed lists and the manifest that a feature joins.
 - **Code templates in Scriban or Liquid.** They are lighter, but their files do not compile, the IDE
   does not help with them, and the repository would carry a second templating language.
-- **Code kept as strings in the generators**, as `Tools/NewFeature.cs` keeps it. A team could
+- **Code kept as strings in the generators**, as the file-based generator kept it. A team could
   change it only by ejecting the whole command.
 - **A global tool.** Two projects on two template versions would share one version of the
   generators. A local tool pins each project's own.
@@ -128,14 +131,14 @@ expose one by one.
   migration check, the restore and the repository checks stop being commands of their own, `format`
   and `format-fix` become `format` and its `--check`, and `openapi` writes the clients after the
   reference, in place of `api-client`: the .NET client where the project holds one, and the web
-  workspace's schema through `pnpm api --no-build` where it holds the `api-client` package. A
+  workspace's schema through `pnpm api <reference>` where it holds the `api-client` package. A
   project with the API and no .NET client still gets its reference.
 - The launcher and the tool share their process, terminal and manifest code in one solution.
 - The tool becomes a public interface. The project file's schema, the code templates and the
   contract of a local command are versioned with care, and breaking one of them takes a major
   version.
 - Every page, every `AGENTS.md`, every workflow and `DocumentationCitationTests` that cite
-  `dotnet run Tools/Tasks.cs` move to `dotnet cleanarch`, and `.feature-manifest/` records the
+  the task launcher move to `dotnet cleanarch`, and `.feature-manifest/` records the
   generator's version.
 - The acceptance matrix tests one tool over each leg's project file instead of a conditioned copy
   per leg, and the generators gain unit tests of their own.

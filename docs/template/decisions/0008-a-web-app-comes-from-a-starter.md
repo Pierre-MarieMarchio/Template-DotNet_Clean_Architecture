@@ -27,7 +27,7 @@ every new value would cost a copy of the wiring.
   a folder under `.template.config/starters` named after the value, holding only
   `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`. The project template and
   `cleanarch-webapp` copy the wiring under the `webFramework` symbol and the chosen starter into the
-  app's folder; `web-scaffold` consumes the starter at bootstrap, as 0003 describes.
+  app's folder; `bootstrap` consumes the starter, as 0003 describes.
 - **A starter is a pinned CLI with its arguments, its merges and its overlay**: the CLI's package and
   exact version, the arguments `pnpm dlx` passes it, the JSON merges into the files it writes, and
   the files laid over its starter where no setting reaches. The template keeps no framework code.
@@ -58,7 +58,7 @@ every new value would cost a copy of the wiring.
 - **The wiring differs by framework only through markers.** A difference is a marker on that
   framework's symbol in the shared file, never a second copy of the file.
 - **A .NET starter keeps the same place and the same server.** `blazor-wasm` is a starter of kind
-  `dotnet`, as [0009](0009-a-dotnet-project-comes-from-a-starter.md) describes: `web-scaffold` runs
+  `dotnet`, as [0009](0009-a-dotnet-project-comes-from-a-starter.md) describes: `add web-app` runs
   `dotnet new blazorwasm` for it and adds the project to the solution, and its folder holds the
   project file and `Program.cs` the project owns beside `scaffold.json`. Its output contract is the
   published `wwwroot`, built by the .NET SDK from the repository root, which holds the solution's
@@ -88,7 +88,7 @@ every new value would cost a copy of the wiring.
 - **A `kind` field in each `scaffold.json`, ready for starters that are not pnpm apps.** No second
   kind exists yet; the field's shape waits for the first .NET starter.
 - **Starters inside `Src/Web/apps`.** The checkout would carry a descriptor per framework where
-  `web-scaffold` looks for apps to create, and each generated project would need them excluded.
+  `add web-app` looks for apps to create, and each generated project would need them excluded.
 
 ## Consequences
 

@@ -1,5 +1,4 @@
-﻿using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -22,54 +21,19 @@ public sealed class DocumentationCitationTests
         "docs/_page-templates/",
     ];
 
-    private const string _taskTablePage = "docs/guides/build-and-ci.md";
-
-    private const string _taskTableHeading = "## The task launcher";
-
-    private static readonly string[] _tasksOutsideTheTable =
-    [
-        "help",
-        /*#if (templateMaintenance)*/
-        "web-lockfiles",
-        /*#endif*/
-    ];
+    private const string _toolPage = "docs/reference/cli.md";
 
     private static readonly string[] _skippedDirectories = ["bin", "obj", "node_modules", "plans"];
 
     private static readonly string[] _keptDotDirectories = [".github", ".template.config"];
 
-    private static readonly Regex _taskCitation = new(
-        @"dotnet run Tools/Tasks\.cs(?:[ \t]+--)?[ \t]+(?<task>[a-z][a-z-]*)(?<rest>[^`\n#]*)",
+    private static readonly Regex _commandCitation = new(
+        @"dotnet cleanarch (?<first>[a-z][a-z-]*)(?:[ \t]+(?<second>[a-z][a-z-]*))?(?<rest>[^`\n#]*)",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
     private static readonly Regex _citedOption = new(
         @"(?<![\w-])--(?<option>[a-z][a-z-]*)",
-        RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1));
-
-    private static readonly Regex _knownTasks = new(
-        @"_knownTasks\s*=\s*\[(?<body>[^\]]*)\]",
-        RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1));
-
-    private static readonly Regex _taskOptionNames = new(
-        @"_(?:webJoin|upgrade)OptionNames\s*=\s*\[(?<body>[^\]]*)\]",
-        RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1));
-
-    private static readonly Regex _parsedOption = new(
-        @"(?:argument is|arguments is \[)\s*""--(?<option>[a-z][a-z-]*)""",
-        RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1));
-
-    private static readonly Regex _generatorOption = new(
-        @"\[""--(?<option>[a-z][a-z-]*)""\]\s*=",
-        RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1));
-
-    private static readonly Regex _quotedName = new(
-        @"""(?:--)?(?<name>[a-z][a-z-]*)""",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
@@ -109,93 +73,55 @@ public sealed class DocumentationCitationTests
         TimeSpan.FromSeconds(1));
 
     [Fact]
-    public void EveryCitedTask_IsATaskOfTheLauncher()
+    public void EveryCitedCommand_IsACommandOfTheProjectTool()
     {
-        var tasks = LauncherTasks();
-        var citations = TaskCitations();
+        var commands = ToolCommands();
+        var citations = CommandCitations(commands);
 
-        tasks.ShouldContain("verify", "the launcher's task list was not found in Tools/Tasks.cs.");
-        citations.ShouldNotBeEmpty("the pages cite at least the gate; a scan that finds no task is broken.");
+        commands.ShouldContain("verify", $"the command tables of {_toolPage} were not found.");
+        citations.ShouldNotBeEmpty("the pages cite at least the gate; a scan that finds no command is broken.");
 
         citations
-            .Where(citation => !tasks.Contains(citation.Task))
-            .Select(citation => $"{citation.Page}: {citation.Task}")
+            .Where(citation => !commands.Contains(citation.Command))
+            .Select(citation => $"{citation.Page}: {citation.Command}")
             .Distinct(StringComparer.Ordinal)
             .ShouldBeEmpty(
-                "A page cites a task Tools/Tasks.cs does not have, so the command it gives fails. "
-                + "Cite a task `dotnet run Tools/Tasks.cs help` lists, or add the task.");
+                $"A page cites a command {_toolPage} does not list, so the command it gives fails. "
+                + "Cite a command `dotnet cleanarch help` lists, or add its row to the page.");
     }
 
     [Fact]
-    public void EveryTaskOfTheLauncher_HasItsRowInTheTaskTable()
+    public void EveryCitedOption_IsOneTheProjectToolPageNames()
     {
-        var listed = TaskTableTasks(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, _taskTablePage)));
+        string tool = File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, _toolPage));
+        var citations = CommandCitations(ToolCommands());
 
-        listed.ShouldContain("verify", $"the task table of {_taskTablePage} was not found under '{_taskTableHeading}'.");
-
-        LauncherTasks()
-            .Where(task => !_tasksOutsideTheTable.Contains(task, StringComparer.Ordinal))
-            .Where(task => task != "sonar" || SonarRecorded())
-            .Where(task => !listed.Contains(task))
-            .Order(StringComparer.Ordinal)
-            .ShouldBeEmpty(
-                $"`dotnet run Tools/Tasks.cs help` lists a task the table under '{_taskTableHeading}' in {_taskTablePage} "
-                + "has no row for, so a reader of the reference list never learns it exists. Add its row, "
-                + "conditioned as the task is, with a code span naming it in the first column.");
-    }
-
-    [Fact]
-    public void TheTaskTableScan_ReadsTheFirstColumnOfItsSectionAlone()
-    {
-        string opening = "<!--" + "#" + "if (api)-->";
-        string closing = "<!--" + "#" + "endif-->";
-        string page = string.Join(
-            "\n",
-            "## Before",
-            "| `ignored` | a row of another section |",
-            _taskTableHeading,
-            "| Task | Runs |",
-            "|---|---|",
-            $"| {opening} |",
-            "| `run`, `test --no-integration` | runs `skipped` |",
-            $"| {closing} |",
-            "## After",
-            "| `after` | a row of another section |");
-
-        TaskTableTasks(page).Order(StringComparer.Ordinal).ShouldBe(["run", "test"]);
-    }
-
-    [Fact]
-    public void EveryCitedOption_IsAnOptionOfTheLauncher()
-    {
-        var options = LauncherOptions();
-        var citations = TaskCitations();
-
-        options.ShouldContain("no-integration", "the launcher's options were not found in Tools/Tasks.cs.");
+        tool.ShouldContain("--check", Case.Sensitive, $"{_toolPage} was not read; a scan against nothing is broken.");
 
         citations
             .SelectMany(citation => _citedOption.Matches(citation.Rest)
                 .Select(match => match.Groups["option"].Value)
-                .Where(option => !options.Contains(option))
-                .Select(option => $"{citation.Page}: {citation.Task} --{option}"))
+                .Where(option => !tool.Contains($"--{option}", StringComparison.Ordinal))
+                .Select(option => $"{citation.Page}: {citation.Command} --{option}"))
             .Distinct(StringComparer.Ordinal)
             .ShouldBeEmpty(
-                "A page cites an option Tools/Tasks.cs does not accept, so the command it gives is refused. "
-                + "Cite an option `dotnet run Tools/Tasks.cs help` lists.");
+                $"A page cites an option {_toolPage} never names, so the command it gives is refused or the "
+                + "page that lists the options is incomplete. Cite an option `dotnet cleanarch <command> --help` lists, "
+                + "and name it in the page.");
     }
 
     [Fact]
     public void EveryCitedOwnerFeature_NamesTheFateOfItsRows()
     {
-        var owned = TaskCitations()
-            .Where(citation => citation.Task == "new-feature" && _ownerAccess.IsMatch(citation.Rest))
+        var owned = CommandCitations(ToolCommands())
+            .Where(citation => citation.Command == "add feature" && _ownerAccess.IsMatch(citation.Rest))
             .ToList();
 
         owned
             .Where(citation => !citation.Rest.Contains("--deletion", StringComparison.Ordinal))
-            .Select(citation => $"{citation.Page}: new-feature{citation.Rest}")
+            .Select(citation => $"{citation.Page}: add feature{citation.Rest}")
             .ShouldBeEmpty(
-                "new-feature refuses --access owner without --deletion delete|anonymise, so this command "
+                "add feature refuses --access owner without --deletion delete|anonymise, so this command "
                 + "fails as written. Add the --deletion the feature needs.");
     }
 
@@ -255,17 +181,26 @@ public sealed class DocumentationCitationTests
     [Fact]
     public void TheMatchers_AreSensitive()
     {
-        var citation = _taskCitation.Match("`dotnet run Tools/Tasks.cs -- build --configuration Release`");
-        citation.Groups["task"].Value.ShouldBe("build");
-        _citedOption.Matches(citation.Groups["rest"].Value).Single().Groups["option"].Value.ShouldBe("configuration");
+        var names = CommandsOfTables(string.Join(
+            "\n",
+            "| Command | Does |",
+            "|---|---|",
+            "| `dotnet cleanarch help`, `dotnet cleanarch --help` | lists |",
+            "| `migrations add <Name>` | adds |",
+            "| `migrations add --check` | checks |",
+            "| `build`, `test --no-integration` | runs `skipped` |"));
+        names.Order(StringComparer.Ordinal).ShouldBe(["build", "help", "migrations add", "test"]);
 
-        _taskCitation.Match("dotnet run Tools/Tasks.cs test --no-integration   # without Docker")
-            .Groups["rest"].Value.Trim().ShouldBe("--no-integration");
-        _taskCitation.IsMatch("dotnet run Tools/Tasks.cs <task>").ShouldBeFalse();
-        _taskCitation.Match("dotnet run Tools/Tasks.cs end-to-end --keep-stack").Groups["task"].Value.ShouldBe("end-to-end");
-        _quotedName.Match("\"end-to-end\",").Groups["name"].Value.ShouldBe("end-to-end");
+        var citation = CommandCitation("`dotnet cleanarch migrations add Add-Things --no-build`", names);
+        citation.Command.ShouldBe("migrations add");
+        _citedOption.Matches(citation.Rest).Single().Groups["option"].Value.ShouldBe("no-build");
+
+        CommandCitation("dotnet cleanarch test --no-integration   # without Docker", names).Rest.Trim().ShouldBe("--no-integration");
+        CommandCitation("dotnet cleanarch verify passes", names).Command.ShouldBe("verify");
+        _commandCitation.IsMatch("dotnet cleanarch <command>").ShouldBeFalse();
+        _commandCitation.IsMatch("dotnet cleanarch --help").ShouldBeFalse();
         _citedOption.IsMatch("[--deletion delete|anonymise]").ShouldBeTrue();
-        _citedOption.IsMatch("migration-add Add-Things").ShouldBeFalse();
+        _citedOption.IsMatch("migrations add Add-Things").ShouldBeFalse();
 
         _ownerAccess.IsMatch(" --access owner --deletion delete").ShouldBeTrue();
         _ownerAccess.IsMatch(" --access owner|shared").ShouldBeTrue("owner is one of the values it offers");
@@ -344,67 +279,57 @@ public sealed class DocumentationCitationTests
         return (missing, checkedPaths);
     }
 
-    private sealed record Citation(string Page, string Task, string Rest);
+    private sealed record Citation(string Page, string Command, string Rest);
 
-    private static HashSet<string> LauncherTasks()
+    private static HashSet<string> ToolCommands() =>
+        CommandsOfTables(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, _toolPage)));
+
+    private static HashSet<string> CommandsOfTables(string page) =>
+        [.. page.ReplaceLineEndings("\n").Split('\n')
+            .Where(line => line.StartsWith("| `", StringComparison.Ordinal))
+            .Select(line => line.Split('|')[1])
+            .SelectMany(cell => _codeSpan.Matches(cell).Select(span => CommandName(span.Groups["span"].Value)))
+            .OfType<string>()];
+
+    private static string? CommandName(string span)
     {
-        string source = File.ReadAllText(Launcher());
-        var tasks = QuotedNames(_knownTasks.Match(source).Groups["body"].Value);
-        tasks.Add("help");
+        string spoken = span.StartsWith("dotnet cleanarch ", StringComparison.Ordinal) ? span["dotnet cleanarch ".Length..] : span;
+        var words = spoken.Split(' ').TakeWhile(word => word.Length > 0 && char.IsAsciiLetterLower(word[0])).ToList();
 
-        return tasks;
+        return words.Count == 0 || spoken == span && span.StartsWith("dotnet", StringComparison.Ordinal)
+            ? null
+            : string.Join(' ', words);
     }
 
-    private static HashSet<string> TaskTableTasks(string page)
+    private static Citation CommandCitation(string text, HashSet<string> commands) =>
+        CommandCitations(commands, [("page", text)]).Single();
+
+    private static List<Citation> CommandCitations(HashSet<string> commands) =>
+        CommandCitations(
+            commands,
+            MarkdownPages()
+                .Where(page => !_exemptPages.Contains(Path.GetFileName(page), StringComparer.Ordinal))
+                .Where(page => !_pagesWithoutCitations.Any(prefix => Relative(page).StartsWith(prefix, StringComparison.Ordinal)))
+                .Select(page => (Relative(page), File.ReadAllText(page).Replace("\\\n", " ", StringComparison.Ordinal))));
+
+    private static List<Citation> CommandCitations(HashSet<string> commands, IEnumerable<(string Page, string Text)> pages)
     {
-        var tasks = new HashSet<string>(StringComparer.Ordinal);
-        bool inSection = false;
-
-        foreach (string line in page.ReplaceLineEndings("\n").Split('\n'))
-        {
-            if (line.StartsWith("## ", StringComparison.Ordinal))
-            {
-                inSection = line.TrimEnd() == _taskTableHeading;
-            }
-            else if (inSection && line.StartsWith('|') && line.Split('|') is [_, var firstCell, _, ..])
-            {
-                tasks.UnionWith(_codeSpan.Matches(firstCell).Select(span => span.Groups["span"].Value.Split(' ')[0]));
-            }
-        }
-
-        return tasks;
-    }
-
-    private static bool SonarRecorded() =>
-        JsonNode.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "cleanarch.json")))?["options"]?["sonar"]?.GetValue<bool>() ?? false;
-
-    private static HashSet<string> LauncherOptions()
-    {
-        string source = File.ReadAllText(Launcher());
-        var options = _taskOptionNames.Matches(source)
-            .SelectMany(match => QuotedNames(match.Groups["body"].Value))
+        var groups = commands.Where(command => command.Contains(' ', StringComparison.Ordinal))
+            .Select(command => command.Split(' ')[0])
             .ToHashSet(StringComparer.Ordinal);
-        options.Add("help");
 
-        foreach (Match parsed in _parsedOption.Matches(source).Concat(_generatorOption.Matches(source)))
+        return [.. pages.SelectMany(page => _commandCitation.Matches(page.Text).Select(match =>
         {
-            options.Add(parsed.Groups["option"].Value);
-        }
+            string first = match.Groups["first"].Value;
+            string second = match.Groups["second"].Value;
+            bool grouped = groups.Contains(first) && second.Length > 0;
 
-        return options;
+            return new Citation(
+                page.Page,
+                grouped ? $"{first} {second}" : first,
+                grouped ? match.Groups["rest"].Value : $"{match.Groups["second"].Value} {match.Groups["rest"].Value}".TrimStart());
+        }))];
     }
-
-    private static HashSet<string> QuotedNames(string body) =>
-        [.. _quotedName.Matches(body).Select(match => match.Groups["name"].Value)];
-
-    private static string Launcher() => Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Tools", "Tasks.cs");
-
-    private static List<Citation> TaskCitations() =>
-        [.. MarkdownPages()
-            .Where(page => !_exemptPages.Contains(Path.GetFileName(page), StringComparer.Ordinal))
-            .SelectMany(page => _taskCitation
-                .Matches(File.ReadAllText(page).Replace("\\\n", " ", StringComparison.Ordinal))
-                .Select(match => new Citation(Relative(page), match.Groups["task"].Value, match.Groups["rest"].Value)))];
 
     private static List<string> CitingPages() =>
         [.. _rootPages

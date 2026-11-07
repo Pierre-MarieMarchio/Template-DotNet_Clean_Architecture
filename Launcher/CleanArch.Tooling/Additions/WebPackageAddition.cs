@@ -8,6 +8,8 @@ namespace CleanArch.Tooling.Additions;
 
 internal sealed partial class WebPackageAddition(AdditionFlow flow)
 {
+    private const string _command = "web-package";
+
     public void Add(ProjectFacts project)
     {
         if (!project.HasWorkspace)
@@ -16,30 +18,61 @@ internal sealed partial class WebPackageAddition(AdditionFlow flow)
         }
 
         TemplateManifest manifest = flow.Context.Source.Manifest(TemplateKind.WebPackage);
+        if (flow.Existing(name => PackageFolder(project, name), PackageName().IsMatch) is { } existing)
+        {
+            Complete(project, existing);
+            return;
+        }
+
         flow.Conversation.Begin($"Add a package to {project.Name}'s web workspace", flow.Context.Version);
         var detected = new Dictionary<string, string>(StringComparer.Ordinal) { ["scope"] = project.Scope };
         flow.Detected(project, manifest, detected);
 
-        AskedItem asked = flow.AskItem(manifest, "Package name", PackageNameProblem, detected, $"Add it to {project.Name}");
+        AskedItem asked = flow.AskItem(manifest, "Package name", name => PackageNameProblem(project, name), detected, $"Add it to {project.Name}");
         string name = asked.Name;
 
         string[] engine = [manifest.ShortName, "-n", name, .. manifest.CommandArguments(asked.Options)];
-        ItemStep join = flow.Steps.WebJoin(project.Root, name, []);
+        PlannedStep[] steps = Steps(project, name);
         if (flow.Context.DryRun)
         {
-            flow.ShowDryRun(engine, [join]);
+            flow.ShowDryRun(engine, [.. steps.Select(planned => planned.Step)]);
             return;
         }
 
         flow.Generate(project, name, engine, [ItemAdditions.WebJoinTask]);
-        bool joined = flow.RunStep(project.Root, "Join", "Recording it in cleanarch.json", join);
+        int done = flow.RunSteps(project.Root, steps);
 
-        flow.Equivalents("web-package", engine, [join.CommandLine]);
-        flow.Conversation.Close(joined ? null : new Closing(null, [], $"Record it with {join.CommandLine}.", StepsLeft: true));
+        flow.Equivalents(_command, engine, [.. steps.Select(planned => planned.Step.CommandLine)]);
+        Close(steps, done);
     }
 
-    private static string? PackageNameProblem(string name) =>
-        PackageName().IsMatch(name) ? null : "use letters, digits and dashes, starting with a letter, like tokens.";
+    private void Complete(ProjectFacts project, string name)
+    {
+        flow.Conversation.Begin($"Complete Src/Web/packages/{name} in {project.Name}", flow.Context.Version);
+        PlannedStep[] steps = Steps(project, name);
+        if (flow.Complete(project.Root, $"Src/Web/packages/{name}", "recorded in cleanarch.json", steps) is { } done)
+        {
+            Close(steps, done);
+        }
+    }
+
+    private PlannedStep[] Steps(ProjectFacts project, string name) =>
+        [new("Join", "Recording it in cleanarch.json", flow.Steps.WebJoin(project.Root, name, []))];
+
+    private void Close(PlannedStep[] steps, int done) =>
+        flow.Conversation.Close(done == steps.Length ? null : new Closing(null, [], $"Record it with {steps[0].Step.CommandLine}.", StepsLeft: true));
+
+    private string? PackageNameProblem(ProjectFacts project, string name)
+    {
+        if (!PackageName().IsMatch(name))
+        {
+            return "use letters, digits and dashes, starting with a letter, like tokens.";
+        }
+
+        return Directory.Exists(PackageFolder(project, name)) ? $"there's already a package with that name: {flow.CompletedBy(_command, name)} completes it." : null;
+    }
+
+    private static string PackageFolder(ProjectFacts project, string name) => Path.Combine(project.WebFolder, "packages", name);
 
     [GeneratedRegex("^[A-Za-z][A-Za-z0-9-]*$")]
     private static partial Regex PackageName();

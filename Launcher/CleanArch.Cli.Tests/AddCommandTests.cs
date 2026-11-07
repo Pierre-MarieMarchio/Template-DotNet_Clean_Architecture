@@ -21,6 +21,7 @@ public sealed class AddCommandTests : IDisposable
         _processes = new FakeProcesses((call, output, _) =>
         {
             _calls.Add(call);
+            WriteTheItem(call);
             if (call.Arguments is ["new", "uninstall"])
             {
                 output.WriteLine(_installed);
@@ -70,15 +71,42 @@ public sealed class AddCommandTests : IDisposable
         Directory.EnumerateFileSystemEntries(project.Root).Select(Path.GetFileName).ShouldBe([ProjectLocator.FileName]);
     }
 
+    [Theory]
+    [InlineData("presentation", "Portal", "blazor-server", "Src/Presentation/AS.Portal", "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal", "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal")]
+    [InlineData("web-app", "Backoffice", "vite-react", "Src/Web/apps/Backoffice", "dotnet run Tools/Tasks.cs web-join Backoffice --web vite-react", "dotnet run Tools/Tasks.cs web-scaffold Backoffice")]
+    public void AnAddition_WhoseFolderExists_CompletesIt_WithoutGeneratingItAgain(string addition, string name, string framework, string folder, string join, string scaffold)
+    {
+        using var project = new SampleProject(SampleProject.ApiWithWeb);
+        File.WriteAllText(Path.Combine(project.Folder(folder), "scaffold.json"), "{}");
+
+        Run(["add", addition, "--yes", "--name", name, "--framework", framework], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        Lines().ShouldBe([join, scaffold]);
+    }
+
     [Fact]
-    public void AddWebApp_WhereTheAppExists_IsRefusedBeforeRunningAnything()
+    public void AnAddition_WhoseJoinIsDone_RunsOnlyTheScaffold()
     {
         using var project = new SampleProject(SampleProject.Web);
-        project.Folder(Path.Combine("Src", "Web", "apps", "Backoffice"));
+        File.WriteAllText(Path.Combine(project.Folder("Src/Web/apps/Site"), "scaffold.json"), "{}");
 
-        Run(["add", "web-app", "--yes", "--name", "Backoffice", "--framework", "vite-react"], project.Root).ShouldBe(CleanArchCommand.Failed);
+        Run(["add", "web-app", "--name", "Site"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        _error.ToString().ShouldContain("there's already an app with that name");
+        Lines().ShouldBe(["dotnet run Tools/Tasks.cs web-scaffold Site"]);
+    }
+
+    [Theory]
+    [InlineData("web-app", "Site", "Src/Web/apps/Site is joined and created already")]
+    [InlineData("web-package", "ui", "Src/Web/packages/ui is recorded in cleanarch.json already")]
+    public void AnAddition_WithNothingLeftToComplete_IsRefused_AndRunsNothing(string addition, string name, string refusal)
+    {
+        using var project = new SampleProject(SampleProject.Web);
+        project.Folder("Src/Web/apps/Site");
+        project.Folder("Src/Web/packages/ui");
+
+        Run(["add", addition, "--name", name], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _error.ToString().ShouldContain(refusal);
         _calls.ShouldBeEmpty();
     }
 
@@ -111,6 +139,21 @@ public sealed class AddCommandTests : IDisposable
                 "DOTNET_CLI_UI_LANGUAGE=en dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --examples none --files false --agent-files false --has-client true --ci false",
                 "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal",
                 "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal",
+            ]);
+        _output.ToString().ShouldContain("Scaffold done.");
+    }
+
+    [Fact]
+    public void AddWebApp_RunsTheTemplate_ThenJoinsAndScaffolds()
+    {
+        using var project = new SampleProject(SampleProject.Web);
+
+        Run(["add", "web-app", "--yes", "--name", "Backoffice", "--framework", "vite-react"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        Lines()[^2..].ShouldBe(
+            [
+                "dotnet run Tools/Tasks.cs web-join Backoffice --web vite-react --web-audience public --web-rendering spa",
+                "dotnet run Tools/Tasks.cs web-scaffold Backoffice",
             ]);
         _output.ToString().ShouldContain("Scaffold done.");
     }
@@ -167,7 +210,6 @@ public sealed class AddCommandTests : IDisposable
     [Theory]
     [InlineData("Api", "names a project the template already writes")]
     [InlineData("portal", "use PascalCase, like Portal.")]
-    [InlineData("Portal", "there's already a presentation project with that name.")]
     public void AddPresentation_WithANameTheProjectCannotTake_IsRefusedBeforeRunningAnything(string name, string refusal)
     {
         using var project = new SampleProject(SampleProject.Api);
@@ -307,6 +349,22 @@ public sealed class AddCommandTests : IDisposable
         BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 
     private string[] Lines() => [.. _calls.Select(call => call.Line)];
+
+    private static void WriteTheItem(ExternalCall call)
+    {
+        int named = call.Arguments.ToList().IndexOf("-n");
+        string? folder = named < 1 ? null : call.Arguments[named - 1] switch
+        {
+            "cleanarch-presentation" => Path.Combine("Src", "Presentation", "AS." + call.Arguments[named + 1]),
+            "cleanarch-webapp" => Path.Combine("Src", "Web", "apps", call.Arguments[named + 1]),
+            _ => null,
+        };
+        if (folder is not null)
+        {
+            string written = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, folder)).FullName;
+            File.WriteAllText(Path.Combine(written, "scaffold.json"), "{}");
+        }
+    }
 
     private void Clear()
     {

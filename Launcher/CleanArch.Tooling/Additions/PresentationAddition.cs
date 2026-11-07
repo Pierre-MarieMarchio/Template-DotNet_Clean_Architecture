@@ -10,10 +10,17 @@ namespace CleanArch.Tooling.Additions;
 internal sealed partial class PresentationAddition(AdditionFlow flow)
 {
     private const string _frameworkSymbol = "framework";
+    private const string _command = "presentation";
 
     public void Add(ProjectFacts project)
     {
         TemplateManifest manifest = flow.Context.Source.Manifest(TemplateKind.Presentation);
+        if (flow.Existing(name => Path.Combine(project.PresentationFolder, project.FolderOf(name)), PresentationName().IsMatch) is { } existing)
+        {
+            Complete(project, manifest, existing);
+            return;
+        }
+
         flow.Conversation.Begin($"Add a presentation project to {project.Name}", flow.Context.Version);
         var detected = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -40,29 +47,40 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
         string presentation = $"{project.Name}.{name}";
 
         string[] engine = [manifest.ShortName, "-n", name, .. manifest.CommandArguments(asked.Options)];
-        ItemStep join = flow.Steps.PresentationJoin(project.Root, presentation);
-        ItemStep scaffold = flow.Steps.PresentationScaffold(project.Root, presentation);
+        PlannedStep[] steps = Steps(project, presentation);
         if (flow.Context.DryRun)
         {
-            flow.ShowDryRun(engine, [join, scaffold]);
+            flow.ShowDryRun(engine, [.. steps.Select(planned => planned.Step)]);
             return;
         }
 
         flow.Generate(project, name, engine, [ItemAdditions.PresentationJoinTask, ItemAdditions.PresentationScaffoldTask]);
+        int done = flow.RunSteps(project.Root, steps);
 
-        bool joined = flow.RunStep(project.Root, "Join", "Making the edits its README lists outside its folders", join);
-        bool created = joined && flow.RunStep(project.Root, "Scaffold", "Creating it with its framework's dotnet new template, which needs the network", scaffold);
-        if (!joined)
-        {
-            flow.Conversation.Reported("Scaffold skipped", false, "Skipped because the join step didn't go through.", [scaffold.CommandLine]);
-        }
-
-        flow.Equivalents("presentation", engine, [join.CommandLine, scaffold.CommandLine]);
-        Close(project, manifest, asked, joined, created);
+        flow.Equivalents(_command, engine, [.. steps.Select(planned => planned.Step.CommandLine)]);
+        Close(project, manifest, asked, done);
     }
 
-    private void Close(ProjectFacts project, TemplateManifest manifest, AskedItem asked, bool joined, bool created)
+    private void Complete(ProjectFacts project, TemplateManifest manifest, string name)
     {
+        string presentation = $"{project.Name}.{name}";
+        flow.Conversation.Begin($"Complete {presentation} in {project.Name}", flow.Context.Version);
+        if (flow.Complete(project.Root, $"Src/Presentation/{project.FolderOf(name)}", "joined and created", Steps(project, presentation)) is { } done)
+        {
+            Close(project, manifest, new AskedItem(name, flow.GivenOptions(manifest)), done);
+        }
+    }
+
+    private PlannedStep[] Steps(ProjectFacts project, string presentation) =>
+    [
+        new("Join", "Making the edits its README lists outside its folders", flow.Steps.PresentationJoin(project.Root, presentation)),
+        new("Scaffold", "Creating it with its framework's dotnet new template, which needs the network", flow.Steps.PresentationScaffold(project.Root, presentation)),
+    ];
+
+    private void Close(ProjectFacts project, TemplateManifest manifest, AskedItem asked, int done)
+    {
+        bool joined = done >= 1;
+        bool created = done >= 2;
         string folder = project.FolderOf(asked.Name);
         string readme = Path.Combine(project.PresentationFolder, folder, "README.md");
         string shown = $"Src/Presentation/{folder}/README.md";
@@ -94,7 +112,7 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
             : manifest.DefaultName;
     }
 
-    private static string? PresentationNameProblem(TemplateManifest manifest, ProjectFacts project, IReadOnlyDictionary<string, string> answers, string name)
+    private string? PresentationNameProblem(TemplateManifest manifest, ProjectFacts project, IReadOnlyDictionary<string, string> answers, string name)
     {
         if (!PresentationName().IsMatch(name))
         {
@@ -107,7 +125,7 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
         }
 
         string folder = Path.Combine(project.PresentationFolder, project.FolderOf(name));
-        return Directory.Exists(folder) ? "there's already a presentation project with that name." : null;
+        return Directory.Exists(folder) ? $"there's already a presentation project with that name: {flow.CompletedBy(_command, name)} completes it." : null;
     }
 
     [GeneratedRegex("^[A-Z][A-Za-z0-9]*$")]

@@ -22,15 +22,12 @@ internal static class OpenApiReference
     public static int Check(LocatedProject project, Shell shell, bool noBuild)
     {
         string documents = Path.Combine(Path.GetTempPath(), "cleanarch-openapi-" + Guid.NewGuid().ToString("N"));
-        int exit = Generate(project, shell, noBuild, documents);
-        if (exit != ExitCode.Succeeded)
-        {
-            return exit;
-        }
-
         try
         {
-            return Compare(project, shell, Path.Combine(documents, "v1.json"));
+            int exit = Generate(project, shell, noBuild, documents);
+            return exit == ExitCode.Succeeded
+                ? Compare(project, shell, Path.Combine(documents, "v1.json"))
+                : exit;
         }
         finally
         {

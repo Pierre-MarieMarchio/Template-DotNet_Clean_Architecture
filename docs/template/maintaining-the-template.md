@@ -24,9 +24,10 @@ still holds.
 
 The launcher's own build is a gate too: its analysis row under [the launcher](#the-launcher) gives the rules it holds.
 
-Each gate runs its `--self-test` first, against fixtures that must make it fire and fixtures that
-must leave it silent, and fails when it examined nothing. A rule added to a gate comes with the fixture
-that fails without it. These three files are excluded from generation, and `verify` runs them only
+Each of the three `Check*.cs` gates runs its `--self-test` first, against fixtures that must make it
+fire and fixtures that must leave it silent, and fails when it examined nothing. A rule added to one of
+them comes with the fixture that fails without it. These three files and `Tools/WebLockfiles.cs` are
+excluded from generation, and `verify` runs them only
 where `.template.config/template.json` exists, so one command serves both.
 
 CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a generated project
@@ -61,9 +62,11 @@ there on Mondays. The workflow is excluded from generation and from the package,
 
 ## Migrations in this checkout
 
-The template ships no migration, so this checkout has none until
-`dotnet run --project Launcher/CleanArch.Cli -- bootstrap` creates them, as it does in a project; the
-tests, `verify` and the drift check need them. They are git-ignored here only, by a `templateMaintenance` block of `.gitignore`, and
+The template ships no migration, so this checkout has none until `dotnet ef migrations add
+InitialCreate` creates them, once with `Src/Infrastructure/AT.Infrastructure.Auth` and once with
+`Src/Infrastructure/AT.Infrastructure.Persistence` as both `--project` and `--startup-project`, as
+`ci.yml` does; `bootstrap` would also create the web apps through their CLIs and rewrite the OpenAPI
+reference here. The tests, `verify` and the drift check need them. They are git-ignored here only, by a `templateMaintenance` block of `.gitignore`, and
 both `template.json` and `.template.config/TemplatePackage.csproj` exclude them, so a project
 generated from this checkout or from its package starts without them; `TemplatePackagingTests` holds
 the three. After a model change, delete each context's `Migrations` folder and run the command again. The

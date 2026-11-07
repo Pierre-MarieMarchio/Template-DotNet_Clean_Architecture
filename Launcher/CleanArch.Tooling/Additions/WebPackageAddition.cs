@@ -3,7 +3,6 @@ using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Projects;
 using CleanArch.Tooling.Prompts;
-using CleanArch.Tooling.Templates;
 
 namespace CleanArch.Tooling.Additions;
 
@@ -25,7 +24,7 @@ internal sealed partial class WebPackageAddition(AdditionFlow flow)
         string name = asked.Name;
 
         string[] engine = [manifest.ShortName, "-n", name, .. manifest.CommandArguments(asked.Options)];
-        string[] join = AdditionFlow.TaskRun(ItemAdditions.WebJoinTask, name);
+        ItemStep join = flow.Steps.WebJoin(project.Root, name, []);
         if (flow.Context.DryRun)
         {
             flow.ShowDryRun(engine, [join]);
@@ -33,10 +32,10 @@ internal sealed partial class WebPackageAddition(AdditionFlow flow)
         }
 
         flow.Generate(project, name, engine, [ItemAdditions.WebJoinTask]);
-        bool joined = flow.RunTask(project.Root, "Join", "Recording it in cleanarch.json", join);
+        bool joined = flow.RunStep(project.Root, "Join", "Recording it in cleanarch.json", join);
 
-        flow.Equivalents("web-package", engine, [TemplateEngine.CommandLine(AdditionFlow.Dotnet, join)]);
-        flow.Conversation.Close(joined ? null : new Closing(null, [], $"Record it with {TemplateEngine.CommandLine(AdditionFlow.Dotnet, join)}.", StepsLeft: true));
+        flow.Equivalents("web-package", engine, [join.CommandLine]);
+        flow.Conversation.Close(joined ? null : new Closing(null, [], $"Record it with {join.CommandLine}.", StepsLeft: true));
     }
 
     private static string? PackageNameProblem(string name) =>

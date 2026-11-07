@@ -147,7 +147,7 @@ internal static class AddCommand
                 questionnaire,
                 source,
                 engine,
-                processes,
+                new ProjectItemSteps(processes),
                 console,
                 new AdditionArguments(parseResult.GetValue(name), GivenTemplateOptions(parseResult, templateOptions), sourcePath, hiveFolder),
                 version,

@@ -1,5 +1,4 @@
 ﻿using CleanArch.Tooling.Manifests;
-using CleanArch.Tooling.Processes;
 using CleanArch.Tooling.Prompts;
 using CleanArch.Tooling.Templates;
 using Spectre.Console;
@@ -16,7 +15,7 @@ public sealed record AdditionContext(
     Questionnaire Questionnaire,
     TemplateSource Source,
     TemplateEngine Engine,
-    IProcessRunner Processes,
+    IItemSteps Steps,
     IAnsiConsole Console,
     AdditionArguments Arguments,
     string? Version,

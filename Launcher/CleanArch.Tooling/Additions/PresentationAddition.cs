@@ -40,8 +40,8 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
         string presentation = $"{project.Name}.{name}";
 
         string[] engine = [manifest.ShortName, "-n", name, .. manifest.CommandArguments(asked.Options)];
-        string[] join = AdditionFlow.TaskRun(ItemAdditions.PresentationJoinTask, presentation);
-        string[] scaffold = AdditionFlow.TaskRun(ItemAdditions.PresentationScaffoldTask, presentation);
+        ItemStep join = flow.Steps.PresentationJoin(project.Root, presentation);
+        ItemStep scaffold = flow.Steps.PresentationScaffold(project.Root, presentation);
         if (flow.Context.DryRun)
         {
             flow.ShowDryRun(engine, [join, scaffold]);
@@ -50,16 +50,14 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
 
         flow.Generate(project, name, engine, [ItemAdditions.PresentationJoinTask, ItemAdditions.PresentationScaffoldTask]);
 
-        string joinLine = TemplateEngine.CommandLine(AdditionFlow.Dotnet, join);
-        string scaffoldLine = TemplateEngine.CommandLine(AdditionFlow.Dotnet, scaffold);
-        bool joined = flow.RunTask(project.Root, "Join", "Making the edits its README lists outside its folders", join);
-        bool created = joined && flow.RunTask(project.Root, "Scaffold", "Creating it with its framework's dotnet new template, which needs the network", scaffold);
+        bool joined = flow.RunStep(project.Root, "Join", "Making the edits its README lists outside its folders", join);
+        bool created = joined && flow.RunStep(project.Root, "Scaffold", "Creating it with its framework's dotnet new template, which needs the network", scaffold);
         if (!joined)
         {
-            flow.Conversation.Reported("Scaffold skipped", false, "Skipped because the join step didn't go through.", [scaffoldLine]);
+            flow.Conversation.Reported("Scaffold skipped", false, "Skipped because the join step didn't go through.", [scaffold.CommandLine]);
         }
 
-        flow.Equivalents("presentation", engine, [joinLine, scaffoldLine]);
+        flow.Equivalents("presentation", engine, [join.CommandLine, scaffold.CommandLine]);
         Close(project, manifest, asked, joined, created);
     }
 
@@ -69,7 +67,7 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
         string readme = Path.Combine(project.PresentationFolder, folder, "README.md");
         string shown = $"Src/Presentation/{folder}/README.md";
         string[] identityStep = project.Auth == "local" && manifest.Resolve(_frameworkSymbol, asked.Options) == "mcp"
-            ? [TemplateEngine.CommandLine(AdditionFlow.Dotnet, AdditionFlow.TaskRun("migration-add", "AddAccessKeys", "--context", "auth"))]
+            ? [TemplateEngine.CommandLine(AdditionFlow.Dotnet, ["run", "Tools/Tasks.cs", "migration-add", "AddAccessKeys", "--context", "auth"])]
             : [];
         if (created)
         {

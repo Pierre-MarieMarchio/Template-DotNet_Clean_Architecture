@@ -4,7 +4,6 @@ using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Markdown;
 using CleanArch.Tooling.Projects;
 using CleanArch.Tooling.Prompts;
-using CleanArch.Tooling.Templates;
 
 namespace CleanArch.Tooling.Additions;
 
@@ -40,7 +39,7 @@ internal sealed partial class WebAppAddition(AdditionFlow flow)
         Refuse(project, manifest, asked);
 
         string[] engine = [manifest.ShortName, "-n", name, .. manifest.CommandArguments(asked.Options)];
-        string[] join = AdditionFlow.TaskRun([ItemAdditions.WebJoinTask, name, .. JoinOptions(manifest, asked.Options)]);
+        ItemStep join = flow.Steps.WebJoin(project.Root, name, [.. JoinOptions(manifest, asked.Options)]);
         if (flow.Context.DryRun)
         {
             flow.ShowDryRun(engine, [join]);
@@ -48,9 +47,9 @@ internal sealed partial class WebAppAddition(AdditionFlow flow)
         }
 
         flow.Generate(project, name, engine, [ItemAdditions.WebJoinTask]);
-        bool joined = flow.RunTask(project.Root, "Join", "Making the edits its README lists outside its folder and recording it in cleanarch.json", join);
+        bool joined = flow.RunStep(project.Root, "Join", "Making the edits its README lists outside its folder and recording it in cleanarch.json", join);
 
-        flow.Equivalents("web-app", engine, [TemplateEngine.CommandLine(AdditionFlow.Dotnet, join)]);
+        flow.Equivalents("web-app", engine, [join.CommandLine]);
         Close(project, manifest, asked, joined);
     }
 

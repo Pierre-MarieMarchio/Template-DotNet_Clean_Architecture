@@ -2,7 +2,7 @@
 
 internal static class CommittedTree
 {
-    private const string _why = "presentation-join moves the API's jobs into the worker, which only `git restore` undoes, and ";
+    private const string _why = "the worker's join moves the API's jobs into the worker, which only `git restore` undoes, and ";
 
     public static void Require(JoinProcesses processes, string root, IReadOnlyList<string> paths, IReadOnlyList<string> newFolders)
     {

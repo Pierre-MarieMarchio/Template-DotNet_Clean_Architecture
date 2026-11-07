@@ -56,7 +56,7 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
     }
 
     protected override int RefuseEdits(IReadOnlyList<string> failures) =>
-        RefuseAfterReport(failures, "Nothing was written: every change is made or none is. Make the changes above by hand, or put back what new-feature wrote.");
+        RefuseAfterReport(failures, "Nothing was written: every change is made or none is. Make the changes above by hand, or put back what add feature wrote.");
 
     protected override string? Preconditions() => FeatureCode.Preconditions(Root, addition.After, Output, Context.Executor);
 
@@ -75,7 +75,7 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
 
         foreach (string path in before.Keys.Where(path => after.All(emission => emission.Path != path)))
         {
-            problems.Add($"{path}: these fields would remove it, which new-field never does. Add the fields by hand.");
+            problems.Add($"{path}: these fields would remove it, which add field never does. Add the fields by hand.");
         }
 
         return [.. after.Select(emission => Change(root, addition, before.GetValueOrDefault(emission.Path), recorded, emission, problems)).OfType<FieldChange>()];
@@ -106,7 +106,7 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
         {
             if (recorded.Contains(emission.Path))
             {
-                problems.Add($"{emission.Path}, which new-feature wrote and {ManifestPath(addition.After)} records, is gone, so the fields cannot reach it. Put it back.");
+                problems.Add($"{emission.Path}, which add feature wrote and {ManifestPath(addition.After)} records, is gone, so the fields cannot reach it. Put it back.");
             }
 
             return null;
@@ -167,7 +167,7 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
             .. defaults.Count == 0
                 ? Array.Empty<TextEdits.Command>()
                 : [new TextEdits.Command(
-                    $"new-field sets the defaultValue of {string.Join(", ", defaults.Select(field => $"{field.Name} ({field.Default!.Expression})"))} "
+                    $"add field sets the defaultValue of {string.Join(", ", defaults.Select(field => $"{field.Name} ({field.Default!.Expression})"))} "
                         + $"in the AddColumn of the {addition.Migration} migration",
                     root,
                     _inProcess,
@@ -188,7 +188,7 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
             return 0;
         }
 
-        error.WriteLine("Once the failure is fixed, the same new-field command resumes these steps, and writes nothing again.");
+        error.WriteLine("Once the failure is fixed, the same add field command resumes these steps, and writes nothing again.");
 
         return 1;
     }

@@ -309,7 +309,7 @@ public sealed class NewUseCaseTests
         }
     }
 
-    private const string _outputDigest = "60685b4d06479eb63130d62ef7eda83306cb5c1727dca9c9d962a032ea12b38a";
+    private const string _outputDigest = "81faa46c97cdc35414c9efcf6161872b657a050a5ba929b1989ac7330a2c939f";
 
     private static void OutputCases(string scratch, Action<bool, string> expect)
     {
@@ -727,7 +727,7 @@ public sealed class NewUseCaseTests
         var second = Invoke(root, "Invoices", "GetInvoiceTotals", "--kind", "query");
 
         expect(first.Code == 0 && second.Code == 0, $"A use case was refused in a feature with a manifest: {first.Error}{second.Error}");
-        expect(first.Output.Contains("remove-feature deletes them", StringComparison.Ordinal), "The manifest record was not reported.");
+        expect(first.Output.Contains("remove feature deletes them", StringComparison.Ordinal), "The manifest record was not reported.");
 
         using var document = JsonDocument.Parse(File.ReadAllText(manifest));
         var top = document.RootElement;

@@ -7,7 +7,7 @@ namespace CleanArch.Cli.Generators.AddFeature;
 
 internal static class FeatureReport
 {
-    internal const string _removalRefusal = "remove-feature refuses to remove this feature while another owner feature still uses these files.";
+    internal const string _removalRefusal = "remove feature refuses to remove this feature while another owner feature still uses these files.";
 
     internal static void Report(TextWriter output, string root, FeatureSpec spec, List<Emission> plan, string manifest, List<string> skipped, ReportMode mode)
     {
@@ -70,7 +70,7 @@ internal static class FeatureReport
         else
         {
             output.WriteLine(applied
-                ? $"Feature page: {path}, from {FeaturePage._pageTemplate}. The manifest records it, so remove-feature deletes it, edited or not."
+                ? $"Feature page: {path}, from {FeaturePage._pageTemplate}. The manifest records it, so remove feature deletes it, edited or not."
                 : $"Feature page: {path}, from {FeaturePage._pageTemplate}, written with the files above.");
             output.WriteLine("Each heading says what its section holds; replace those lines with what this feature does.");
         }

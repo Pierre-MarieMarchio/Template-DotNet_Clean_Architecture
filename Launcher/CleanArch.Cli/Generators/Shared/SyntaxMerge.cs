@@ -139,7 +139,7 @@ internal static class SyntaxMerge
                     }
 
                     problems.Add(
-                        $"{path}: {Name(container, old)} differs from what new-feature wrote, so new-field leaves it to you. Make this change "
+                        $"{path}: {Name(container, old)} differs from what add feature wrote, so add field leaves it to you. Make this change "
                         + $"in it by hand:\n{Difference(old, @new)}");
 
                     return null;
@@ -168,7 +168,7 @@ internal static class SyntaxMerge
             }
 
             problems.Add(
-                $"{path}: the declaration of {name} differs from what new-feature wrote, so new-field leaves it to you. Make this change "
+                $"{path}: the declaration of {name} differs from what add feature wrote, so add field leaves it to you. Make this change "
                 + $"in it by hand:\n{Difference(Header(old), Header(@new))}");
 
             return null;
@@ -323,7 +323,7 @@ internal static class SyntaxMerge
                 if (at < 0)
                 {
                     merger.Problems.Add(
-                        $"{merger.Source}: {Name(container, becomes)}, which new-feature wrote, is not in the file, and these fields change it. Put it "
+                        $"{merger.Source}: {Name(container, becomes)}, which add feature wrote, is not in the file, and these fields change it. Put it "
                         + $"back, or make the change by hand:\n{Indented(becomes)}");
                 }
                 else if (merger.Member(container, was, becomes, Result[at]) is { } merged)

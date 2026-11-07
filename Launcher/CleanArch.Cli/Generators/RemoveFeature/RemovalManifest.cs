@@ -74,7 +74,7 @@ internal static class RemovalManifest
             {
                 blockers.Add(
                     $"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests, nor one of the account-deletion files every owner feature shares, "
-                    + $"nor the consumer of an event of {features} that new-event wrote in another feature.");
+                    + $"nor the consumer of an event of {features} that add event wrote in another feature.");
 
                 return false;
             }

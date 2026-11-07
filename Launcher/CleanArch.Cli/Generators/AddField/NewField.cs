@@ -10,14 +10,14 @@ internal static class NewField
 {
     internal const string Usage =
         "Usage: dotnet cleanarch add field <Features> \"<Name:type>=<default>, ...\" [--dry-run]\n"
-        + "  <Features>     a feature new-feature generated with --fields, which its manifest records\n"
+        + "  <Features>     a feature add feature generated with --fields, which its manifest records\n"
         + "  <fields>       the fields to add, in the grammar of --fields. A field that cannot be null takes a\n"
         + "                 default after '=', the value the rows the table already holds receive, which its rules\n"
         + "                 must accept: a number, true or false, or a value between quotes for a string, a text, a\n"
         + "                 DateOnly, a DateTimeOffset or a Guid: \"Budget:decimal(12,2)>=0=0, Code:string(20)='none', Notes:text?\".\n"
         + "  --dry-run      print what changes, and write and run nothing.\n"
         + "  It adds each field to every member --fields writes it in, found through each file's syntax tree whatever its\n"
-        + "  formatting; a member changed by hand since new-feature wrote it, or missing, writes nothing and prints the\n"
+        + "  formatting; a member changed by hand since add feature wrote it, or missing, writes nothing and prints the\n"
         + "  change to make by hand. It refuses while a context has no initial migration or the business model has a\n"
         + "  change no migration holds, then builds, adds the Add<Field>To<Features> migration with each default, and\n"
         + "  rewrites the OpenAPI reference and the clients written from it.";
@@ -66,10 +66,10 @@ internal static class NewField
         {
             problems.Add(WrittenByHand(root, features)
                 ? $"{features} has no manifest, {manifestPath}: it was written by hand, as the project's example features (TodoLists, "
-                    + "Notes and the others) are, so new-field cannot know which members a field reaches. Add the field by hand: "
+                    + "Notes and the others) are, so add field cannot know which members a field reaches. Add the field by hand: "
                     + "docs/guides/adding-a-feature.md, under Adding a field, lists every place it goes."
-                : $"No feature called {features}: {manifestPath} does not exist. new-field adds a field to a feature that "
-                    + "new-feature --fields generated.");
+                : $"No feature called {features}: {manifestPath} does not exist. add field adds a field to a feature that "
+                    + "add feature --fields generated.");
 
             return null;
         }
@@ -78,7 +78,7 @@ internal static class NewField
 
         if (manifest is null)
         {
-            problems.Add($"{manifestPath} is not the JSON object new-feature writes: it {unread}");
+            problems.Add($"{manifestPath} is not the JSON object add feature writes: it {unread}");
         }
 
         return manifest;
@@ -187,7 +187,7 @@ internal static class NewField
             {
                 problems.Add(
                     $"{features} was generated without --fields: its Name and Description are placeholders a person replaces by hand, so "
-                    + "what its files hold is not a shape new-field can read. Add the field by hand: docs/guides/adding-a-feature.md, "
+                    + "what its files hold is not a shape add field can read. Add the field by hand: docs/guides/adding-a-feature.md, "
                     + "under Adding a field, lists every place it goes.");
 
                 return null;
@@ -224,7 +224,7 @@ internal static class NewField
         }
         catch (Exception exception) when (exception is NullReferenceException or InvalidOperationException or FormatException)
         {
-            problems.Add($"{path} lacks what new-feature records, the options and the fields among them: {exception.Message}");
+            problems.Add($"{path} lacks what add feature records, the options and the fields among them: {exception.Message}");
 
             return null;
         }

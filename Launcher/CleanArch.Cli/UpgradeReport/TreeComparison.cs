@@ -2,7 +2,7 @@
 
 internal sealed class TreeComparison
 {
-    private const string _solutionEditors = "presentation-scaffold and web-scaffold add the .NET projects they create to it";
+    private const string _solutionEditors = "the scaffolds of add presentation and add web-app add the .NET projects they create to it";
 
     private readonly Trees _trees;
     private readonly HashSet<string> _olderFiles;

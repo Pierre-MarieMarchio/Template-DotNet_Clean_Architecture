@@ -24,7 +24,7 @@ internal static class FeaturePage
 
         if (File.Exists(System.IO.Path.Combine(root, path)))
         {
-            unwritten = $"'{path}' already exists, so it was left as it is and the manifest does not record it: remove-feature never deletes it.";
+            unwritten = $"'{path}' already exists, so it was left as it is and the manifest does not record it: remove feature never deletes it.";
 
             return null;
         }

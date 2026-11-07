@@ -1912,7 +1912,7 @@ public sealed partial class NewFeatureTests
         ("aggregate, owner, delete", "c487f564afdd660b8c4db8a74015fa817b7213b680667e981253e6f9f7ca3d56"),
         ("aggregate, owner, anonymise", "65fad86298542b41168376eea14bb6f200f6a051b92f7c6a16e9ea1c9cfb95c2"),
         ("aggregate, shared", "e6e180e6504e5c0303ae84b88f5e64ef6ed44e26a2d84cc59170c64d6ff958b5"),
-        ("record, owner, delete, the project's first owner feature", "c1bf45bec7b211d8027b1596fab7f2ae845b2178b0600fb1e4aa7bcd43267341"),
+        ("record, owner, delete, the project's first owner feature", "7d48a207d32f2df93ade685ade866acb1a818089b53a5b42ded086e433514c4c"),
         ("record, owner, delete, on SQL Server", "320e7600f286ba50ce36c6fc6b69d08e8d473dd89db4f2a6bb2a96d7c19abbaa"),
         ("record, owner, delete, on SQLite", "0b8d5032816cec362f680153501f87c1615c0cb4c4429a2e8cc72dde8f648a6e"),
         ("record, owner, delete, without the API", "f307df27180895547b861bbc62cf6e4df67fc6aba6467c37571270e484c5eaf9"),

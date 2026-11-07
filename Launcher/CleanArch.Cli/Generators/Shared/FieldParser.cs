@@ -392,7 +392,7 @@ internal sealed class FieldParser(List<FieldToken> tokens, FieldProfile profile,
     {
         if (!profile.TakesDefault)
         {
-            return $"{At(Current)}: a default, '=' and a value, is what new-field gives the rows a table "
+            return $"{At(Current)}: a default, '=' and a value, is what add field gives the rows a table "
                 + "already holds when it adds a field to them; here the field has no such rows. Leave it out.";
         }
 

@@ -11,7 +11,7 @@ internal static class DocumentationIndex
     private const string _readme = "README.md";
 
     private const string _notice =
-        "Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:\nedit the pages, then run it again.";
+        "Written by `dotnet cleanarch docs-index` from the frontmatter of each page:\nedit the pages, then run it again.";
 
     private static readonly string[] _pagesOutsideTheIndex = [_indexName, "log.md"];
 

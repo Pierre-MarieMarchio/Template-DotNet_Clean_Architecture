@@ -1,6 +1,6 @@
 # Features
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+Written by `dotnet cleanarch docs-index` from the frontmatter of each page:
 edit the pages, then run it again.
 
 - [Accounts](accounts.md) - How an account lives in this project, from its creation to its deletion.

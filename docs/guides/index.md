@@ -1,6 +1,6 @@
 # Guides
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+Written by `dotnet cleanarch docs-index` from the frontmatter of each page:
 edit the pages, then run it again.
 
 - [Adding a feature](adding-a-feature.md) - How to add a feature of your own, in the shape its rules call for, with its tests and its page.

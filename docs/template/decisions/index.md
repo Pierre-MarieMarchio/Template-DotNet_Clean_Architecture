@@ -1,6 +1,6 @@
 # Decisions
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+Written by `dotnet cleanarch docs-index` from the frontmatter of each page:
 edit the pages, then run it again.
 
 - [0001. Options remove parts and refuse combinations](0001-options-remove-parts-and-refuse-combinations.md) - Accepted. Why an option removes what it leaves out of a generated project rather than disabling it, and refuses the combinations that cannot hold.

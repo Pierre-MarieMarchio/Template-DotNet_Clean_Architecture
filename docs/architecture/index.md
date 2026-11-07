@@ -1,6 +1,6 @@
 # Architecture
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+Written by `dotnet cleanarch docs-index` from the frontmatter of each page:
 edit the pages, then run it again.
 
 - [Architecture](README.md) - How this project is layered, which way its source dependencies point, and which tests hold the rule.

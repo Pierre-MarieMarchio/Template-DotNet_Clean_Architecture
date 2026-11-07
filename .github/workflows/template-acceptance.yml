@@ -53,7 +53,7 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-      # bootstrap pins dotnet cleanarch at the template's version, which nuget.org holds only once released.
+      # The generated tool manifest pins dotnet cleanarch at the template's version, which nuget.org holds only once released.
       - name: Pack the project's tool
         run: dotnet pack Launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release --output "${{ runner.temp }}/tools"
 
@@ -173,6 +173,11 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-webapi -n Sample.Generated.Project -o "${{ runner.temp }}/generated" $OPTIONS
+
+      # The manifest pins dotnet cleanarch at the template's version, which nuget.org holds only once released: the packed one is restored.
+      - name: Restore the project's tools, its own from the packed one
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet tool restore --add-source "${{ runner.temp }}/tools"
           if [ -n "$(find "${{ runner.temp }}/generated/docs" -name index.md)" ]; then
             echo "::error title=Index shipped::The generated project carries a docs index; bootstrap writes it."
             exit 1
@@ -248,42 +253,7 @@ jobs:
             exit 1
           fi
 
-      # A project generated without a web app takes its first one, and the workspace around it, from the item template; web-join makes the lines Src/Web/README.md and the app's README list, so one missing fails a later step.
-      - name: Add the first app with cleanarch-webapp --workspace
-        if: matrix.first_app
-        working-directory: ${{ runner.temp }}/generated
-        env:
-          FIRST_APP: ${{ matrix.first_app }}
-        run: |
-          set -euo pipefail
-          # shellcheck disable=SC2086
-          dotnet new cleanarch-webapp -n Site $FIRST_APP
-          leaked=$(grep -rIl -e AppTemplate -e app-template -e PlaceholderSite -e placeholder-site -e FrameworkSite -e framework-site Src/Web .github docs || true)
-          if [ -n "$leaked" ]; then
-            echo "::error title=Item template token leaked::$leaked"
-            exit 1
-          fi
-          dotnet run Tools/Tasks.cs web-join Site --web "$(sed -nE 's/.*--framework ([^ ]+).*/\1/p' <<< "$FIRST_APP")"
-          grep -A3 '^include:' docker-compose.yml
-
-      # A project generated without a presentation project takes one from the item template; the lines outside its folders are the edits its README lists, made by the project's presentation-join task, so one missing fails a later step.
-      - name: Add the presentation project with cleanarch-presentation
-        if: matrix.first_presentation
-        working-directory: ${{ runner.temp }}/generated
-        env:
-          FIRST_PRESENTATION: ${{ matrix.first_presentation }}
-        run: |
-          set -euo pipefail
-          # shellcheck disable=SC2086
-          dotnet new cleanarch-presentation -n Portal --project-name Sample.Generated.Project $FIRST_PRESENTATION
-          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP Src/Presentation Tests/Presentation docs || true)
-          if [ -n "$leaked" ]; then
-            echo "::error title=Item template token leaked::$leaked"
-            exit 1
-          fi
-          dotnet run Tools/Tasks.cs presentation-join Sample.Generated.Project.Portal
-
-      # The generated project's packageManager and .node-version are this checkout's, word for word.
+      # The generated project's packageManager and .node-version are this checkout's, word for word, so pnpm and Node.js are set up from the checkout before any part is added: an added framework app is created by its official CLI.
       - name: Set up pnpm (web legs)
         if: matrix.web == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -298,7 +268,39 @@ jobs:
         with:
           node-version-file: Src/Web/.node-version
 
-      # A WebAssembly app brings the .NET client: its README lists the lines outside its folders, which web-join makes, and it is created before the build so every .NET step reads it.
+      # A project generated without a web app takes its first one, and the workspace around it, from the item template; dotnet cleanarch add completes it below.
+      - name: Add the first app with cleanarch-webapp --workspace
+        if: matrix.first_app
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          FIRST_APP: ${{ matrix.first_app }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          dotnet new cleanarch-webapp -n Site $FIRST_APP
+          leaked=$(grep -rIl -e AppTemplate -e app-template -e PlaceholderSite -e placeholder-site -e FrameworkSite -e framework-site Src/Web .github docs || true)
+          if [ -n "$leaked" ]; then
+            echo "::error title=Item template token leaked::$leaked"
+            exit 1
+          fi
+
+      # A project generated without a presentation project takes one from the item template; dotnet cleanarch add completes it below.
+      - name: Add the presentation project with cleanarch-presentation
+        if: matrix.first_presentation
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          FIRST_PRESENTATION: ${{ matrix.first_presentation }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          dotnet new cleanarch-presentation -n Portal --project-name Sample.Generated.Project $FIRST_PRESENTATION
+          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP Src/Presentation Tests/Presentation docs || true)
+          if [ -n "$leaked" ]; then
+            echo "::error title=Item template token leaked::$leaked"
+            exit 1
+          fi
+
+      # A WebAssembly app brings the .NET client: its README lists the lines outside its folders, and dotnet cleanarch add completes it below, before the build, so every .NET step reads it.
       - name: Add a Blazor WebAssembly app with cleanarch-webapp
         if: matrix.wasm_app
         working-directory: ${{ runner.temp }}/generated
@@ -313,24 +315,8 @@ jobs:
             echo "::error title=Item template token leaked::$leaked"
             exit 1
           fi
-          dotnet run Tools/Tasks.cs web-join WasmSite --web blazor-wasm
-          if ! dotnet run Tools/Tasks.cs web-join WasmSite --web blazor-wasm | grep -q 'in place already'; then
-            echo "::error title=Not idempotent::A second web-join did not find its edits in place."
-            exit 1
-          fi
-          dotnet run Tools/Tasks.cs web-scaffold WasmSite
 
-      # The WebAssembly app --web blazor-wasm writes is a .NET project of the solution too: created before the build, so the build compiles it and the Docker-free step runs its tests.
-      - name: Create the WebAssembly app before the build
-        if: matrix.web == 'true'
-        working-directory: ${{ runner.temp }}/generated
-        run: |
-          set -euo pipefail
-          for descriptor in $(grep -l '"kind": "dotnet"' Src/Web/apps/*/scaffold.json || true); do
-            dotnet run Tools/Tasks.cs web-scaffold "$(basename "$(dirname "$descriptor")")"
-          done
-
-      # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not.
+      # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not. Before any official CLI runs, so what is read is what the templates wrote.
       - name: Assert every generated JSON file is strict JSON
         working-directory: ${{ runner.temp }}/generated
         run: |
@@ -344,34 +330,39 @@ jobs:
           done < <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.json' -print0)
           exit "$status"
 
-      # bootstrap's first step: a presentation project is created by its framework's dotnet new template, then joins the solution.
-      - name: Create the presentation project
+      # What a user runs after dotnet new: the join makes the lines the part's README lists outside its folders, so one missing fails a later step, then the part is created; a second add of a complete part refuses and writes nothing.
+      - name: Complete the added parts with dotnet cleanarch add
+        if: matrix.first_app || matrix.first_presentation || matrix.wasm_app
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs presentation-scaffold
-
-      # Using order depends on the generated name, so bootstrap sorts the usings: docs/getting-started/first-run.md. A using it removes is one the template left unused in this shape, which fails the build of a project built before its bootstrap.
-      - name: Bootstrap formatting
-        working-directory: ${{ runner.temp }}/generated
+        env:
+          FIRST_APP: ${{ matrix.first_app }}
+          FIRST_PRESENTATION: ${{ matrix.first_presentation }}
+          WASM_APP: ${{ matrix.wasm_app }}
         run: |
           set -euo pipefail
-          dotnet tool install CleanArch.Cli --local --version "$(jq -r .template.version cleanarch.json)" --add-source "${{ runner.temp }}/tools"
-          dotnet tool restore
-          dotnet format Sample.Generated.Project.slnx --diagnostics IDE0055 IDE0005
-          removed=$(LC_ALL=C comm -23 "${{ runner.temp }}/usings-generated.txt" <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.cs' -print0 \
-            | xargs -0 -r awk 'FNR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, "") } /^(global )?using [A-Za-z_][^(;]*;$/ { print FILENAME ": " $0 }' \
-            | LC_ALL=C sort))
-          if [ -n "$removed" ]; then
-            echo "::error title=Unused using::The template writes a using this shape never reads, which IDE0005 removed: put each under the condition of the lines that read it."
-            echo "$removed"
-            exit 1
+          if [ -n "$FIRST_APP" ]; then
+            dotnet cleanarch add web-app --name Site --framework "$(sed -nE 's/.*--framework ([^ ]+).*/\1/p' <<< "$FIRST_APP")" --yes
+            grep -A3 '^include:' docker-compose.yml
+          fi
+          if [ -n "$FIRST_PRESENTATION" ]; then
+            dotnet cleanarch add presentation --name Portal --yes
+          fi
+          if [ -n "$WASM_APP" ]; then
+            dotnet cleanarch add web-app --name WasmSite --framework blazor-wasm --port 8089 --yes
+            if again=$(dotnet cleanarch add web-app --name WasmSite --framework blazor-wasm --port 8089 --yes 2>&1); then
+              echo "::error title=Not idempotent::A second add of a complete app succeeded."
+              echo "$again"
+              exit 1
+            fi
+            if ! grep -q 'Src/Web/apps/WasmSite is joined and created already' <<< "$again"; then
+              echo "::error title=Not idempotent::A second add of a complete app failed without saying it is complete."
+              echo "$again"
+              exit 1
+            fi
           fi
 
-      - name: The project's tool knows the project
-        working-directory: ${{ runner.temp }}/generated
-        run: dotnet cleanarch | tee /dev/stderr | grep -F "Sample.Generated.Project, generated from CleanArch.WebApi.Templates"
-
-      # The project ships no migration: bootstrap's migration-initial creates each context's first one, which every later step reads, and a second run creates none.
-      - name: Bootstrap the initial migrations
+      # bootstrap creates each part still holding its scaffold.json, sorts the usings, which depend on the generated name (docs/getting-started/first-run.md), writes the documentation index, the OpenAPI reference and the .NET client, and creates each context's first migration. A using it removes is one the template left unused in this shape, which fails the build of a project built before its bootstrap.
+      - name: Bootstrap
         working-directory: ${{ runner.temp }}/generated
         env:
           AUTH_CONTEXT: ${{ matrix.auth_context }}
@@ -381,7 +372,15 @@ jobs:
             echo "::error title=Migrations shipped::The generated project carries a migration; bootstrap creates the first one."
             exit 1
           fi
-          dotnet run Tools/Tasks.cs migration-initial
+          dotnet cleanarch bootstrap
+          removed=$(LC_ALL=C comm -23 "${{ runner.temp }}/usings-generated.txt" <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.cs' -print0 \
+            | xargs -0 -r awk 'FNR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, "") } /^(global )?using [A-Za-z_][^(;]*;$/ { print FILENAME ": " $0 }' \
+            | LC_ALL=C sort))
+          if [ -n "$removed" ]; then
+            echo "::error title=Unused using::The template writes a using this shape never reads, which IDE0005 removed: put each under the condition of the lines that read it."
+            echo "$removed"
+            exit 1
+          fi
           contexts=(Persistence)
           if [ "$AUTH_CONTEXT" = "true" ]; then
             contexts+=(Auth)
@@ -390,45 +389,34 @@ jobs:
             snapshots=$(find Src/Infrastructure -path "*.Infrastructure.$context/Migrations/*ModelSnapshot.cs" | wc -l)
             [ "$snapshots" -eq 1 ] || { echo "::error title=No initial migration::$context has $snapshots model snapshots."; exit 1; }
           done
-          created=$(find Src/Infrastructure -path '*/Migrations/*' -name '*.cs' | sort)
-          dotnet run Tools/Tasks.cs migration-initial
-          if [ "$(find Src/Infrastructure -path '*/Migrations/*' -name '*.cs' | sort)" != "$created" ]; then
-            echo "::error title=Not idempotent::A second migration-initial changed the migrations."
+          if [ -n "$(find Src/Presentation Src/Web/apps -name scaffold.json 2>/dev/null)" ]; then
+            echo "::error title=Part not created::A part still holds its scaffold.json after bootstrap."
             exit 1
           fi
+          dotnet cleanarch docs-index --check
 
-      # Generation ships no docs index and a join rewrites one: bootstrap's docs-index writes each folder's from the pages the shape keeps, which hygiene then holds fresh.
-      - name: Bootstrap the documentation index
+      - name: The project's tool knows the project
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet cleanarch | tee /dev/stderr | grep -F "Sample.Generated.Project, generated from CleanArch.WebApi.Templates"
+
+      # A second bootstrap creates no migration and changes no file: what is done stays done, and what it writes is reproducible.
+      - name: Assert bootstrap is idempotent
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          dotnet run Tools/Tasks.cs docs-index
-          dotnet run Tools/Tasks.cs docs-index --check
+          tree() { find . \( -name .git -o -name bin -o -name obj -o -name node_modules -o -name TestResults \) -prune -o -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum; }
+          before=$(tree)
+          dotnet cleanarch bootstrap
+          if [ "$(tree)" != "$before" ]; then
+            echo "::error title=Not idempotent::A second bootstrap changed the tree."
+            diff <(echo "$before") <(tree) || true
+            exit 1
+          fi
 
       - name: Restore and build the generated project
         working-directory: ${{ runner.temp }}/generated
         run: |
           dotnet restore Sample.Generated.Project.slnx
-          dotnet build Sample.Generated.Project.slnx --configuration Release --no-restore
-
-      # The reviewed OpenAPI reference the integration suite compares against, written as bootstrap writes it; the generator round trip starts from that tree, since new-feature rewrites the reference.
-      - name: Write the OpenAPI reference (integration and generator legs)
-        if: matrix.integration == 'true' || matrix.generator == 'true'
-        working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs openapi
-
-      # The client the item template carries was written from the template's own reference; bootstrap and presentation-scaffold write it from the project's, and the build proves that one compiles.
-      - name: Write the .NET client from the project's reference (client legs)
-        working-directory: ${{ runner.temp }}/generated
-        run: |
-          set -euo pipefail
-          if [ ! -d Src/Presentation/SGP.Presentation.Client ]; then
-            exit 0
-          fi
-          if [ ! -f Tests/Integration/SGP.Api.IntegrationTests/OpenApi/v1.json ]; then
-            dotnet run Tools/Tasks.cs openapi
-          fi
-          dotnet run Tools/Tasks.cs api-client
           dotnet build Sample.Generated.Project.slnx --configuration Release --no-restore
 
       # A newer version that changes nothing but its number is a version in cleanarch.json and in docs/getting-started/overview.md, so the report on a project as bootstrap leaves it names those and no other file; IDE0055 may rewrite more than the usings, which only a project that went through bootstrap shows. The report writes nothing in the project, and the newer package is this checkout packed again under the next patch version.
@@ -447,7 +435,7 @@ jobs:
           sed -i "/\"templateVersion\"/,/\"value\"/ s/\"value\": \"[^\"]*\"/\"value\": \"$next\"/" "$copy/.template.config/template.json"
           grep -qE "\"value\": \"$next\"" "$copy/.template.config/template.json" || fail "The copy of the template does not hold version $next."
           (cd "$copy" && dotnet pack .template.config/TemplatePackage.csproj --configuration Release --output "${{ runner.temp }}/package-next")
-          dotnet run Tools/Tasks.cs upgrade-report --to "$next" --source "${{ runner.temp }}/package" --source "${{ runner.temp }}/package-next" --json "${{ runner.temp }}/upgrade-report.json"
+          dotnet cleanarch upgrade-report --to "$next" --source "${{ runner.temp }}/package" --source "${{ runner.temp }}/package-next" --json "${{ runner.temp }}/upgrade-report.json"
           jq -e --arg current "$current" --arg next "$next" '
             .from == $current and .to == $next
             and ([.take[].path] == ["docs/getting-started/overview.md"])
@@ -467,7 +455,7 @@ jobs:
           LEG: ${{ matrix.name }}
         run: |
           if [ "$LEG" = defaults ]; then
-            dotnet run Tools/Tasks.cs format
+            dotnet cleanarch format --check
           else
             dotnet format whitespace --folder . --verify-no-changes --verbosity normal
           fi
@@ -481,7 +469,7 @@ jobs:
         run: |
           set -euo pipefail
           log="${{ runner.temp }}/docker-free-tests.log"
-          dotnet run Tools/Tasks.cs -- test --no-integration --configuration Release 2>&1 | tee "$log"
+          dotnet cleanarch test --no-integration --configuration Release 2>&1 | tee "$log"
           windows_only=$(grep -rlE --include='*.csproj' '<TargetFramework>net[0-9.]+-windows' Tests || true)
           if [[ "$OPTIONS $FIRST_PRESENTATION" == *wpf* && -z "$windows_only" ]]; then
             echo "::error title=No Windows-only tests::A project with the WPF app holds no test project on a Windows target framework."
@@ -537,13 +525,13 @@ jobs:
       - name: Measure the coverage against coverage.minimum (coverage leg)
         if: matrix.coverage == 'true'
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs -- coverage --configuration Release
+        run: dotnet cleanarch coverage --configuration Release
 
       # The generated project's own task: its Compose stack from .env.example, the suite, then the stack removed.
       - name: Run the end-to-end suite (end-to-end legs)
         if: matrix.end_to_end == 'true'
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs end-to-end
+        run: dotnet cleanarch end-to-end
 
       - name: Assert no context has a pending model change
         working-directory: ${{ runner.temp }}/generated
@@ -566,12 +554,12 @@ jobs:
             echo "::endgroup::"
           done
 
-      # The gates the generated tree carries, as its hygiene task finds them.
-      - name: Run the generated project's hygiene gates
+      # The documentation indexes the generated tree carries, as docs-index --check holds them.
+      - name: Check the generated project's documentation indexes
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs hygiene
+        run: dotnet cleanarch docs-index --check
 
-      # new-feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference, the record and the aggregate with a field of every type; the solution then builds with warnings as errors and the architecture and feature tests pass, and where the leg has Docker the integration tests --fields wrote pass against the database. The aggregate one takes five more use cases from new-use-case, which adds each action, two with typed inputs, and refuses the record ones. With the four together, new-field adds a required field with its default, another and a nullable one to the record and to the aggregate with fields, then adds their migration with the defaults, and Invoices takes a setting and an event, before the same proof. The hygiene gates pass with four features present, and remove-feature --apply takes them out of the committed tree, leaving each feature's migrations alone.
+      # add feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference, the record and the aggregate with a field of every type; the solution then builds with warnings as errors and the architecture and feature tests pass, and where the leg has Docker the integration tests --fields wrote pass against the database. The aggregate one takes five more use cases from add use-case, which adds each action, two with typed inputs, and refuses the record ones. With the four together, add field adds a required field with its default, another and a nullable one to the record and to the aggregate with fields, then adds their migration with the defaults, and Invoices takes a setting and an event, before the same proof. The documentation indexes stay current with four features present, and remove feature --apply takes them out of the committed tree, leaving each feature's migrations alone.
       - name: Assert the feature generator round trip leaves the tree untouched
         if: matrix.generator == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -592,88 +580,88 @@ jobs:
           mapfile -t docker_free < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L -e 'Testcontainers' -e 'Aspire.Hosting.Testing' | sort)
           mapfile -t architecture < <(find Tests/Architecture -name '*.csproj')
           write() {
-            local log="${{ runner.temp }}/new-feature-${1%% *}.log"
+            local log="${{ runner.temp }}/add-feature-${1%% *}.log"
             local -
             set -f
             # shellcheck disable=SC2086
-            dotnet run Tools/Tasks.cs new-feature $1 > "$log" 2>&1 || { cat "$log"; fail "new-feature $1 failed."; }
-            grep -q 'Feature page: docs/features/' "$log" || fail "new-feature $1 named no feature page."
-            [ -f ".feature-manifest/${1%% *}.json" ] || fail "new-feature $1 left no manifest."
-            jq -e '.edits | length > 0' ".feature-manifest/${1%% *}.json" > /dev/null || fail "new-feature $1 recorded no edit in its manifest."
-            compgen -G "Src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_Add${1%% *}.cs" > /dev/null || fail "new-feature $1 added no migration."
+            dotnet cleanarch add feature $1 > "$log" 2>&1 || { cat "$log"; fail "add feature $1 failed."; }
+            grep -q 'Feature page: docs/features/' "$log" || fail "add feature $1 named no feature page."
+            [ -f ".feature-manifest/${1%% *}.json" ] || fail "add feature $1 left no manifest."
+            jq -e '.edits | length > 0' ".feature-manifest/${1%% *}.json" > /dev/null || fail "add feature $1 recorded no edit in its manifest."
+            compgen -G "Src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_Add${1%% *}.cs" > /dev/null || fail "add feature $1 added no migration."
           }
           extend() {
             local feature type
             read -r feature type _ <<< "$1"
             if [[ "$1" != *"--model aggregate"* ]]; then
-              if dotnet run Tools/Tasks.cs new-use-case "$feature" "Archive${type}" --kind command > "${{ runner.temp }}/new-use-case.log" 2>&1; then
-                fail "new-use-case accepted $feature, a feature of the simple shape."
+              if dotnet cleanarch add use-case "$feature" "Archive${type}" --kind command > "${{ runner.temp }}/add-use-case.log" 2>&1; then
+                fail "add use-case accepted $feature, a feature of the simple shape."
               fi
               return
             fi
             local log
             for usecase in "Approve${type} --kind command" "Get${type}Totals --kind query" "CloseOverdue${feature} --kind command --input none" "Find${feature}ByName --kind query --input=Name:string,MaxCount:int" "Retag${type} --kind command --input=id,Tags:IReadOnlyList<string>"; do
-              log="${{ runner.temp }}/new-use-case-$feature-${usecase%% *}.log"
+              log="${{ runner.temp }}/add-use-case-$feature-${usecase%% *}.log"
               # shellcheck disable=SC2086
-              dotnet run Tools/Tasks.cs new-use-case "$feature" $usecase > "$log" 2>&1 || { cat "$log"; fail "new-use-case $feature $usecase failed."; }
+              dotnet cleanarch add use-case "$feature" $usecase > "$log" 2>&1 || { cat "$log"; fail "add use-case $feature $usecase failed."; }
             done
           }
           widen() {
             local feature log migration
             read -r feature _ <<< "$1"
             [[ "$1" == *"--fields"* ]] || return 0
-            log="${{ runner.temp }}/new-field-$feature.log"
-            dotnet run Tools/Tasks.cs new-field "$feature" "Code:string(20)='none', Rank:int>=1=1, Weight:decimal(8,3)?" > "$log" 2>&1 || { cat "$log"; fail "new-field $feature failed."; }
-            grep -q 'Breaking change: Code is required' "$log" || fail "new-field $feature did not say that a required field breaks the clients."
-            jq -e '.addedFields | length == 1' ".feature-manifest/$feature.json" > /dev/null || fail "new-field $feature recorded no addition in its manifest."
-            migration=$(compgen -G "Src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_AddCodeAnd2MoreFieldsTo$feature.cs") || fail "new-field $feature added no migration."
-            grep -q 'defaultValue: "none"' "$migration" && grep -q 'defaultValue: 1)' "$migration" || fail "new-field $feature did not give the stored rows each default."
+            log="${{ runner.temp }}/add-field-$feature.log"
+            dotnet cleanarch add field "$feature" "Code:string(20)='none', Rank:int>=1=1, Weight:decimal(8,3)?" > "$log" 2>&1 || { cat "$log"; fail "add field $feature failed."; }
+            grep -q 'Breaking change: Code is required' "$log" || fail "add field $feature did not say that a required field breaks the clients."
+            jq -e '.addedFields | length == 1' ".feature-manifest/$feature.json" > /dev/null || fail "add field $feature recorded no addition in its manifest."
+            migration=$(compgen -G "Src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_AddCodeAnd2MoreFieldsTo$feature.cs") || fail "add field $feature added no migration."
+            grep -q 'defaultValue: "none"' "$migration" && grep -q 'defaultValue: 1)' "$migration" || fail "add field $feature did not give the stored rows each default."
           }
           prove() {
             local feature home persistence
-            dotnet build ./*.slnx --configuration Release --no-restore -warnaserror || fail "the solution does not compile once new-feature has composed $*."
-            dotnet test --project "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once new-feature has composed $*."
+            dotnet build ./*.slnx --configuration Release --no-restore -warnaserror || fail "the solution does not compile once add feature has composed $*."
+            dotnet test --project "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once add feature has composed $*."
             for feature in "$@"; do
               mapfile -t homes < <(for home in "${docker_free[@]}"; do [ -n "$(find "$(dirname "$home")" -type d -path "*/Features/$feature" -not -path '*/bin/*' -not -path '*/obj/*')" ] && echo "$home"; done)
-              [ "${#homes[@]}" -gt 0 ] || fail "new-feature $feature wrote no test in a Docker-free test project."
+              [ "${#homes[@]}" -gt 0 ] || fail "add feature $feature wrote no test in a Docker-free test project."
               for home in "${homes[@]}"; do
                 dotnet test --project "$home" --configuration Release --no-build --output Detailed --filter-namespace "*.Features.$feature.*"
               done
             done
             persistence=$(find Src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
-            dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the migrations new-feature added for $* do not hold its model."
+            dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the migrations add feature added for $* do not hold its model."
           }
-          # new-setting writes a section with a default, so no secret, and new-event an event nothing consumes: both record their files and edits in the manifest of Invoices, which remove-feature then undoes with the feature.
+          # add setting writes a section with a default, so no secret, and add event an event nothing consumes: both record their files and edits in the manifest of Invoices, which remove feature then undoes with the feature.
           settle() {
-            local log="${{ runner.temp }}/new-setting.log"
-            dotnet run Tools/Tasks.cs new-setting Invoices InvoiceLimits --keys "MaxLines:int(1..500)=100" > "$log" 2>&1 || { cat "$log"; fail "new-setting Invoices failed."; }
-            log="${{ runner.temp }}/new-event.log"
-            dotnet run Tools/Tasks.cs new-event Invoices InvoiceApprovedDomainEvent --unconsumed "Nothing reacts to an approved invoice yet" > "$log" 2>&1 || { cat "$log"; fail "new-event Invoices failed."; }
-            jq -e '[.files[].path] | any(endswith("/InvoiceLimitsOptions.cs")) and any(endswith("/InvoiceApprovedDomainEvent.cs"))' .feature-manifest/Invoices.json > /dev/null || fail "new-setting or new-event did not record its files in the manifest of Invoices."
-            jq -e '[.edits[].path] | any(endswith("/appsettings.json")) and any(endswith("/DomainEventTests.cs"))' .feature-manifest/Invoices.json > /dev/null || fail "new-setting or new-event did not record its edits in the manifest of Invoices."
+            local log="${{ runner.temp }}/add-setting.log"
+            dotnet cleanarch add setting Invoices InvoiceLimits --keys "MaxLines:int(1..500)=100" > "$log" 2>&1 || { cat "$log"; fail "add setting Invoices failed."; }
+            log="${{ runner.temp }}/add-event.log"
+            dotnet cleanarch add event Invoices InvoiceApprovedDomainEvent --unconsumed "Nothing reacts to an approved invoice yet" > "$log" 2>&1 || { cat "$log"; fail "add event Invoices failed."; }
+            jq -e '[.files[].path] | any(endswith("/InvoiceLimitsOptions.cs")) and any(endswith("/InvoiceApprovedDomainEvent.cs"))' .feature-manifest/Invoices.json > /dev/null || fail "add setting or add event did not record its files in the manifest of Invoices."
+            jq -e '[.edits[].path] | any(endswith("/appsettings.json")) and any(endswith("/DomainEventTests.cs"))' .feature-manifest/Invoices.json > /dev/null || fail "add setting or add event did not record its edits in the manifest of Invoices."
           }
           commit() {
             git add -A
             git -c user.name=acceptance -c user.email=acceptance@localhost commit --quiet -m "$1"
           }
-          # remove-feature --apply takes each feature out of a committed tree, edited or not, last in first out; the tree then differs from the commit generation made by each feature's Add and Remove migrations and the migrations new-field added alone, so the model snapshot, the references and every file an edit touched read as they did there.
+          # remove feature --apply takes each feature out of a committed tree, edited or not, last in first out; the tree then differs from the commit generation made by each feature's Add and Remove migrations and the migrations add field added alone, so the model snapshot, the references and every file an edit touched read as they did there.
           remove() {
             local feature log names widened
             widened=$(jq -s '[.[] | (.addedFields // []) | length] | add' .feature-manifest/*.json)
             for feature in "$@"; do
               log="${{ runner.temp }}/remove-feature-$feature.log"
-              dotnet run Tools/Tasks.cs remove-feature "$feature" > "$log" 2>&1 || { cat "$log"; fail "remove-feature $feature failed."; }
-              grep -q 'Blockers: none.' "$log" || { cat "$log"; fail "remove-feature $feature reported a blocker."; }
-              dotnet run Tools/Tasks.cs remove-feature "$feature" --apply > "$log" 2>&1 || { cat "$log"; fail "remove-feature $feature --apply failed."; }
+              dotnet cleanarch remove feature "$feature" > "$log" 2>&1 || { cat "$log"; fail "remove feature $feature failed."; }
+              grep -q 'Blockers: none.' "$log" || { cat "$log"; fail "remove feature $feature reported a blocker."; }
+              dotnet cleanarch remove feature "$feature" --apply > "$log" 2>&1 || { cat "$log"; fail "remove feature $feature --apply failed."; }
               commit "remove $feature"
             done
             names=$(IFS='|'; echo "$*")
             unexpected=$(git diff --name-status "$start" HEAD | grep -Ev "^A[[:space:]]+$persistence/Migrations/[0-9]+_(Add|Remove)([A-Za-z0-9]*To)?($names)(\.Designer)?\.cs$" || true)
             if [ -n "$unexpected" ]; then
               echo "$unexpected"
-              fail "remove-feature $* left the tree other than the commit generation made, the migrations of each feature aside."
+              fail "remove feature $* left the tree other than the commit generation made, the migrations of each feature aside."
             fi
-            [ "$(git diff --name-only "$start" HEAD | wc -l)" -eq $((4 * $# + 2 * widened)) ] || fail "remove-feature $* did not add a Remove migration beside each Add one and leave each new-field migration, each with its designer file."
+            [ "$(git diff --name-only "$start" HEAD | wc -l)" -eq $((4 * $# + 2 * widened)) ] || fail "remove feature $* did not add a Remove migration beside each Add one and leave each add field migration, each with its designer file."
           }
           start=$(git rev-parse HEAD)
           persistence=$(find Src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
@@ -701,21 +689,21 @@ jobs:
           prove "${written[@]}"
           if [ "$INTEGRATION" = "true" ]; then
             integration=$(find Tests/Integration -name '*.Api.IntegrationTests.csproj')
-            dotnet test --project "$integration" --configuration Release --no-build --output Detailed --filter-namespace "*.IntegrationTests.Features.*" || fail "the integration tests new-feature --fields wrote fail against the database."
+            dotnet test --project "$integration" --configuration Release --no-build --output Detailed --filter-namespace "*.IntegrationTests.Features.*" || fail "the integration tests add feature --fields wrote fail against the database."
           fi
-          dotnet run Tools/Tasks.cs hygiene
+          dotnet cleanarch docs-index --check
           commit "the four features"
           remove "${written[@]}"
-          dotnet build ./*.slnx --configuration Release --no-restore -warnaserror || fail "the solution does not compile once remove-feature has removed ${written[*]}."
-          dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the Remove migrations do not hold the model remove-feature left."
+          dotnet build ./*.slnx --configuration Release --no-restore -warnaserror || fail "the solution does not compile once remove feature has removed ${written[*]}."
+          dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the Remove migrations do not hold the model remove feature left."
           echo "::endgroup::"
 
       # A generated project holds one app, so it receives that shape's lockfile, not this checkout's union one.
       - name: Assert each generated web shape's lockfile is current
         if: matrix.web == 'true'
-        run: dotnet run Tools/Tasks.cs web-lockfiles --check
+        run: dotnet run Tools/WebLockfiles.cs --check
 
-      # The added app joins the stack by the lines its README lists, which web-join makes; the options stay unquoted, being several arguments.
+      # The added app joins the stack by the lines its README lists, then is created, both by dotnet cleanarch add; the options stay unquoted, being several arguments.
       - name: Add a second app with cleanarch-webapp
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -733,10 +721,10 @@ jobs:
           given() { sed -nE "s/.*--$1 ([^ ]+).*/\\1/p" <<< "$SECOND_APP"; }
           audience=$(given audience)
           rendering=$(given rendering)
-          dotnet run Tools/Tasks.cs web-join BackOffice --web "$(given framework)" --web-audience "${audience:-public}" --web-rendering "${rendering:-spa}"
+          dotnet cleanarch add web-app --name BackOffice --framework "$(given framework)" --audience "${audience:-public}" --rendering "${rendering:-spa}" --port 8082 --yes
           grep -A3 '^include:' docker-compose.yml
 
-      # Each entry is Name:port:framework, then :ssr for an app rendered on the server; the app joins the stack by the lines its README lists, which web-join makes.
+      # Each entry is Name:port:framework, then :ssr for an app rendered on the server; the app joins the stack by the lines its README lists, then is created, both by dotnet cleanarch add.
       - name: Add every other starter with cleanarch-webapp
         if: matrix.more_apps
         working-directory: ${{ runner.temp }}/generated
@@ -752,18 +740,17 @@ jobs:
               echo "::error title=Item template token leaked::$leaked"
               exit 1
             fi
-            dotnet run Tools/Tasks.cs web-join "$name" --web "$framework" --web-rendering "${rendering:-spa}"
+            dotnet cleanarch add web-app --name "$name" --framework "$framework" --rendering "${rendering:-spa}" --port "$port" --yes
           done
           grep -A9 '^include:' docker-compose.yml
           grep '^WEB_' .env.example
 
-      # bootstrap's web step: each framework app is created by its official CLI, then pnpm install and pnpm api.
-      - name: Create the framework apps, regenerate the client
+      # Each add created its app by its official CLI, then ran pnpm install and pnpm api: no app is left to create.
+      - name: Assert every web app is created
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          dotnet run Tools/Tasks.cs web-scaffold
           if [ -n "$(find Src/Web/apps -name scaffold.json -o -name overlay -type d)" ]; then
             echo "::error title=App not created::An app still holds its scaffold.json or overlay/."
             exit 1
@@ -807,21 +794,21 @@ jobs:
             echo "::error title=Item template token leaked::$leaked"
             exit 1
           fi
-          dotnet run Tools/Tasks.cs web-join tokens
+          dotnet cleanarch add web-package --name tokens --yes
           cd Src/Web
           pnpm install --no-frozen-lockfile
           pnpm lint
           pnpm test
           pnpm build
 
-      # The Docker-free step held cleanarch.json to the tree before the apps and the package added since; the joins recorded those too.
+      # The Docker-free step held cleanarch.json to the tree before the apps and the package added since; each add recorded those too.
       - name: Assert cleanarch.json records every part added
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
         run: dotnet test --project Tests/Architecture/SGP.Architecture.Tests --configuration Release --no-build -- --filter-class '*ProjectFileTests'
 
-      # A second run creates nothing and changes nothing: the client is reproducible and created apps are left alone.
-      - name: Assert web-scaffold is idempotent
+      # A bootstrap once every part is added creates nothing and changes nothing: the client is reproducible and created apps are left alone.
+      - name: Assert bootstrap leaves the added apps alone
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
         run: |
@@ -829,9 +816,9 @@ jobs:
           git init --quiet
           git add -A
           git -c user.name=acceptance -c user.email=acceptance@localhost commit --quiet -m generated
-          dotnet run Tools/Tasks.cs web-scaffold
+          dotnet cleanarch bootstrap
           if [ -n "$(git status --porcelain)" ]; then
-            echo "::error title=Not idempotent::A second web-scaffold changed the tree."
+            echo "::error title=Not idempotent::A bootstrap after the apps were added changed the tree."
             git status --porcelain
             git diff --stat
             exit 1
@@ -1116,7 +1103,7 @@ jobs:
           name: project-tool
           path: ${{ runner.temp }}/tools
 
-      # bootstrap pins dotnet cleanarch from the sources NuGet knows, the packed one among them.
+      # The tool restore takes dotnet cleanarch from the sources NuGet knows, the packed one among them.
       - name: Let NuGet find the project's tool
         run: dotnet nuget add source "${{ runner.temp }}/tools" --name project-tool
 
@@ -1143,7 +1130,9 @@ jobs:
 
       - name: Bootstrap the project
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs bootstrap
+        run: |
+          dotnet tool restore
+          dotnet cleanarch bootstrap
 
       - name: The project's tool knows the project
         working-directory: ${{ runner.temp }}/generated
@@ -1154,7 +1143,7 @@ jobs:
 
       - name: Build with warnings as errors
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs -- build --configuration Release
+        run: dotnet cleanarch build --configuration Release
 
       - name: Check the whitespace and encoding bootstrap left
         working-directory: ${{ runner.temp }}/generated
@@ -1162,11 +1151,11 @@ jobs:
 
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs -- test --no-integration --configuration Release
+        run: dotnet cleanarch test --no-integration --configuration Release
 
-      - name: Run the generated project's hygiene gates
+      - name: Check the generated project's documentation indexes
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs hygiene
+        run: dotnet cleanarch docs-index --check
 
       - name: Assert every path the generated pages cite exists
         run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"

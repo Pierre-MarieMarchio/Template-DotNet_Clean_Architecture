@@ -78,7 +78,7 @@ its `cleanarch.json` against the leg's options with `.template.config/acceptance
 the project with, the formatting, which fails the leg if it removes one of those usings, as
 [usings under a marker](#usings-under-a-marker) says, then `bootstrap` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs `format` for what the build does not check, runs the Docker-free tests, checks every generated context for
-pending model changes, runs the generated project's `verify`, and checks every path its pages cite
+pending model changes, runs the generated project's `docs-index --check`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The legs that set `integration` also run the
 integration suites, on the runner's Docker through Testcontainers, and the defaults, SQL Server and
 SQLite defaults legs then run the generated project's `dotnet cleanarch end-to-end` against
@@ -433,7 +433,7 @@ build sees it, so two checks hold the rule.
 | Check | What it judges | Where |
 |---|---|---|
 | `Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs` | every form `template.json` can generate, a leg's or not: each combination of options it does not refuse, the files its sources and modifiers write for it, and the lines of each C# file its markers keep, `//#if` and `/*#if ... #endif*/` alike; a using of a project namespace no kept line reads fails, naming the file, the namespace and the options of a form that keeps it | template-only, in the architecture tests |
-| `Record the using directives the template wrote`, then `Bootstrap formatting` | the forms the legs generate, every using alike: a using bootstrap's IDE0005 removes from a file the template wrote fails the leg | `.github/workflows/template-acceptance.yml` |
+| `Record the using directives the template wrote`, then `Bootstrap` | the forms the legs generate, every using alike: a using bootstrap's IDE0005 removes from a file the template wrote fails the leg | `.github/workflows/template-acceptance.yml` |
 
 The test judges a namespace by the names the template's own C# files declare in it, types, their
 attributes' short names and extension methods, and a line as reading a name it spells. It reads the

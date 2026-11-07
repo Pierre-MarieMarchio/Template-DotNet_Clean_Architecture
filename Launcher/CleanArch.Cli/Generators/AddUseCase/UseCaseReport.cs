@@ -80,8 +80,8 @@ internal sealed class UseCaseReport
         }
 
         _output.WriteLine(_spec.Manifest is null
-            ? $"No manifest names {_spec.Features}, so remove-feature never deletes these files; they are the feature's like any it holds."
-            : $"Recorded in {_spec.Manifest} with their SHA-256, the contracts among them, and with each edit made outside the feature's files, so remove-feature deletes them and undoes those edits with the feature.");
+            ? $"No manifest names {_spec.Features}, so remove feature never deletes these files; they are the feature's like any it holds."
+            : $"Recorded in {_spec.Manifest} with their SHA-256, the contracts among them, and with each edit made outside the feature's files, so remove feature deletes them and undoes those edits with the feature.");
 
         if (skipped is not null)
         {

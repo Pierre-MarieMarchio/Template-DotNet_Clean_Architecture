@@ -289,7 +289,7 @@ public sealed partial class NewFeatureTests
         var onFeature = Invoke(root, "Widgets", "Widget", "--access", "shared", "--fields", "Code:string(10)='x'");
 
         expect(
-            onFeature.Code == 1 && onFeature.Error.Contains("is what new-field gives the rows a table already holds", StringComparison.Ordinal),
+            onFeature.Code == 1 && onFeature.Error.Contains("is what add field gives the rows a table already holds", StringComparison.Ordinal),
             $"new-feature --fields took a default, which only new-field gives: {onFeature.Error.Split('\n')[0]}");
     }
 
@@ -340,12 +340,12 @@ public sealed partial class NewFeatureTests
         (string Label, Action<string> Edit, string Fragment)[] edits =
         [
             ("a statement added to a member the field changes", root => Rewrite(root, aggregate, "        Title = validTitle;", "        Title = validTitle;\n        Size = validSize;"),
-                "Thing.Update(string, int) differs from what new-feature wrote, so new-field leaves it to you. Make this change in it by hand:"),
+                "Thing.Update(string, int) differs from what add feature wrote, so add field leaves it to you. Make this change in it by hand:"),
             ("a member the field changes, removed", root => Rewrite(root, validator, "    public UpdateThingCommandValidator()", "    private void Unused()"),
-                "the constructor of UpdateThingCommandValidator, which new-feature wrote, is not in the file"),
+                "the constructor of UpdateThingCommandValidator, which add feature wrote, is not in the file"),
             ("a member the field declares, declared already", root => Rewrite(root, record, "    public int Size { get; set; }", "    public int Size { get; set; }\n\n    public decimal Budget { get; set; }"),
                 "ThingRecord.Budget is declared already, and these fields declare it"),
-            ("a file the field changes, deleted", root => File.Delete(System.IO.Path.Combine(root, record)), $"{record}, which new-feature wrote and .feature-manifest/Things.json records, is gone"),
+            ("a file the field changes, deleted", root => File.Delete(System.IO.Path.Combine(root, record)), $"{record}, which add feature wrote and .feature-manifest/Things.json records, is gone"),
             ("a file that does not parse", root => File.AppendAllText(System.IO.Path.Combine(root, record), "}\n"), $"{record} does not parse, at line"),
         ];
 
@@ -399,14 +399,14 @@ public sealed partial class NewFeatureTests
         expect(dry.Code == 0 && dryRan.Count == 0 && Same(before, Snapshot(root)), $"new-field --dry-run wrote or ran something: {dry.Error}");
         expect(
             dry.Output.Contains("Would add Budget:decimal(12,2)>=0=5", StringComparison.Ordinal)
-                && dry.Output.Contains("new-field sets the defaultValue of Budget (5m) in the AddColumn of the AddBudgetToThings migration", StringComparison.Ordinal),
+                && dry.Output.Contains("add field sets the defaultValue of Budget (5m) in the AddColumn of the AddBudgetToThings migration", StringComparison.Ordinal),
             $"new-field --dry-run does not print what it would change and run: {dry.Output}");
 
         var stopped = InvokeField(root, Recording([]), "Things", "Budget:decimal(12,2)>=0=5");
 
         expect(
             stopped.Code == 1 && stopped.Error.Contains("no migration named AddBudgetToThings", StringComparison.Ordinal)
-                && stopped.Error.Contains("the same new-field command resumes these steps", StringComparison.Ordinal),
+                && stopped.Error.Contains("the same add field command resumes these steps", StringComparison.Ordinal),
             $"A migration that was not added did not stop the run with the way to resume it: {stopped.Error}");
 
         var written = FeatureFiles(root);

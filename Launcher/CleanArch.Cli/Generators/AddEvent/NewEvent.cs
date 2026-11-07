@@ -18,7 +18,7 @@ internal static class NewEvent
         + "  --unconsumed  instead of a consumer, the reason nothing listens, written beside the event's name in\n"
         + "                DomainEventTests. One of the two is required: an event is consumed or listed.\n"
         + "  --fields      what the event carries besides OccurredOn, which it always ends with. Name:type, in the\n"
-        + "                grammar of new-feature --fields, a type of Guid, string, int, long, bool, decimal,\n"
+        + "                grammar of add feature --fields, a type of Guid, string, int, long, bool, decimal,\n"
         + "                DateOnly or DateTimeOffset, with no length, precision, bound or '?': no column holds\n"
         + "                an event, and the aggregate checks a value before it raises the event with it. By\n"
         + "                default the id of the feature's aggregate, when it has exactly one repository.\n"

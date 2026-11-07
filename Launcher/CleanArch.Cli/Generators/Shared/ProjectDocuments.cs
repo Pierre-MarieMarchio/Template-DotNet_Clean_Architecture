@@ -28,7 +28,7 @@ internal sealed class ProjectDocuments(string root, string needer, List<string> 
 
         if (text.Contains('\r', StringComparison.Ordinal))
         {
-            problems.Add($"{relative} has CRLF line endings; this project keeps LF. Run format-fix first.");
+            problems.Add($"{relative} has CRLF line endings; this project keeps LF. Run `dotnet cleanarch format` first.");
         }
 
         if (text.Contains(ConditionOpen, StringComparison.Ordinal))

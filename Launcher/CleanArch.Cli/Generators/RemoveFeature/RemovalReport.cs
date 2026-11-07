@@ -85,7 +85,7 @@ internal static class RemovalReport
         }
 
         output.WriteLine();
-        output.WriteLine("Fields new-field added, which go with the files they changed:");
+        output.WriteLine("Fields add field added, which go with the files they changed:");
 
         foreach (var (declaration, added, paths) in analysis.AddedFields)
         {

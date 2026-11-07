@@ -30,7 +30,7 @@ internal static class MigrationDefaults
 
             if (calls.Count != 1)
             {
-                return new Result(null, false, $"the migration's Up has {calls.Count} AddColumn of {field.Name} to {table}, where new-field sets its defaultValue in one.");
+                return new Result(null, false, $"the migration's Up has {calls.Count} AddColumn of {field.Name} to {table}, where add field sets its defaultValue in one.");
             }
 
             var call = calls[0];

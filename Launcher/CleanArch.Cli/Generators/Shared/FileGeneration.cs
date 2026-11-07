@@ -52,8 +52,8 @@ internal abstract class FileGeneration(GenerationContext context, string feature
         catch (InvalidOperationException exception)
         {
             problems.Add(
-                $"{exception.Message} {manifest} records each edit for remove-feature to undo with the feature: "
-                + "give the file the ending this project writes (format-fix), or make this edit by hand, then run this again.");
+                $"{exception.Message} {manifest} records each edit for remove feature to undo with the feature: "
+                + "give the file the ending this project writes (`dotnet cleanarch format`), or make this edit by hand, then run this again.");
 
             return false;
         }

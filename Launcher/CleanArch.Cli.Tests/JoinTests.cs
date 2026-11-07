@@ -71,7 +71,7 @@ public sealed class JoinTests : IDisposable
 
         exit.ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
         Read(project, "compose.yml").ShouldBe(joined);
-        _output.ToString().ShouldContain("Run `dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal` next");
+        _output.ToString().ShouldContain($"Joined {_portal} to the project.");
         Recorded(project)["presentation"]!.ToJsonString().ShouldBe("""[{"name":"Portal","framework":"blazor-server"}]""");
     }
 
@@ -133,7 +133,7 @@ public sealed class JoinTests : IDisposable
     [InlineData(false, "8083", null, null)]
     [InlineData(false, "8083", "8083", null)]
     [InlineData(true, "8083", null, null)]
-    [InlineData(false, "8083", "8085", "--web-port 8085 is not the port Src/Web/apps/Site/compose.yml holds, 8083")]
+    [InlineData(false, "8083", "8085", "--port 8085 is not the port Src/Web/apps/Site/compose.yml holds, 8083")]
     [InlineData(false, null, null, "Src/Web/apps/Site/compose.yml holds no WEB_<NAME>_HOST_PORT default")]
     public void WebJoin_RecordsTheAppOnThePortItsComposeFileHolds_KeepingTheKeysRecordedAlready(bool recordedWithPort, string? composePort, string? givenPort, string? refusal)
     {

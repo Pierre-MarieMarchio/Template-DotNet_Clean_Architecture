@@ -1,15 +1,8 @@
 ﻿using System.Globalization;
+using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Projects;
 
 namespace CleanArch.Cli.Joins;
-
-public sealed record WebJoinOptions(string? Framework = null, string? Audience = null, string? Rendering = null, string? Port = null)
-{
-    public IReadOnlyList<string> Given =>
-        [.. new[] { ("--web", Framework), ("--web-audience", Audience), ("--web-rendering", Rendering), ("--web-port", Port) }
-            .Where(option => option.Item2 is not null)
-            .Select(option => option.Item1)];
-}
 
 internal static class WebJoin
 {
@@ -33,7 +26,7 @@ internal static class WebJoin
         string scope = Scope(project.Root);
         string folder = "Src/Web/apps/" + name;
 
-        ItemJoin.Run(project.Root, new JoinedItem(folder, "cleanarch-webapp", "web-scaffold", name, Required: false, FirstAppsWorkspaceReadme(project)), output);
+        ItemJoin.Run(project.Root, new JoinedItem(folder, "cleanarch-webapp", Required: false, FirstAppsWorkspaceReadme(project)), output);
         PlaceTheServerRenderingDecision(project.Root, folder, output);
         JoinClosing.Indexed(project, output);
         ProjectRecord record = ProjectRecord.Read(project.Root, output);
@@ -55,15 +48,15 @@ internal static class WebJoin
     {
         string framework = options.Framework
             ?? throw new JoinRefusedException(
-                $"The 'web-join' task records the app in {ProjectLocator.FileName} with the --framework cleanarch-webapp was given: "
-                + $"dotnet run Tools/Tasks.cs web-join {name} --web <framework>, with --web-audience and --web-rendering when its "
-                + "--audience and --rendering were not public and spa, and --web-port when it was given a --port.");
+                $"Src/Web/apps/{name} is recorded in {ProjectLocator.FileName} with the --framework cleanarch-webapp was given: "
+                + $"{Tool.Name} add web-app --name {name} --framework <framework>, with --audience and --rendering when they "
+                + "were not public and spa, and --port when one was given.");
         string audience = options.Audience ?? "public";
         string rendering = options.Rendering ?? "spa";
 
         return audience is "public" or "admin" && rendering is "spa" or "ssr"
             ? new WebApp(name, framework, audience, rendering)
-            : throw new JoinRefusedException($"--web-audience is public or admin, and --web-rendering spa or ssr; not '{audience}' and '{rendering}'.");
+            : throw new JoinRefusedException($"--audience is public or admin, and --rendering spa or ssr; not '{audience}' and '{rendering}'.");
     }
 
     internal static int Port(string app, string name, string? given)
@@ -73,7 +66,7 @@ internal static class WebJoin
 
         return given is null || (int.TryParse(given, NumberStyles.None, CultureInfo.InvariantCulture, out int asked) && asked == port)
             ? port
-            : throw new JoinRefusedException($"--web-port {given} is not the port Src/Web/apps/{name}/compose.yml holds, {port}: give cleanarch-webapp's --port.");
+            : throw new JoinRefusedException($"--port {given} is not the port Src/Web/apps/{name}/compose.yml holds, {port}: give the --port cleanarch-webapp was given.");
     }
 
     private static string Scope(string root) =>

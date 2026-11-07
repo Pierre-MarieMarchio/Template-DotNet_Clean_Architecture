@@ -2,6 +2,7 @@
 using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Markdown;
+using CleanArch.Tooling.Processes;
 using Shouldly;
 using Xunit;
 
@@ -14,6 +15,7 @@ public sealed class AddCommandTests : IDisposable
     private readonly List<ExternalCall> _calls = [];
     private readonly Dictionary<string, int> _exitOf = new(StringComparer.Ordinal);
     private readonly FakeProcesses _processes;
+    private readonly FakeSteps _steps = new();
     private string _installed = string.Empty;
 
     public AddCommandTests()
@@ -21,7 +23,6 @@ public sealed class AddCommandTests : IDisposable
         _processes = new FakeProcesses((call, output, _) =>
         {
             _calls.Add(call);
-            WriteTheItem(call);
             if (call.Arguments is ["new", "uninstall"])
             {
                 output.WriteLine(_installed);
@@ -67,47 +68,53 @@ public sealed class AddCommandTests : IDisposable
         _output.ToString().ShouldContain("Dry run");
         _output.ToString().ShouldContain("dotnet new install CleanArch.WebApi.Templates@1.2.3");
         _output.ToString().ShouldContain("dotnet new cleanarch-webapp -n Backoffice --framework vite-react");
-        _output.ToString().ShouldContain("dotnet run Tools/Tasks.cs web-join Backoffice --web vite-react");
+        _output.ToString().ShouldContain("Join: Making the edits its README lists");
+        _output.ToString().ShouldContain("Scaffold: Creating it with its framework's official CLI");
+        _steps.Ran.ShouldBeEmpty();
         Directory.EnumerateFileSystemEntries(project.Root).Select(Path.GetFileName).ShouldBe([ProjectLocator.FileName]);
     }
 
     [Theory]
-    [InlineData("presentation", "Portal", "blazor-server", "Src/Presentation/AS.Portal", "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal", "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal")]
-    [InlineData("web-app", "Backoffice", "vite-react", "Src/Web/apps/Backoffice", "dotnet run Tools/Tasks.cs web-join Backoffice --web vite-react", "dotnet run Tools/Tasks.cs web-scaffold Backoffice")]
+    [InlineData("presentation", "Portal", "blazor-server", "Src/Presentation/AS.Portal", "presentation-join Acme.Shop.Portal", "presentation-scaffold Acme.Shop.Portal")]
+    [InlineData("web-app", "Backoffice", "vite-react", "Src/Web/apps/Backoffice", "web-join Backoffice --framework vite-react", "web-scaffold Backoffice")]
     public void AnAddition_WhoseFolderExists_CompletesIt_WithoutGeneratingItAgain(string addition, string name, string framework, string folder, string join, string scaffold)
     {
         using var project = new SampleProject(SampleProject.ApiWithWeb);
-        File.WriteAllText(Path.Combine(project.Folder(folder), "scaffold.json"), "{}");
+        project.Folder(folder);
 
         Run(["add", addition, "--yes", "--name", name, "--framework", framework], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        Lines().ShouldBe([join, scaffold]);
+        _calls.ShouldBeEmpty();
+        _steps.Ran.ShouldBe([join, scaffold]);
     }
 
     [Fact]
     public void AnAddition_WhoseJoinIsDone_RunsOnlyTheScaffold()
     {
         using var project = new SampleProject(SampleProject.Web);
-        File.WriteAllText(Path.Combine(project.Folder("Src/Web/apps/Site"), "scaffold.json"), "{}");
+        project.Folder("Src/Web/apps/Site");
+        _steps.Done.Add("web-join Site");
 
         Run(["add", "web-app", "--name", "Site"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        Lines().ShouldBe(["dotnet run Tools/Tasks.cs web-scaffold Site"]);
+        _steps.Ran.ShouldBe(["web-scaffold Site"]);
     }
 
     [Theory]
-    [InlineData("web-app", "Site", "Src/Web/apps/Site is joined and created already")]
-    [InlineData("web-package", "ui", "Src/Web/packages/ui is recorded in cleanarch.json already")]
-    public void AnAddition_WithNothingLeftToComplete_IsRefused_AndRunsNothing(string addition, string name, string refusal)
+    [InlineData("web-app", "Site", "Src/Web/apps/Site is joined and created already", "web-join Site", "web-scaffold Site")]
+    [InlineData("web-package", "ui", "Src/Web/packages/ui is recorded in cleanarch.json already", "web-join ui")]
+    public void AnAddition_WithNothingLeftToComplete_IsRefused_AndRunsNothing(string addition, string name, string refusal, params string[] done)
     {
         using var project = new SampleProject(SampleProject.Web);
         project.Folder("Src/Web/apps/Site");
         project.Folder("Src/Web/packages/ui");
+        _steps.Done.UnionWith(done);
 
         Run(["add", addition, "--name", name], project.Root).ShouldBe(CleanArchCommand.Failed);
 
         _error.ToString().ShouldContain(refusal);
         _calls.ShouldBeEmpty();
+        _steps.Ran.ShouldBeEmpty();
     }
 
     [Fact]
@@ -137,9 +144,8 @@ public sealed class AddCommandTests : IDisposable
                 "DOTNET_CLI_UI_LANGUAGE=en dotnet new uninstall",
                 "DOTNET_CLI_UI_LANGUAGE=en dotnet new install CleanArch.WebApi.Templates@1.2.3",
                 "DOTNET_CLI_UI_LANGUAGE=en dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --examples none --files false --agent-files false --has-client true --ci false",
-                "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal",
-                "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal",
             ]);
+        _steps.Ran.ShouldBe(["presentation-join Acme.Shop.Portal", "presentation-scaffold Acme.Shop.Portal"]);
         _output.ToString().ShouldContain("Scaffold done.");
     }
 
@@ -150,11 +156,7 @@ public sealed class AddCommandTests : IDisposable
 
         Run(["add", "web-app", "--yes", "--name", "Backoffice", "--framework", "vite-react"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        Lines()[^2..].ShouldBe(
-            [
-                "dotnet run Tools/Tasks.cs web-join Backoffice --web vite-react --web-audience public --web-rendering spa",
-                "dotnet run Tools/Tasks.cs web-scaffold Backoffice",
-            ]);
+        _steps.Ran.ShouldBe(["web-join Backoffice --framework vite-react --audience public --rendering spa", "web-scaffold Backoffice"]);
         _output.ToString().ShouldContain("Scaffold done.");
     }
 
@@ -162,11 +164,11 @@ public sealed class AddCommandTests : IDisposable
     public void AddPresentation_WhenTheJoinFails_SkipsTheScaffold()
     {
         using var project = new SampleProject(SampleProject.Api);
-        _exitOf["presentation-join"] = 1;
+        _steps.Failing.Add("presentation-join Acme.Shop.Portal");
 
         Run(["add", "presentation", "--yes", "--name", "Portal", "--framework", "blazor-server"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        Lines().ShouldNotContain(line => line.Contains("presentation-scaffold", StringComparison.Ordinal) && !line.StartsWith("  ", StringComparison.Ordinal));
+        _steps.Ran.ShouldBe(["presentation-join Acme.Shop.Portal"]);
         _output.ToString().ShouldContain("Scaffold skipped.");
     }
 
@@ -190,19 +192,19 @@ public sealed class AddCommandTests : IDisposable
 
         Run(["add", "web-app", "--yes", "--name", "Wasm", "--framework", "vite-react", "--port", "8085"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        Lines().ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm --web vite-react --web-audience public --web-rendering spa --web-port 8085");
+        _steps.Ran.ShouldContain("web-join Wasm --framework vite-react --audience public --rendering spa --port 8085");
     }
 
     [Fact]
     public void AddWebApp_WhenTheJoinFails_LeavesTheJoiningSectionByHand()
     {
         using var project = new SampleProject(SampleProject.Web);
-        _exitOf["web-join"] = 1;
+        _steps.Failing.Add("web-join Wasm --framework vite-react --audience public --rendering spa");
 
         Run(["add", "web-app", "--yes", "--name", "Wasm", "--framework", "vite-react"], project.Root);
 
         _output.ToString().ShouldContain("Join failed.");
-        _output.ToString().ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm --web vite-react --web-audience public --web-rendering spa");
+        _output.ToString().ShouldContain("dotnet cleanarch add web-app --name Wasm");
         _output.ToString().ShouldContain("To do by hand, from");
         _output.ToString().ShouldContain("Src/Web/apps/Wasm/README.md");
     }
@@ -239,12 +241,12 @@ public sealed class AddCommandTests : IDisposable
     public void AddPresentation_WhenThePagesFail_SaysWhatToRunAgain()
     {
         using var project = new SampleProject(SampleProject.Api);
-        _exitOf["presentation-scaffold"] = 1;
+        _steps.Failing.Add("presentation-scaffold Acme.Shop.Portal");
 
         Run(["add", "presentation", "--yes", "--name", "Portal", "--framework", "blazor-server"], project.Root);
 
         _output.ToString().ShouldContain("Scaffold failed.");
-        _output.ToString().ShouldContain("dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal");
+        _output.ToString().ShouldContain("dotnet cleanarch add presentation --name Portal");
     }
 
     [Fact]
@@ -255,7 +257,7 @@ public sealed class AddCommandTests : IDisposable
         Run(["add", "presentation", "--yes", "--framework", "worker"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
         Lines().ShouldContain(line => line.Contains("cleanarch-presentation -n Worker --framework worker ", StringComparison.Ordinal));
-        Lines().ShouldContain("dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Worker");
+        _steps.Ran.ShouldContain("presentation-join Acme.Shop.Worker");
     }
 
     [Fact]
@@ -286,11 +288,11 @@ public sealed class AddCommandTests : IDisposable
         using var project = new SampleProject(SampleProject.ApiWith("local", client: false));
 
         Run(["add", "presentation", "--yes", "--framework", "mcp"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-        _output.ToString().ShouldContain("migration-add AddAccessKeys --context auth");
+        _output.ToString().ShouldContain("dotnet cleanarch migrations add AddAccessKeys --context auth");
         Clear();
 
         Run(["add", "presentation", "--yes", "--framework", "blazor-server"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-        _output.ToString().ShouldNotContain("migration-add");
+        _output.ToString().ShouldNotContain("migrations add");
     }
 
     [Fact]
@@ -309,16 +311,6 @@ public sealed class AddCommandTests : IDisposable
         MarkdownSection.Of(presentation, ItemAdditions.PresentationCreateSection).ShouldNotBeNull().ShouldContain(ItemAdditions.PresentationScaffoldTask);
         MarkdownSection.Of(Path.Combine(Repository.Root, ".template.config", "starters", "blazor-wasm", "FrameworkSite", "README.md"), ItemAdditions.JoiningSection)
             .ShouldNotBeNull().ShouldContain(ItemAdditions.WebJoinTask);
-    }
-
-    [Fact]
-    public void TheTasksAnAdditionRuns_AreTasksOfTheProject()
-    {
-        string tasks = File.ReadAllText(Path.Combine(Repository.Root, "Tools", "Tasks.cs"));
-
-        tasks.ShouldContain($"case \"{ItemAdditions.PresentationJoinTask}\":");
-        tasks.ShouldContain($"case \"{ItemAdditions.PresentationScaffoldTask}\":");
-        tasks.ShouldContain($"case \"{ItemAdditions.WebJoinTask}\":");
     }
 
     [Theory]
@@ -346,25 +338,15 @@ public sealed class AddCommandTests : IDisposable
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
+        CleanArchCommand.Run(
+            arguments,
+            workingDirectory,
+            _output,
+            _error,
+            [.. BuiltInCommands.All.Where(registration => registration != AddCommand.Registration), AddCommand.Using(_ => _steps)],
+            _processes);
 
     private string[] Lines() => [.. _calls.Select(call => call.Line)];
-
-    private static void WriteTheItem(ExternalCall call)
-    {
-        int named = call.Arguments.ToList().IndexOf("-n");
-        string? folder = named < 1 ? null : call.Arguments[named - 1] switch
-        {
-            "cleanarch-presentation" => Path.Combine("Src", "Presentation", "AS." + call.Arguments[named + 1]),
-            "cleanarch-webapp" => Path.Combine("Src", "Web", "apps", call.Arguments[named + 1]),
-            _ => null,
-        };
-        if (folder is not null)
-        {
-            string written = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, folder)).FullName;
-            File.WriteAllText(Path.Combine(written, "scaffold.json"), "{}");
-        }
-    }
 
     private void Clear()
     {
@@ -379,4 +361,35 @@ public sealed class AddCommandTests : IDisposable
         parent["commands"].ShouldNotBeNull().AsArray().Single(command => Text(command!["name"]) == name).ShouldNotBeNull().AsObject();
 
     private static string Text(JsonNode? node) => node.ShouldNotBeNull().GetValue<string>();
+
+    private sealed class FakeSteps : IItemSteps
+    {
+        public List<string> Ran { get; } = [];
+
+        public HashSet<string> Done { get; } = new(StringComparer.Ordinal);
+
+        public HashSet<string> Failing { get; } = new(StringComparer.Ordinal);
+
+        public ItemStep WebJoin(string root, string name, WebJoinOptions options) =>
+            Step(string.Join(' ', new[]
+            {
+                "web-join", name,
+                Given("--framework", options.Framework), Given("--audience", options.Audience), Given("--rendering", options.Rendering), Given("--port", options.Port),
+            }.Where(part => part.Length > 0)));
+
+        public ItemStep WebScaffold(string root, string name) => Step($"web-scaffold {name}");
+
+        public ItemStep PresentationJoin(string root, string project) => Step($"presentation-join {project}");
+
+        public ItemStep PresentationScaffold(string root, string project) => Step($"presentation-scaffold {project}");
+
+        private static string Given(string option, string? value) => value is null ? string.Empty : $"{option} {value}";
+
+        private ItemStep Step(string step) =>
+            new(() => Done.Contains(step), _ =>
+            {
+                Ran.Add(step);
+                return new ProcessResult(Failing.Contains(step) ? CleanArchCommand.Failed : CleanArchCommand.Succeeded, string.Empty);
+            });
+    }
 }

@@ -18,7 +18,7 @@ internal static class BootstrapWriters
     private static readonly (Regex Path, string Editor)[] _editedByBootstrap =
     [
         (Rx(@"^\.config/dotnet-tools\.json$"), "bootstrap pins CleanArch.Cli in it"),
-        (Rx(@"^Src/Web/apps/[^/]+/package\.json$"), "web-scaffold pins each dependency to the version installed"),
+        (Rx(@"^Src/Web/apps/[^/]+/package\.json$"), "the app's scaffold pins each dependency to the version installed"),
     ];
 
     public static string? Writer(string path) => _writtenByBootstrap.FirstOrDefault(rule => rule.Path.IsMatch(path)).Writer;

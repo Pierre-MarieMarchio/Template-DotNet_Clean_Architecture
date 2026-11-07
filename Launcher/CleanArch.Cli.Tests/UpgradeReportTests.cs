@@ -71,7 +71,7 @@ public sealed class UpgradeReportTests : IDisposable
         comparison.Provenance.ShouldNotBeNull();
         fromBootstrap.ShouldContain("Src/Infrastructure/SS.Infrastructure.Persistence/Migrations/1_InitialCreate.cs");
         fromBootstrap.ShouldContain("Tests/Integration/SS.Api.IntegrationTests/OpenApi/v1.json");
-        comparison.Bootstrap.ShouldContain(group => group.Key.Contains("web-scaffold Site", StringComparison.Ordinal) && group.Value.Contains("Src/Web/apps/Site/vite.config.ts"));
+        comparison.Bootstrap.ShouldContain(group => group.Key == "dotnet cleanarch add web-app --name Site" && group.Value.Contains("Src/Web/apps/Site/vite.config.ts"));
         comparison.Scaffolds.ShouldHaveSingleItem().ShouldStartWith("Src/Web/apps/Site/scaffold.json: changed by the target version");
         CanonicalText.CSharp("using A;\nnamespace N;\nstring s = \"\"\"\nusing B;\nusing C;\n\"\"\";\n")
             .ShouldNotBe(CanonicalText.CSharp("using A;\nnamespace N;\nstring s = \"\"\"\nusing C;\nusing B;\n\"\"\";\n"), "Lines of a string literal after the header were ordered as using directives.");

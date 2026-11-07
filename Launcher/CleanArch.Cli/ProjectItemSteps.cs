@@ -1,26 +1,31 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Text;
 using CleanArch.Tooling;
 using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Processes;
-using CleanArch.Tooling.Templates;
 
 namespace CleanArch.Cli;
 
-internal sealed class ProjectItemSteps(IProcessRunner processes) : IItemSteps
+internal sealed class ProjectItemSteps(IProcessLauncher processes) : IItemSteps
 {
-    private const string _dotnet = "dotnet";
-
-    public ItemStep WebJoin(string root, string name, IReadOnlyList<string> options) =>
-        Task(root, [ItemAdditions.WebJoinTask, name, .. options], () => Recorded(root)?.Web is { } web && (web.Apps.Any(app => app.Name == name) || web.Packages.Contains(name)));
+    public ItemStep WebJoin(string root, string name, WebJoinOptions options) =>
+        new(
+            () => Recorded(root)?.Web is { } web && (web.Apps.Any(app => app.Name == name) || web.Packages.Contains(name)),
+            line => InProcess(root, line, (project, shell) => Joins.WebJoin.Run(project, name, options, shell.Output, shell.Error)));
 
     public ItemStep WebScaffold(string root, string name) =>
-        Task(root, [ItemAdditions.WebScaffoldTask, name], () => !ScaffoldDescriptor.In(Path.Combine(root, ProjectLayout.Web, "apps", name)));
+        new(
+            () => !ScaffoldDescriptor.In(Path.Combine(root, ProjectLayout.Web, "apps", name)),
+            line => InProcess(root, line, (project, shell) => Scaffolds.WebApps(project, shell, name)));
 
     public ItemStep PresentationJoin(string root, string project) =>
-        Task(root, [ItemAdditions.PresentationJoinTask, project], () => Recorded(root) is { } file && file.Presentation?.Any(presentation => presentation.Name == PartOf(file, project)) == true);
+        new(
+            () => Recorded(root) is { } file && file.Presentation?.Any(presentation => presentation.Name == PartOf(file, project)) == true,
+            line => InProcess(root, line, (located, shell) => Joins.PresentationJoin.Run(located, project, processes, shell.Output, shell.Error)));
 
     public ItemStep PresentationScaffold(string root, string project) =>
-        Task(root, [ItemAdditions.PresentationScaffoldTask, project], () => Recorded(root) is { } file && !ScaffoldDescriptor.In(Path.Combine(root, "Src", "Presentation", ProjectNames.FolderOf(file.Name, PartOf(file, project)))));
+        new(
+            () => Recorded(root) is { } file && !ScaffoldDescriptor.In(Path.Combine(root, "Src", "Presentation", ProjectNames.FolderOf(file.Name, PartOf(file, project)))),
+            line => InProcess(root, line, (located, shell) => Scaffolds.Presentations(located, shell, project)));
 
     private static ProjectFile? Recorded(string root)
     {
@@ -37,12 +42,25 @@ internal sealed class ProjectItemSteps(IProcessRunner processes) : IItemSteps
     private static string PartOf(ProjectFile file, string project) =>
         project.StartsWith(file.Name + ".", StringComparison.Ordinal) ? project[(file.Name.Length + 1)..] : project;
 
-    private ItemStep Task(string root, IReadOnlyList<string> task, Func<bool> isDone)
+    private ProcessResult InProcess(string root, Action<string>? line, Func<LocatedProject, Shell, int> step)
     {
-        string[] arguments = ["run", "Tools/Tasks.cs", .. task];
-        return new ItemStep(
-            TemplateEngine.CommandLine(_dotnet, arguments),
-            isDone,
-            line => processes.Run(new ProcessCall(_dotnet, root, arguments, ReadOnlyDictionary<string, string>.Empty), line));
+        var captured = new StringBuilder();
+        using var output = new LineWriter(line, captured);
+        var shell = new Shell(processes, output, output);
+        int exit = TestRuns.Guarded(shell, () => step(Located(root), shell));
+        output.Flush();
+        return new ProcessResult(exit, captured.ToString());
+    }
+
+    private static LocatedProject Located(string root)
+    {
+        try
+        {
+            return ProjectLocator.Find(root) ?? throw new InvalidOperationException($"{root} holds no {ProjectLocator.FileName}, so the addition cannot be completed there.");
+        }
+        catch (ProjectFileException unreadable)
+        {
+            throw new InvalidOperationException(unreadable.Message, unreadable);
+        }
     }
 }

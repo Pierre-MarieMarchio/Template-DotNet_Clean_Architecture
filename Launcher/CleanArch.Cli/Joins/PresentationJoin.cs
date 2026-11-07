@@ -26,7 +26,7 @@ internal static class PresentationJoin
         }
         else
         {
-            ItemJoin.Run(project.Root, new JoinedItem(relative, "cleanarch-presentation", "presentation-scaffold", projectName, Required: true), processes.Output);
+            ItemJoin.Run(project.Root, new JoinedItem(relative, "cleanarch-presentation", Required: true), processes.Output);
         }
 
         JoinClosing.Indexed(project, processes.Output);
@@ -53,7 +53,7 @@ internal static class PresentationJoin
         if (!File.Exists(descriptor))
         {
             throw new JoinRefusedException(
-                $"{relative} holds no {_scaffoldDescriptor} to read its framework from, so no file was changed: name the folder cleanarch-presentation wrote, before presentation-scaffold creates it.");
+                $"{relative} holds no {_scaffoldDescriptor} to read its framework from, so no file was changed: name the folder cleanarch-presentation wrote, before its scaffold creates the project.");
         }
 
         return JsonNode.Parse(File.ReadAllText(descriptor).TrimStart('\uFEFF'), documentOptions: _descriptorOptions)?["framework"]?.GetValue<string>() is { Length: > 0 } framework

@@ -35,32 +35,34 @@ internal sealed partial class WebPackageAddition(AdditionFlow flow)
         PlannedStep[] steps = Steps(project, name);
         if (flow.Context.DryRun)
         {
-            flow.ShowDryRun(engine, [.. steps.Select(planned => planned.Step)]);
+            flow.ShowDryRun(engine, steps);
             return;
         }
 
         flow.Generate(project, name, engine, [ItemAdditions.WebJoinTask]);
-        int done = flow.RunSteps(project.Root, steps);
+        string rerun = flow.CompletedBy(_command, name);
+        int done = flow.RunSteps(project.Root, steps, rerun);
 
-        flow.Equivalents(_command, engine, [.. steps.Select(planned => planned.Step.CommandLine)]);
-        Close(steps, done);
+        flow.Equivalents(_command, engine, [rerun]);
+        Close(steps, done, rerun);
     }
 
     private void Complete(ProjectFacts project, string name)
     {
         flow.Conversation.Begin($"Complete Src/Web/packages/{name} in {project.Name}", flow.Context.Version);
         PlannedStep[] steps = Steps(project, name);
-        if (flow.Complete(project.Root, $"Src/Web/packages/{name}", "recorded in cleanarch.json", steps) is { } done)
+        string rerun = flow.CompletedBy(_command, name);
+        if (flow.Complete(project.Root, $"Src/Web/packages/{name}", "recorded in cleanarch.json", steps, rerun) is { } done)
         {
-            Close(steps, done);
+            Close(steps, done, rerun);
         }
     }
 
     private PlannedStep[] Steps(ProjectFacts project, string name) =>
-        [new("Join", "Recording it in cleanarch.json", flow.Steps.WebJoin(project.Root, name, []))];
+        [new("Join", "Recording it in cleanarch.json", flow.Steps.WebJoin(project.Root, name, new WebJoinOptions()))];
 
-    private void Close(PlannedStep[] steps, int done) =>
-        flow.Conversation.Close(done == steps.Length ? null : new Closing(null, [], $"Record it with {steps[0].Step.CommandLine}.", StepsLeft: true));
+    private void Close(PlannedStep[] steps, int done, string rerun) =>
+        flow.Conversation.Close(done == steps.Length ? null : new Closing(null, [], $"Record it with {rerun}.", StepsLeft: true));
 
     private string? PackageNameProblem(ProjectFacts project, string name)
     {

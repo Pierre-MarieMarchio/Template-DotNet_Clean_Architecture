@@ -1,6 +1,6 @@
 ﻿namespace CleanArch.Cli.Joins;
 
-internal sealed record JoinedItem(string Folder, string ItemTemplate, string ScaffoldTask, string ScaffoldArgument, bool Required, string? WorkspaceReadme = null)
+internal sealed record JoinedItem(string Folder, string ItemTemplate, bool Required, string? WorkspaceReadme = null)
 {
     public string Readme => $"{Folder}/README.md";
 }
@@ -41,9 +41,7 @@ internal static class ItemJoin
             output.WriteLine($"Applied: {edit}");
         }
 
-        output.WriteLine(
-            $"Joined {item.Folder} to the project. Run `dotnet run Tools/Tasks.cs {item.ScaffoldTask} {item.ScaffoldArgument}` "
-            + "next: it creates the pages and adds the project to the solution.");
+        output.WriteLine($"Joined {item.Folder} to the project.");
     }
 
     private static List<ReadmeEdit> Edits(string root, JoinedItem item)

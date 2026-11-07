@@ -14,7 +14,7 @@ internal static class AddCommand
 {
     public const string Name = "add";
 
-    public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Build);
+    public static readonly CommandRegistration Registration = Using(context => new ProjectItemSteps(context.Processes));
 
     private static readonly IReadOnlyList<Addition> _additions =
     [
@@ -43,7 +43,9 @@ internal static class AddCommand
             ? $"This project has no add web-package command: its {ProjectLocator.FileName} records no web workspace, so there is no Src/Web to add a package to. Add a web app first with `{CleanArchCommand.Name} {Name} web-app`."
             : null;
 
-    private static Command Build(CommandContext context)
+    internal static CommandRegistration Using(Func<CommandContext, IItemSteps> steps) => new(ProjectCommand.Refusal, context => Build(context, steps(context)));
+
+    private static Command Build(CommandContext context, IItemSteps steps)
     {
         var add = new Command(Name, "Add a feature, a field, a use case, a setting, a domain event, a web app, a web package or a presentation project to this project.");
         foreach (Command generator in FeatureAdditions.Commands(context))
@@ -53,7 +55,7 @@ internal static class AddCommand
 
         foreach (Addition addition in _additions)
         {
-            Command command = BuildAddition(context, addition);
+            Command command = BuildAddition(context, addition, steps);
             if (context.Project is { } project && addition.Refusal(project) is { } refusal)
             {
                 CleanArchCommand.Refuse(command, refusal);
@@ -65,7 +67,7 @@ internal static class AddCommand
         return add;
     }
 
-    private static Command BuildAddition(CommandContext context, Addition addition)
+    private static Command BuildAddition(CommandContext context, Addition addition, IItemSteps steps)
     {
         var command = new Command(addition.Command, addition.Description);
         var name = new Option<string>("--name", "-n") { Description = "The name of what to add." };
@@ -88,7 +90,7 @@ internal static class AddCommand
 
         if (context.Project is { } project)
         {
-            command.SetAction(parseResult => Run(context, project, addition, parseResult, name, yes, dryRun, templateSource, hive, templateOptions));
+            command.SetAction(parseResult => Run(context, project, addition, steps, parseResult, name, yes, dryRun, templateSource, hive, templateOptions));
         }
 
         return command;
@@ -116,6 +118,7 @@ internal static class AddCommand
         CommandContext context,
         LocatedProject project,
         Addition addition,
+        IItemSteps steps,
         ParseResult parseResult,
         Option<string> name,
         Option<bool> yes,
@@ -147,11 +150,11 @@ internal static class AddCommand
                 questionnaire,
                 source,
                 engine,
-                new ProjectItemSteps(processes),
+                steps,
                 console,
                 new AdditionArguments(parseResult.GetValue(name), GivenTemplateOptions(parseResult, templateOptions), sourcePath, hiveFolder),
                 version,
-                $"{CleanArchCommand.Name} {Name}",
+                CleanArchCommand.Name,
                 parseResult.GetValue(dryRun)));
 
             addition.Apply(additions, FactsOf(project));

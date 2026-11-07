@@ -21,7 +21,7 @@ internal sealed class AdditionFlow(AdditionContext context)
 
     public Conversation Conversation => context.Questionnaire.Conversation;
 
-    public static string[] TaskRun(params string[] task) => ["run", "Tools/Tasks.cs", .. task];
+    public IItemSteps Steps => context.Steps;
 
     public void Detected(ProjectFacts project, TemplateManifest manifest, Dictionary<string, string> detected)
     {
@@ -83,7 +83,7 @@ internal sealed class AdditionFlow(AdditionContext context)
         return new AskedItem(answers.GetValueOrDefault(_nameKey)!, answers);
     }
 
-    public void ShowDryRun(IReadOnlyList<string> engine, IReadOnlyList<string[]> tasks)
+    public void ShowDryRun(IReadOnlyList<string> engine, IReadOnlyList<ItemStep> steps)
     {
         string version = TemplateSource.Installable(context.Version);
         string install = context.Source.LocalPath is { } path
@@ -92,9 +92,9 @@ internal sealed class AdditionFlow(AdditionContext context)
         Conversation.Note("Dry run: nothing is written. These are the commands it would run, in this order, the first one only when that template version is not installed yet.");
         context.Console.Verbatim(install);
         context.Console.Verbatim(TemplateEngine.CommandLine("dotnet new", context.Arguments.Hive is { } hive ? [.. engine, "--debug:custom-hive", hive] : engine));
-        foreach (string[] task in tasks)
+        foreach (ItemStep step in steps)
         {
-            context.Console.Verbatim(TemplateEngine.CommandLine(Dotnet, task));
+            context.Console.Verbatim(step.CommandLine);
         }
     }
 
@@ -104,12 +104,10 @@ internal sealed class AdditionFlow(AdditionContext context)
         Conversation.Perform($"Adding {name}", $"Added {name}", () => context.Engine.Run(project.Root, engine, performed));
     }
 
-    public bool RunTask(string root, string title, string running, IReadOnlyList<string> arguments)
+    public bool RunStep(string root, string title, string running, ItemStep step)
     {
-        string command = TemplateEngine.CommandLine(Dotnet, arguments);
-        ProcessResult result = Conversation.Spin(
-            running,
-            () => context.Processes.Run(new ProcessCall(Dotnet, root, arguments, ReadOnlyDictionary<string, string>.Empty), Conversation.EchoesTheTemplateEngine ? context.Console.Verbatim : null));
+        string command = step.CommandLine;
+        ProcessResult result = Conversation.Spin(running, () => step.Run(Conversation.EchoesTheTemplateEngine ? context.Console.Verbatim : null));
         bool done = result.ExitCode == 0;
         Conversation.Reported(title + (done ? " done" : " failed"), done, done ? null : ProcessFailure.Why(command, result, ProcessFailure.Journal(root, title.ToLowerInvariant(), command, result)), done ? [] : [command]);
         return done;

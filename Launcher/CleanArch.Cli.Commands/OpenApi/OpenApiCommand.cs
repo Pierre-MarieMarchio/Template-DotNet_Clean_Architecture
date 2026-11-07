@@ -43,7 +43,7 @@ internal static class OpenApiCommand
     [
         () => OpenApiReference.Write(project, shell, noBuild),
         .. project.File.Client ? [() => ApiClient.Write(project, shell)] : Array.Empty<Func<int>>(),
-        .. WebSchema.IsGenerated(project) ? [() => shell.Run(Pnpm.In(project, ProjectLayout.Web, "api", "--no-build"))] : Array.Empty<Func<int>>(),
+        .. WebSchema.IsGenerated(project) ? [() => shell.Run(Pnpm.In(project, ProjectLayout.Web, "api", OpenApiReference.PathOf(project)))] : Array.Empty<Func<int>>(),
     ];
 
     private static IEnumerable<Func<int>> Checks(LocatedProject project, Shell shell, bool noBuild) =>

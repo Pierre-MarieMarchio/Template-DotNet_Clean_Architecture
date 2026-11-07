@@ -8,8 +8,6 @@
 
   <PropertyGroup>
     <OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
-    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/../../Web/packages/api-client/openapi</OpenApiDocumentsDirectory>
-    <OpenApiGenerateDocumentsOptions>--file-name document</OpenApiGenerateDocumentsOptions>
   </PropertyGroup>
 
   <PropertyGroup>

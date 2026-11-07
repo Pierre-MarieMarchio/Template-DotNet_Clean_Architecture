@@ -557,7 +557,6 @@
             "**/node_modules/**",
             "**/dist/**",
             "**/coverage/**",
-            "packages/api-client/openapi/**",
             "pnpm-lock.yaml"
           ]
         },

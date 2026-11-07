@@ -1616,7 +1616,6 @@
             "Src/Web/**/node_modules/**",
             "Src/Web/**/dist/**",
             "Src/Web/**/coverage/**",
-            "Src/Web/packages/api-client/openapi/**",
             "Src/Web/pnpm-lock.yaml",
             "Src/Infrastructure/AT.Infrastructure.Persistence/Migrations/**",
             "Src/Infrastructure/AT.Infrastructure.Auth/Migrations/**"

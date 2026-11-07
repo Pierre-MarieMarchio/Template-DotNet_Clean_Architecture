@@ -2,11 +2,11 @@
 
 namespace CleanArch.Tooling.Additions;
 
-public sealed record ItemStep(string CommandLine, Func<bool> IsDone, Func<Action<string>?, ProcessResult> Run);
+public sealed record ItemStep(Func<bool> IsDone, Func<Action<string>?, ProcessResult> Run);
 
 public interface IItemSteps
 {
-    ItemStep WebJoin(string root, string name, IReadOnlyList<string> options);
+    ItemStep WebJoin(string root, string name, WebJoinOptions options);
 
     ItemStep WebScaffold(string root, string name);
 

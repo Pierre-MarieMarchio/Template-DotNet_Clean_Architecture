@@ -85,8 +85,7 @@ internal sealed class TreeComparison
         {
             if (!UnchangedByTheTarget(path, at))
             {
-                _scaffoldNotes.Add($"{path}: {ChangeOf(at)} by the target version; bootstrap's {_scaffolds.TaskOf(folder)} "
-                    + "created the part from it, so take what the new descriptor brings by hand.");
+                _scaffoldNotes.Add($"{path}: {ChangeOf(at)} by the target version; the part was created from it, so take what the new descriptor brings by hand.");
             }
 
             return true;
@@ -97,7 +96,7 @@ internal sealed class TreeComparison
             if (!UnchangedByTheTarget(path, at))
             {
                 string target = folder + "/" + inside["overlay/".Length..];
-                _findings.Add(new Finding(FindingKind.Merge, target, $"{_scaffolds.TaskOf(folder)} laid {path} over the part it created", at.Older ? path : null, at.Newer ? path : null));
+                _findings.Add(new Finding(FindingKind.Merge, target, $"the part's scaffold laid {path} over the part it created", at.Older ? path : null, at.Newer ? path : null));
             }
 
             return true;
@@ -105,7 +104,7 @@ internal sealed class TreeComparison
 
         if (at.Project && !at.Older && !at.Newer)
         {
-            ListIfHeld(_scaffolds.CommandOf(folder, _name), path, at);
+            ListIfHeld(_scaffolds.CommandOf(folder), path, at);
             return true;
         }
 

@@ -38,7 +38,7 @@ internal static class WorkerJoin
 
         TrialBuild.Run(processes, project, writes, moves);
         writes.WriteTo(root, leaving);
-        Report(processes.Output, project, relative, moves, namespaces, placed.Made);
+        Report(processes.Output, relative, moves, namespaces, placed.Made);
     }
 
     private static void Require(LocatedProject project, string readme)
@@ -56,7 +56,7 @@ internal static class WorkerJoin
     }
 
     private static void Report(
-        TextWriter output, LocatedProject project, string relative, IReadOnlyList<FileMove> moves, IReadOnlyList<NamespaceRename> namespaces, IReadOnlyList<ReadmeEdit> made)
+        TextWriter output, string relative, IReadOnlyList<FileMove> moves, IReadOnlyList<NamespaceRename> namespaces, IReadOnlyList<ReadmeEdit> made)
     {
         foreach (FileMove move in moves)
         {
@@ -73,8 +73,6 @@ internal static class WorkerJoin
             output.WriteLine($"Applied: {edit}");
         }
 
-        output.WriteLine(
-            $"Joined {relative} to the project, the jobs with it. Run `dotnet run Tools/Tasks.cs presentation-scaffold {project.File.Name}.{JobMoves.Worker}` "
-            + "next: it adds the worker and its tests to the solution.");
+        output.WriteLine($"Joined {relative} to the project, the jobs with it.");
     }
 }

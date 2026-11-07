@@ -19,5 +19,5 @@ public sealed record AdditionContext(
     IAnsiConsole Console,
     AdditionArguments Arguments,
     string? Version,
-    string Invocation,
+    string Tool,
     bool DryRun = false);

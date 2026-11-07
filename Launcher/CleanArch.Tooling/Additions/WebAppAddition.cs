@@ -12,8 +12,6 @@ internal sealed partial class WebAppAddition(AdditionFlow flow)
     private const string _command = "web-app";
     private const string _createSection = "## Create the app";
 
-    private static readonly (string Name, string Symbol)[] _webJoinOptions = [("--web", "framework"), ("--web-audience", "audience"), ("--web-rendering", "rendering"), ("--web-port", "port")];
-
     public void Add(ProjectFacts project)
     {
         TemplateManifest manifest = flow.Context.Source.Manifest(TemplateKind.WebApp);
@@ -48,17 +46,18 @@ internal sealed partial class WebAppAddition(AdditionFlow flow)
         Refuse(project, manifest, asked);
 
         string[] engine = [manifest.ShortName, "-n", name, .. manifest.CommandArguments(asked.Options)];
-        PlannedStep[] steps = Steps(project, name, [.. JoinOptions(symbol => manifest.Resolve(symbol, asked.Options))]);
+        PlannedStep[] steps = Steps(project, name, JoinOptions(symbol => manifest.Resolve(symbol, asked.Options)));
         if (flow.Context.DryRun)
         {
-            flow.ShowDryRun(engine, [.. steps.Select(planned => planned.Step)]);
+            flow.ShowDryRun(engine, steps);
             return;
         }
 
         flow.Generate(project, name, engine, [ItemAdditions.WebJoinTask, ItemAdditions.WebScaffoldTask]);
-        int done = flow.RunSteps(project.Root, steps);
+        string rerun = flow.CompletedBy(_command, name);
+        int done = flow.RunSteps(project.Root, steps, rerun);
 
-        flow.Equivalents(_command, engine, [.. steps.Select(planned => planned.Step.CommandLine)]);
+        flow.Equivalents(_command, engine, [rerun]);
         Close(project, manifest, asked, done);
     }
 
@@ -66,14 +65,14 @@ internal sealed partial class WebAppAddition(AdditionFlow flow)
     {
         flow.Conversation.Begin($"Complete Src/Web/apps/{name} in {project.Name}", flow.Context.Version);
         Dictionary<string, string> given = flow.GivenOptions(manifest);
-        PlannedStep[] steps = Steps(project, name, [.. JoinOptions(given.GetValueOrDefault)]);
-        if (flow.Complete(project.Root, $"Src/Web/apps/{name}", "joined and created", steps) is { } done)
+        PlannedStep[] steps = Steps(project, name, JoinOptions(given.GetValueOrDefault));
+        if (flow.Complete(project.Root, $"Src/Web/apps/{name}", "joined and created", steps, flow.CompletedBy(_command, name)) is { } done)
         {
             Close(project, manifest, new AskedItem(name, given), done);
         }
     }
 
-    private PlannedStep[] Steps(ProjectFacts project, string name, IReadOnlyList<string> joinOptions) =>
+    private PlannedStep[] Steps(ProjectFacts project, string name, WebJoinOptions joinOptions) =>
     [
         new("Join", "Making the edits its README lists outside its folder and recording it in cleanarch.json", flow.Steps.WebJoin(project.Root, name, joinOptions)),
         new("Scaffold", "Creating it with its framework's official CLI, which needs the network", flow.Steps.WebScaffold(project.Root, name)),
@@ -100,8 +99,8 @@ internal sealed partial class WebAppAddition(AdditionFlow flow)
         }
     }
 
-    private static IEnumerable<string> JoinOptions(Func<string, string?> valueOf) =>
-        _webJoinOptions.SelectMany(option => valueOf(option.Symbol) is { } value ? [option.Name, value] : Array.Empty<string>());
+    private static WebJoinOptions JoinOptions(Func<string, string?> valueOf) =>
+        new(valueOf("framework"), valueOf("audience"), valueOf("rendering"), valueOf("port"));
 
     private static string AppFolder(ProjectFacts project, string name) => Path.Combine(project.WebFolder, "apps", name);
 

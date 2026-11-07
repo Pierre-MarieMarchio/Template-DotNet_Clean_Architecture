@@ -3,7 +3,6 @@ using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Markdown;
 using CleanArch.Tooling.Projects;
 using CleanArch.Tooling.Prompts;
-using CleanArch.Tooling.Templates;
 
 namespace CleanArch.Tooling.Additions;
 
@@ -50,14 +49,15 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
         PlannedStep[] steps = Steps(project, presentation);
         if (flow.Context.DryRun)
         {
-            flow.ShowDryRun(engine, [.. steps.Select(planned => planned.Step)]);
+            flow.ShowDryRun(engine, steps);
             return;
         }
 
         flow.Generate(project, name, engine, [ItemAdditions.PresentationJoinTask, ItemAdditions.PresentationScaffoldTask]);
-        int done = flow.RunSteps(project.Root, steps);
+        string rerun = flow.CompletedBy(_command, name);
+        int done = flow.RunSteps(project.Root, steps, rerun);
 
-        flow.Equivalents(_command, engine, [.. steps.Select(planned => planned.Step.CommandLine)]);
+        flow.Equivalents(_command, engine, [rerun]);
         Close(project, manifest, asked, done);
     }
 
@@ -65,7 +65,7 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
     {
         string presentation = $"{project.Name}.{name}";
         flow.Conversation.Begin($"Complete {presentation} in {project.Name}", flow.Context.Version);
-        if (flow.Complete(project.Root, $"Src/Presentation/{project.FolderOf(name)}", "joined and created", Steps(project, presentation)) is { } done)
+        if (flow.Complete(project.Root, $"Src/Presentation/{project.FolderOf(name)}", "joined and created", Steps(project, presentation), flow.CompletedBy(_command, name)) is { } done)
         {
             Close(project, manifest, new AskedItem(name, flow.GivenOptions(manifest)), done);
         }
@@ -85,7 +85,7 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
         string readme = Path.Combine(project.PresentationFolder, folder, "README.md");
         string shown = $"Src/Presentation/{folder}/README.md";
         string[] identityStep = project.Auth == "local" && manifest.Resolve(_frameworkSymbol, asked.Options) == "mcp"
-            ? [TemplateEngine.CommandLine(AdditionFlow.Dotnet, ["run", "Tools/Tasks.cs", "migration-add", "AddAccessKeys", "--context", "auth"])]
+            ? [$"{flow.Context.Tool} migrations add AddAccessKeys --context auth"]
             : [];
         if (created)
         {

@@ -44,7 +44,11 @@ Then run `dotnet cleanarch docs-index`, which lists the new page in its folder's
 `add feature` and `remove feature --apply` run it for the page they write or delete. `verify` fails
 while an index no longer lists its folder's pages as their frontmatter says.
 
-Every page opens with its frontmatter, at the first byte of the file, before its `# ` heading:
+The pages form a bundle in the [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+(OKF v0.2), so a reader, an agent or a tool learns what a page is and what it answers from its
+frontmatter, without opening it, and each folder's index is written from that frontmatter rather
+than kept by hand. Every page opens with its frontmatter, at the first byte of the file, before its
+`# ` heading:
 
 ```yaml
 ---

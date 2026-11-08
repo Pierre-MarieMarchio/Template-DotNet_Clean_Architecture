@@ -30,7 +30,7 @@ internal static class ApiClient
             "--openapi", reference,
             "--output", output,
             "--class-name", "ApiClient",
-            "--namespace-name", $"{project.File.Name}.Client.Generated",
+            "--namespace-name", $"{project.File.Name}.Presentation.Client.Generated",
             "--exclude-backward-compatible",
             "--clean-output",
             "--log-level", "Warning");

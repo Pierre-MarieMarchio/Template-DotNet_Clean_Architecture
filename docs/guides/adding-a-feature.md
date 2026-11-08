@@ -475,8 +475,9 @@ Some lists change only on purpose, and a test fails until they name what you add
    question the page answers, in one sentence.
 2. Run `dotnet cleanarch docs-index`, so that the features index shows the description you
    wrote.
-3. A choice another team could have made differently is an ADR: `docs/decisions/`, numbered from 1000,
-   linked from the page's `## Decisions`.
+3. A choice the feature makes goes on its page, with its reason. An ADR, in `docs/decisions/`, numbered
+   from 1000 and linked from the page's `## Decisions`, is a last resort, as
+   [when to write one](../decisions/README.md#when-to-write-one) says.
 <!--#if (anyFeature)-->
 
 ## Patterns from the examples

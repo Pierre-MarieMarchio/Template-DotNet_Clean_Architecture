@@ -952,7 +952,7 @@ internal static class CheckComments
         }
 
         Console.WriteLine($"PROBLEMS ({problems.Count}):");
-        Console.WriteLine("  Code reads by itself: a decision goes to an ADR in docs/decisions/, a name that needs a comment is renamed.");
+        Console.WriteLine("  Code reads by itself: a reason goes to the page it concerns, or to an ADR in docs/decisions/ as a last resort, a name that needs a comment is renamed.");
         Console.WriteLine("  `dotnet run tools/CheckComments.cs -- --help` states what is allowed where.");
         Console.WriteLine();
 

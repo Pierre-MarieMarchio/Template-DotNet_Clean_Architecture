@@ -35,4 +35,5 @@ What the tests prove beyond the shape, and where they live: <tests>.
 
 ## Decisions
 
-Each choice another team could have made otherwise, as an ADR numbered from 1000, linked here.
+The ADRs this feature rests on, linked here; a new one, numbered from 1000, only as a last resort, as
+[when to write one](../decisions/README.md#when-to-write-one) says.

@@ -22,6 +22,15 @@ public sealed class UpgradeReportTests : IDisposable
 
     public void Dispose() => Directory.Delete(_scratch, recursive: true);
 
+    [Fact]
+    public void AFileUnderARootFolderCasedOtherwise_IsPairedAcrossTheTrees_EachReadAtItsOwnPath()
+    {
+        Finding moved = Classified().Findings.Single(finding => finding.Path == "Src/Domain/Moved.cs");
+
+        moved.Older.ShouldBe("Src/Domain/Moved.cs");
+        moved.Newer.ShouldBe("src/Domain/Moved.cs");
+    }
+
     [Theory]
     [InlineData("same.md", "-")]
     [InlineData("take.md", "Take")]
@@ -53,6 +62,8 @@ public sealed class UpgradeReportTests : IDisposable
     [InlineData("src/Web/apps/Site/src/main.ts", "Merge, noted")]
     [InlineData("src/Web/apps/Site/Dockerfile", "Take")]
     [InlineData("logo.png", "Merge")]
+    [InlineData("Src/Domain/Moved.cs", "Take")]
+    [InlineData("tests/Kept.cs", "Merge")]
     public void AFile_IsClassifiedByWhatTheTargetChangedAndWhatTheProjectChanged(string path, string expected)
     {
         Finding[] findings = [.. Classified().Findings.Where(finding => finding.Path == path)];
@@ -276,6 +287,19 @@ public sealed class UpgradeReportTests : IDisposable
 
         static string Secrets(string guid, string rest = "") => $"<UserSecretsId>{guid}</UserSecretsId>\n{rest}";
 
+        void One(string root, string path, string text)
+        {
+            string full = Path.Combine(root, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, text);
+        }
+
+        One(older, "Src/Domain/Moved.cs", "a\n");
+        One(newer, "src/Domain/Moved.cs", "b\n");
+        One(project, "Src/Domain/Moved.cs", "a\n");
+        One(older, "Tests/Kept.cs", "a\n");
+        One(newer, "tests/Kept.cs", "b\n");
+        One(project, "tests/Kept.cs", "c\n");
         Three("same.md", "a\n", "a\n", "a\n");
         Three("take.md", "a\n", "b\n", "a\n");
         Three("merge.md", "a\n", "b\n", "c\n");

@@ -19,14 +19,14 @@ internal sealed class ScaffoldedParts
 
     public bool AddToTheSolution { get; }
 
-    public static ScaffoldedParts In(string older, string newer, IEnumerable<string> generatedPaths)
+    public static ScaffoldedParts In(FoldedTree older, FoldedTree newer)
     {
-        Dictionary<string, string> commands = generatedPaths
+        Dictionary<string, string> commands = older.Keys.Union(newer.Keys)
             .Where(path => Path.GetFileName(path) == Descriptor && _descriptorPath.IsMatch(path))
             .Select(path => path[..^(Descriptor.Length + 1)])
             .ToDictionary(folder => folder, CompletedBy, StringComparer.Ordinal);
         bool addToTheSolution = commands.Keys.Any(folder => new[] { older, newer }
-            .Select(tree => Path.Combine(tree, folder, Descriptor))
+            .Select(tree => tree.Full(folder + "/" + Descriptor))
             .Where(File.Exists)
             .Any(descriptor => JsonNode.Parse(File.ReadAllText(descriptor))?["kind"]?.GetValue<string>() is "dotnet" or "written"));
 

@@ -1,7 +1,7 @@
 ---
 type: reference
 title: Decisions
-description: When a choice deserves an ADR, how ADRs are numbered and superseded, and which decisions this project holds.
+description: Why an ADR is a last resort, when a choice still deserves one, how ADRs are numbered and superseded, and which decisions this project holds.
 ---
 
 # Decisions

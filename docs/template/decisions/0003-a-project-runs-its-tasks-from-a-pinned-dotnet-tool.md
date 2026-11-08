@@ -87,16 +87,20 @@ expose one by one.
   missing, so it also finishes an addition that the IDE started through an item template. The
   initial migrations are a step of `bootstrap`, and the repository checks are a step of `verify`.
 - **A team changes the tool at four depths**, each one costlier than the last:
-  1. **Configuration.** The project file adds steps to a command, before or after it, and adds
-     steps to `verify`. Removing a step of `verify` takes a project ADR, which the project file
-     names, and a test refuses the removal without it: `verify` is the gate the CI runs.
-  2. **Code templates.** A generator writes the files it creates from a reference feature written
-     as compilable C#, under placeholder names and with the template engine's conditions and name
-     forms, and instantiates it through the template engine. A template of the same path in the
-     project wins. `dotnet cleanarch templates copy <generator>` copies the built-in ones and
-     records the hash of each copy's source, so the tool warns when a later version changes a
-     template the project overrides, as `.feature-manifest/` does for a feature. The edits a
-     generator makes to existing files are the tool's code, outside this depth.
+  1. **Configuration**, planned and not offered yet: the project file would add steps to a
+     command, before or after it, and steps to `verify`; removing a step of `verify` would take a
+     project ADR, which the project file names, and a test would refuse the removal without it,
+     since `verify` is the gate the CI runs. The project file carries no steps today.
+  2. **Code templates**, planned and not offered yet
+     ([#376](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/376)):
+     the generators still build their files in C# code, and no `templates copy` command exists. The
+     design: a generator writes the files it creates from a reference feature written as
+     compilable C#, under placeholder names and with the template engine's conditions and name
+     forms, and instantiates it through the template engine; a template of the same path in the
+     project wins; a `templates copy <generator>` command copies the built-in ones and records the
+     hash of each copy's source, so the tool warns when a later version changes a template the
+     project overrides, as `.feature-manifest/` does for a feature. The edits a generator makes to
+     existing files stay the tool's code, outside this depth.
   3. **Local commands.** A file-based app `tools/<name>.cs` runs as `dotnet cleanarch <name>`. A new
      name adds a command, a built-in name is replaced by it, and `help` says which is which. Only a
      name of lower-case words joined by hyphens is a command, so the scripts named in PascalCase
@@ -107,8 +111,8 @@ expose one by one.
      `help`, `eject` and `adopt` are not ejected, since they say what the project's own commands
      are, make them, and run before the tool knows the project. Nor are `add` and `remove`: they
      run on CleanArch.Tooling, the library they share with the launcher, on Spectre.Console and on
-     Roslyn, none of which a file-based app carries, and the code a generator writes changes
-     through its code templates instead.
+     Roslyn, none of which a file-based app carries; the code a generator writes is to change
+     through the code templates of the second depth once they exist.
 - **The template's own tasks and gates stay here.** `tools/CheckComments.cs`,
   `tools/CheckDocPaths.cs`, `tools/CheckWorkflows.cs` and the web lockfiles' task audit this
   repository and the generated trees, and the tool never carries them. This repository runs the tool

@@ -8,7 +8,7 @@ edit the pages, then run it again.
 ## Folders
 
 - [Architecture](architecture/index.md) - How this project is layered, which way its source dependencies point, and which tests hold the rule.
-- [Decisions](decisions/index.md) - When a choice deserves an ADR, how ADRs are numbered and superseded, and which decisions this project holds.
+- [Decisions](decisions/index.md) - Why an ADR is a last resort, when a choice still deserves one, how ADRs are numbered and superseded, and which decisions this project holds.
 - [Features](features/index.md)
 - [Getting started](getting-started/index.md)
 - [Guides](guides/index.md)

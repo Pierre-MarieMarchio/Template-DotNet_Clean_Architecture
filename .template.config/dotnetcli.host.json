@@ -5,6 +5,10 @@
       "longName": "agent-files",
       "shortName": ""
     },
+    "agentFilesExample": {
+      "longName": "agent-files-example",
+      "shortName": ""
+    },
     "aspire": {
       "longName": "aspire",
       "shortName": ""

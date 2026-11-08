@@ -141,6 +141,7 @@ internal static class AdoptCommand
                 ["ci"] = project.Ci,
                 ["sonar"] = GeneratedProjectFacts.Sonar(project),
                 ["agentFiles"] = project.AgentFiles,
+                ["agentFilesExample"] = false,
                 ["aspire"] = GeneratedProjectFacts.Aspire(project),
             },
             ["client"] = project.HasClient,

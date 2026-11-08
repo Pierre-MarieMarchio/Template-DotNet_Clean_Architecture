@@ -40,7 +40,7 @@ public sealed class TemplateManifestTests
             ["presentation", "web", "webName", "webAudience", "webRendering"],
             ["auth"],
             ["database", "examples", "files"],
-            ["ci", "sonar", "agentFiles", "aspire"],
+            ["ci", "sonar", "agentFiles", "agentFilesExample", "aspire"],
         ];
 
         Repository.Source.Manifest(TemplateKind.Project).Options.Select(option => option.Symbol).ShouldBe(groups.SelectMany(group => group));
@@ -151,7 +151,7 @@ public sealed class TemplateManifestTests
     }
 
     [Fact]
-    public void TheQuestionsAskedOnlyWithAnotherAnswer_NameOptionsOfTheTemplate_AndHangOnItsNone()
+    public void TheQuestionsAskedOnlyWithAnotherAnswer_NameOptionsOfTheTemplate_AndHangOnItsNoneOrFalse()
     {
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
         string[] symbols = [.. manifest.Options.Select(option => option.Symbol)];
@@ -162,13 +162,18 @@ public sealed class TemplateManifestTests
             string asking = manifest.ParametersBehind(when).ShouldHaveSingleItem(symbol);
             TemplateOption option = manifest.Options.Single(candidate => candidate.Symbol == asking);
 
-            foreach (OptionChoice choice in option.Choices)
+            foreach (string answer in Answers(option))
             {
-                manifest.Holds(when, new Dictionary<string, string> { [asking] = choice.Value })
-                    .ShouldBe(choice.Value != "none", $"{symbol} with {asking} {choice.Value}");
+                manifest.Holds(when, new Dictionary<string, string> { [asking] = answer })
+                    .ShouldBe(answer is not ("none" or Condition.False), $"{symbol} with {asking} {answer}");
             }
         }
     }
+
+    private static string[] Answers(TemplateOption option) =>
+        option.Kind == OptionKind.Bool
+            ? [Condition.True, Condition.False]
+            : [.. option.Choices.Select(choice => choice.Value)];
 
     [Fact]
     public void CommandArguments_PassWhatDiffersFromADefault_AndWhatIsRequired()

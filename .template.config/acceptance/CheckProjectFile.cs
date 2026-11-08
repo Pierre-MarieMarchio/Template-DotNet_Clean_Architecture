@@ -95,7 +95,7 @@ internal static class ProjectFileCheck
         string Value(string symbol) => given.GetValueOrDefault(symbol) ?? symbols.GetProperty(symbol).GetProperty("defaultValue").GetString()!;
 
         var options = new JsonObject();
-        foreach (string option in new[] { "auth", "database", "examples", "files", "ci", "sonar", "agentFiles", "aspire" })
+        foreach (string option in new[] { "auth", "database", "examples", "files", "ci", "sonar", "agentFiles", "agentFilesExample", "aspire" })
         {
             options[option] = symbols.GetProperty(option).GetProperty("datatype").GetString() == "bool"
                 ? JsonValue.Create(bool.Parse(Value(option)))

@@ -12,6 +12,7 @@
     "ci": true,
     "sonar": true,
     "agentFiles": true,
+    "agentFilesExample": false,
     "aspire": false
   },
   "client": false,

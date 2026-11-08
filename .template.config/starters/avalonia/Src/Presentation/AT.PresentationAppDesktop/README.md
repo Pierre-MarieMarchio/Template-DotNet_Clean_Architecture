@@ -20,6 +20,11 @@ then adds the project, its tests and the .NET client to the solution. Run outsid
 the OpenAPI reference exists, it then writes the client as
 `dotnet cleanarch openapi` does. Commit the project: from then on its files are this
 project's own, and the step leaves it alone.
+
+The template's `Program.cs` turns on the AvaloniaUI Developer Tools; this folder's own replaces it
+and leaves them out, with their `AvaloniaUI.DiagnosticsSupport` package, whose NuGet page declares
+no licence. To use them, add the package and the `WithDeveloperTools()` call as the
+[Avalonia documentation](https://docs.avaloniaui.net/) shows.
 <!--#if (externalAuth)-->
 
 ## Sign in
@@ -150,7 +155,6 @@ the command stops:
       <PackageVersion Include="Avalonia.Desktop" Version="12.1.4" />
       <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4" />
       <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
-      <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
       <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   <!--#if (externalAuth)-->
       <PackageVersion Include="Duende.IdentityModel.OidcClient" Version="7.1.0" />

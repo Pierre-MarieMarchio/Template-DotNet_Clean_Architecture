@@ -110,6 +110,7 @@ of each layer and the tests that fail when one points the other way.
 | `--ci` | `true`, `false` | `true` |
 | `--sonar` | `true`, `false` | `true` |
 | `--agent-files` | `true`, `false` | `true` |
+| `--agent-files-example` | `true`, `false` | `false` |
 | `--aspire` | `true`, `false` | `false` |
 | `--web` | `none`, `placeholder`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `blazor-wasm` | `none` |
 | `--web-name` | a PascalCase name, such as `Admin` | `Site` |
@@ -154,7 +155,9 @@ This repository carries the documentation every generated project receives, in i
 - [The documentation index](docs/README.md): getting started, architecture, features, guides,
   reference and decisions.
 - [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md), which a
-  project receives too; `--agent-files false` leaves out `AGENTS.md`, the only agent file there is.
+  project receives too; `--agent-files false` leaves out `AGENTS.md`, the only agent file there is,
+  and `--agent-files-example true` fills its closing section, the project team's own, with example
+  lines about a made-up product in place of empty prompts.
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and [SUPPORT.md](SUPPORT.md), which stay in this repository:
   the conduct it follows and where to ask a question or report a problem.
 

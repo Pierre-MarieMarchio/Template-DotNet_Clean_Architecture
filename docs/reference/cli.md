@@ -206,7 +206,8 @@ nothing to eject, and a `tools/<command>.cs` already there is never overwritten.
 
 `dotnet cleanarch adopt` writes `cleanarch.json` for a project generated before the tool, from its
 files, and is refused where one exists; `--dry-run` prints it, and `--template-version` gives the
-version where `docs/getting-started/overview.md` no longer names it.
+version where `docs/getting-started/overview.md` no longer names it. It records `agentFilesExample`
+as `false`: the lines that option writes are the team's to replace, so no file says it was given.
 
 ## Taking a newer version
 

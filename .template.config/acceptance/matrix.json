@@ -83,7 +83,7 @@
   {
     "name": "web react back office, local auth",
     "tags": ["presentation-blazor-server", "starter-blazor-wasm", "starter-vite-react", "web"],
-    "options": "--web vite-react --web-audience admin --presentation blazor-server",
+    "options": "--web vite-react --web-audience admin --presentation blazor-server --agent-files-example true",
     "auth_context": "true",
     "web": "true",
     "wasm_app": "--scope sample-generated-project"

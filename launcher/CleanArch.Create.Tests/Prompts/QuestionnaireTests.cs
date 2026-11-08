@@ -148,7 +148,7 @@ public sealed class QuestionnaireTests
 
         Dictionary<string, string> answers = questionnaire.Answer(
             _project,
-            new Dictionary<string, string> { ["auth"] = "none", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "false", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
+            new Dictionary<string, string> { ["auth"] = "none", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "false", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["agent-files-example"] = "false", ["web"] = "none" },
             _nothing,
             NewCommand.ProjectAskedWhen);
 
@@ -169,6 +169,7 @@ public sealed class QuestionnaireTests
         console.Input.PushTextWithEnter("n");
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -182,6 +183,7 @@ public sealed class QuestionnaireTests
         console.Output.ShouldContain("First web app");
         answers["sonar"].ShouldBe("false");
         answers["agentFiles"].ShouldBe("true");
+        answers["agentFilesExample"].ShouldBe("false");
         answers["web"].ShouldBe("none");
         answers["presentation"].ShouldBe("api");
     }
@@ -198,7 +200,7 @@ public sealed class QuestionnaireTests
 
         Dictionary<string, string> answers = questionnaire.Answer(
             _project,
-            new Dictionary<string, string> { ["auth"] = "local", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "true", ["ci"] = "true", ["agent-files"] = "true", ["web"] = "none" },
+            new Dictionary<string, string> { ["auth"] = "local", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "true", ["ci"] = "true", ["agent-files"] = "true", ["agent-files-example"] = "false", ["web"] = "none" },
             _nothing,
             NewCommand.ProjectAskedWhen);
 
@@ -251,7 +253,7 @@ public sealed class QuestionnaireTests
 
         Dictionary<string, string> answers = questionnaire.Answer(
             _project,
-            new Dictionary<string, string> { ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
+            new Dictionary<string, string> { ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["agent-files-example"] = "false", ["web"] = "none" },
             _nothing,
             NewCommand.ProjectAskedWhen);
 
@@ -272,6 +274,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
@@ -304,7 +307,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Enter);
-        for (int index = 0; index < 8; index++)
+        for (int index = 0; index < 9; index++)
         {
             console.Input.PushKey(ConsoleKey.Enter);
         }

@@ -90,6 +90,13 @@
       "isVisible": true
     },
     {
+      "id": "agentFilesExample",
+      "name": {
+        "text": "Example project section"
+      },
+      "isVisible": true
+    },
+    {
       "id": "aspire",
       "name": {
         "text": "Aspire app host"

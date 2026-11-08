@@ -281,6 +281,13 @@
       "defaultValue": "true",
       "description": "Include AGENTS.md, the brief for coding agents and people, and src/Web/AGENTS.md with a web app. It is the only agent file the template writes."
     },
+    "agentFilesExample": {
+      "type": "parameter",
+      "displayName": "Example project section",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "With --agent-files true, the closing section of AGENTS.md, the one this project's team writes, ships with example lines about a made-up product instead of empty prompts: each line marked Example, to replace or delete."
+    },
     "aspire": {
       "type": "parameter",
       "displayName": "Aspire app host",
@@ -1311,6 +1318,26 @@
       },
       "replaces": "\"agentFiles\": true",
       "description": "The --agent-files value cleanarch.json records."
+    },
+    "projectFileAgentFilesExample": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(agentFilesExample)",
+            "value": "\"agentFilesExample\": true"
+          },
+          {
+            "condition": "(true)",
+            "value": "\"agentFilesExample\": false"
+          }
+        ]
+      },
+      "replaces": "\"agentFilesExample\": false",
+      "description": "The --agent-files-example value cleanarch.json records."
     },
     "projectFileAspire": {
       "type": "generated",

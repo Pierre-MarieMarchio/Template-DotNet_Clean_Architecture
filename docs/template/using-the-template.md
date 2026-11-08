@@ -168,6 +168,7 @@ conditions cannot search a name, and the build then stops on CA1707.
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
 | `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and command, and its steps in `ci.yml` when `--ci` is true |
 | `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
+| `--agent-files-example` | `true`, `false` | `false` | the closing section of `AGENTS.md`, `## This project`, which the project's team writes, with example lines about a made-up product, each marked _Example_, in place of empty prompts; the launcher asks it only with `--agent-files true` |
 | `--aspire` | `true`, `false` | `false` | an Aspire app host, `<Project>.AppHost` in `src/AppHost`, beside Docker Compose, which stays the reference of the deployment: it starts the containers Compose runs and every host and web app `cleanarch.json` records, with the settings Compose gives them and their telemetry in the Aspire dashboard, and its integration test starts the whole stack; refused with `--database sqlite` |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that

@@ -15,6 +15,7 @@ public static class NewCommand
         ["webName"] = Condition.Parse("(web != \"none\")"),
         ["webAudience"] = Condition.Parse("(web != \"none\")"),
         ["webRendering"] = Condition.Parse("(web != \"none\")"),
+        ["agentFilesExample"] = Condition.Parse("(agentFiles)"),
     };
 
     public const string Name = "new";

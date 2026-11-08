@@ -176,7 +176,7 @@ hosts.
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
 | sqlite, defaults | `--database sqlite`, then `cleanarch-presentation --framework wpf` |
 | web placeholder, sqlite, smallest project | `--web placeholder --database sqlite --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
-| web react back office, local auth | `--web vite-react --web-audience admin --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `add web-app` before the build |
+| web react back office, local auth | `--web vite-react --web-audience admin --presentation blazor-server --agent-files-example true`, then `cleanarch-webapp --framework blazor-wasm` and `add web-app` before the build |
 | web angular, external auth, notes | `--web angular --web-rendering ssr --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `add web-app` before the build |
 | no web, then a react app, its workspace and an angular back office | none, then `cleanarch-webapp --framework vite-react --workspace`, `cleanarch-presentation --framework avalonia`, `cleanarch-webapp --framework blazor-wasm --has-client true` and `cleanarch-webapp --framework angular --audience admin --rendering ssr` |
 | web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port`, and once more for React Router with `--rendering ssr` |
@@ -406,7 +406,11 @@ No object store runs.
   shared pages are conditioned the same way.
 - `AGENTS.md` is the only agent file, and `--agent-files false` leaves it out: a page that points to
   it conditions that sentence or row on `agentFiles`, and points to the page that owns the rule
-  otherwise. Keep `AGENTS.md` concise and pragmatic, and link to a page rather than restate it.
+  otherwise. Keep `AGENTS.md` concise and pragmatic, and link to a page rather than restate it. Its
+  closing section, `## This project`, belongs to the project's team:
+  the template ships prompts there, or example lines under `--agent-files-example true`, and writes
+  nothing else in it. No join edits the root `AGENTS.md`, so a line of it never depends on a part a
+  project can gain later; a join edits `src/Web/AGENTS.md` alone.
 - A link from a shared file (`CONTRIBUTING.md`, `AGENTS.md`, `SECURITY.md`) to `docs/template/` sits
   in a `templateMaintenance` block, which is always false at generation.
 - A project ADR the template supersedes stays here, with its `Superseded by` status, and reaches no
@@ -923,6 +927,7 @@ The tests that read the manifests through the launcher's own settings stay in
 | `--files` | the `Infrastructure.Storage` project |
 | `--database` | the provider package `Infrastructure.Core` references: SQL Server, SQLite, PostgreSQL otherwise |
 | `--ci`, `--agent-files` | `.github/workflows/ci.yml`, `AGENTS.md` |
+| `--agent-files-example` | nothing: recorded `false`, the lines it writes being the team's to replace |
 | `--has-api` | the `src/Presentation/<Initials>.Api` folder |
 | `--scope`, `--workspace` | the name in `src/Web/package.json`, the project's name in kebab case without one; `src/Web` |
 

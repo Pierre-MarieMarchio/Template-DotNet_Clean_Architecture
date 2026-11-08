@@ -36,7 +36,7 @@ public sealed class RoleCheckTests
             .Select(member => $"{member.DeclaringType?.Name}.{member.Name}")
             .ShouldBeEmpty(
                 "A use case knows who the caller is, never the caller's roles or claims: a role is a policy the host "
-                + "puts on what it exposes (docs/architecture/request-pipeline.md, under Authorisation). Remove the member, and check the role in the host.");
+                + "puts on what it exposes. Remove the member, and check the role in the host.");
     }
 
     [Fact]

@@ -5,12 +5,29 @@ internal static class TestRuns
     public static string[] Skipped(string root, TextWriter output)
     {
         string[] skipped = TestProjects.SkippedHere(TestProjects.All(root));
+        Name(root, skipped, output);
+        return skipped;
+    }
+
+    public static void Name(string root, IEnumerable<string> skipped, TextWriter output)
+    {
         foreach (string test in skipped)
         {
             output.WriteLine(TestProjects.SkipLine(root, test));
         }
+    }
 
-        return skipped;
+    public static int AroundSkipped(string root, TextWriter output, Func<string[], int> run)
+    {
+        string[] skipped = Skipped(root, output);
+        try
+        {
+            return run(skipped);
+        }
+        finally
+        {
+            Name(root, skipped, output);
+        }
     }
 
     public static int RunBuilt(LocatedProject project, Shell shell, BuildSettings settings) =>
@@ -18,16 +35,18 @@ internal static class TestRuns
         {
             string root = project.Root;
             string solution = Path.Combine(root, ProjectLayout.Solution(project));
-            string[] skipped = Skipped(root, shell.Output);
-            string? run = skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
-            try
+            return AroundSkipped(root, shell.Output, skipped =>
             {
-                return shell.Run(Dotnet.Test(root, ProjectPath.Relative(root, run ?? solution), settings.Configuration, ["--no-build", .. settings.Modules]));
-            }
-            finally
-            {
-                SolutionFilter.Delete(run);
-            }
+                string? run = skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
+                try
+                {
+                    return shell.Run(Dotnet.Test(root, ProjectPath.Relative(root, run ?? solution), settings.Configuration, ["--no-build", .. settings.Modules]));
+                }
+                finally
+                {
+                    SolutionFilter.Delete(run);
+                }
+            });
         });
 
     public static int Guarded(Shell shell, Func<int> run)

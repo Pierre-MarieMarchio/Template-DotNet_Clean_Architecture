@@ -77,7 +77,7 @@ public sealed class QuestionnaireTests
     {
         TemplateManifest presentation = Repository.Source.Manifest(TemplateKind.Presentation);
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
-        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false" };
+        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["database"] = "postgresql", ["has-client"] = "false" };
 
         LauncherException error = Should.Throw<LauncherException>(() => questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>()));
 
@@ -104,7 +104,7 @@ public sealed class QuestionnaireTests
         var console = new TestConsole();
         console.Profile.Width = Terminal.UnwrappedWidth;
         var questionnaire = new Questionnaire(console, interactive: false, yes: false);
-        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false", ["has-api"] = "false", ["ci"] = "true" };
+        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["has-client"] = "false", ["has-api"] = "false", ["ci"] = "true" };
 
         Dictionary<string, string> answers = questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>());
 

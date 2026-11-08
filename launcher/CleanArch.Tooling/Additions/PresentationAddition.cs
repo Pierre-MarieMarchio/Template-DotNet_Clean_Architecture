@@ -29,7 +29,6 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
             ["files"] = Condition.Of(project.Files),
             ["hasClient"] = Condition.Of(project.HasClient),
             ["database"] = project.Database,
-            ["agentFiles"] = Condition.Of(project.AgentFiles),
             ["hasApi"] = Condition.Of(project.HasApi),
             ["ci"] = Condition.Of(project.Ci),
         };

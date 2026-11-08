@@ -64,7 +64,9 @@ by default). The API computes the digest, registers, stores and confirms, and an
 the file `deposited`. This route is not idempotent: a retried upload creates a second file.
 
 A name is a label, never a path: separators, control characters and reserved device names are
-refused, and the object key is generated apart from it.
+refused, and the object key is generated apart from it. Names, keys and media types are refused on
+the character, never sanitised: a sanitised value is one the caller still chose, rewritten by a
+rule they can study.
 
 ## Downloading
 
@@ -87,6 +89,17 @@ The bucket, or the root directory, belongs to this feature alone: the orphan swe
 whatever no row references. Leave the S3 key pair empty in production so the SDK resolves an
 instance role, and never allow anonymous reads on the bucket.
 
+An object key is `t0/<yyyyMM>/<128 random bits in hex>`, minted once and stored on the row, never a
+formula over the file's id, which is ordered and guessable. The month slice keeps the orphan sweep's
+walk ordered, and `t0` is a reserved partition. An upload carries its declared SHA-256 and length,
+and the store keeps the whole object or nothing; the file-system store hashes as it writes and
+publishes only a match. A grant is a narrow bearer right: signed for the host the client uses
+(`Files:Storage:S3:PublicEndpoint`), for exactly the declared bytes, with every header signed, and
+for no longer than `Files:Storage:S3:MaxGrantLifetime`. Files served through the API itself, or a
+tenant partition in place of `t0`, would reopen these choices. `ObjectKeyTests`,
+`SignedGrantTests` and `PublicEndpointTests` hold them, and `StoredFileMapperObjectKeyTests` keeps
+the key from being altered between the row and the aggregate.
+
 ## Inspection and scanning
 
 A deposited file becomes readable only after the inspection pass. It refuses, by quarantine:
@@ -94,8 +107,16 @@ markup in any category, whatever was declared, since nothing here sanitises it; 
 disagree with the declared type, when the category verifies signatures; and content a `clamd`
 daemon flags, when the category scans. Scanning is off by default (`Files:Scanning:Enabled`), and
 a category may scan only once it is on. A scanner that cannot be reached leaves the file
-`deposited` and retries later: no verdict is never a pass. The refusal does not say which check
-tripped; the log does.
+`deposited` and retries later: no verdict is never a pass, and an answer the scanner sends that
+cannot be parsed is no verdict either. The refusal does not say which check tripped; the log does.
+
+The type comes from the file's leading bytes, never from its extension or the declared type, which
+the caller controls. A type with no signature, such as CSV or JSON, is released: that is the limit of
+what the leading bytes decide. A project that must accept XML or SVG changes the tests that refuse
+markup, and owes a sanitiser first. A refused file keeps its bytes for an investigation: deleting it
+is the one path that reclaims them, so the orphan sweep can trust that a key no row names is
+garbage. Turning scanning on is a deployment's duty. `StoredFileNameTests`,
+`StoredFileContentPolicyTests` and `ClamAvScannerTests` hold these rules.
 
 The inspection interval (`Jobs:Files:InspectDepositedFilesInterval`, one minute) is a latency
 users feel: `availableAt` stays `null` until then.

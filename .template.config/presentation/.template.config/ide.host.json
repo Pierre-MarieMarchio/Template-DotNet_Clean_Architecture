@@ -48,13 +48,6 @@
       "isVisible": true
     },
     {
-      "id": "agentFiles",
-      "name": {
-        "text": "Project generated with --agent-files"
-      },
-      "isVisible": true
-    },
-    {
       "id": "hasClient",
       "name": {
         "text": "Project holds the .NET client"

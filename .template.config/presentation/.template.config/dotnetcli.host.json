@@ -5,10 +5,6 @@
       "longName": "project-name",
       "shortName": ""
     },
-    "agentFiles": {
-      "longName": "agent-files",
-      "shortName": ""
-    },
     "hasClient": {
       "longName": "has-client",
       "shortName": ""

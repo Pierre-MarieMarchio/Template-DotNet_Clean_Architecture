@@ -143,7 +143,7 @@ public sealed class AddCommandTests : IDisposable
             [
                 "DOTNET_CLI_UI_LANGUAGE=en dotnet new uninstall",
                 "DOTNET_CLI_UI_LANGUAGE=en dotnet new install CleanArch.WebApi.Templates@1.2.3",
-                "DOTNET_CLI_UI_LANGUAGE=en dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --examples none --files false --agent-files false --has-client true --ci false",
+                "DOTNET_CLI_UI_LANGUAGE=en dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --examples none --files false --has-client true --ci false",
             ]);
         _steps.Ran.ShouldBe(["presentation-join Acme.Shop.Portal", "presentation-scaffold Acme.Shop.Portal"]);
         _output.ToString().ShouldContain("Scaffold done.");

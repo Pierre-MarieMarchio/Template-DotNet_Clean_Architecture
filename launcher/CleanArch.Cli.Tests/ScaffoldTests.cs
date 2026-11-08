@@ -67,7 +67,7 @@ public sealed class ScaffoldTests : IDisposable
             ["format", Full(_desktopTests)],
             ["format", Full(_clientProject)],
             ["tool", "restore"],
-            ["tool", "run", "kiota", "generate", "--language", "CSharp", "--openapi", Full(_reference), "--output", Path.Combine(_project.Root, "src", "Presentation", "AS.Presentation.Client", "Generated"), "--class-name", "ApiClient", "--namespace-name", "Acme.Shop.Client.Generated", "--exclude-backward-compatible", "--clean-output", "--log-level", "Warning"],
+            ["tool", "run", "kiota", "generate", "--language", "CSharp", "--openapi", Full(_reference), "--output", Path.Combine(_project.Root, "src", "Presentation", "AS.Presentation.Client", "Generated"), "--class-name", "ApiClient", "--namespace-name", "Acme.Shop.Presentation.Client.Generated", "--exclude-backward-compatible", "--clean-output", "--log-level", "Warning"],
         ]);
         _calls.Take(3).ShouldAllBe(call => call.CloseInput);
         File.ReadAllText(Full(Path.Combine(_desktop, "Views", "Main.axaml"))).ShouldBe("<Window>\n</Window>\n");

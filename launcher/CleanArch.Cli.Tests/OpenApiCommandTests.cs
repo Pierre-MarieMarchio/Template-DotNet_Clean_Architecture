@@ -70,7 +70,7 @@ public sealed class OpenApiCommandTests : IDisposable
             "--openapi", Path.Combine(project.Root, _referencePath),
             "--output", Path.Combine(project.Root, _generated),
             "--class-name", "ApiClient",
-            "--namespace-name", "Acme.Shop.Client.Generated",
+            "--namespace-name", "Acme.Shop.Presentation.Client.Generated",
             "--exclude-backward-compatible",
             "--clean-output",
             "--log-level", "Warning",

@@ -163,37 +163,6 @@ the command stops:
 
   ```
 
-<!--#if (agentFiles)-->
-- in `AGENTS.md`, after the line:
-
-  ```markdown
-  migration, and the other commands assume it.
-  ```
-
-  add:
-
-  ```markdown
-  It first creates the presentation project's pages.
-  <!--#if (!hasClient)-->
-  It then writes the .NET client from the OpenAPI reference.
-  <!--#endif-->
-  ```
-
-<!--#if (!hasClient)-->
-- in `AGENTS.md`, after the line:
-
-  ```markdown
-  | After changing the model | `dotnet cleanarch migrations add <Name>` | the initial migration bootstrap creates |
-  ```
-
-  add:
-
-  ```markdown
-  | After changing a route or a contract | `dotnet cleanarch openapi`, which writes the OpenAPI reference and the .NET client | the tools `dotnet tool restore` restores |
-  ```
-
-<!--#endif-->
-<!--#endif-->
 - in `tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   line:
 

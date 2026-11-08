@@ -669,7 +669,7 @@ The edits:
 - in `src/Web/AGENTS.md`, before the line:
 
   ```markdown
-  - A new app or package comes from `dotnet new cleanarch-webapp` or `dotnet new cleanarch-webpackage`
+  - A new app or package comes from `dotnet cleanarch add web-app` or `dotnet cleanarch add web-package`,
   ```
 
   add:

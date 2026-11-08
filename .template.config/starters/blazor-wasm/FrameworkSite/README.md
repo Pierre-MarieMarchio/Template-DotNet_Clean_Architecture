@@ -286,32 +286,6 @@ It then creates the app as above; commit it. The edits, to make by hand where th
   src/Web/apps/FrameworkSite/obj/
   ```
 
-<!--#if (agentFiles && !hasClient)-->
-- in `AGENTS.md`, after the line:
-
-  ```markdown
-  migration, and the other commands assume it.
-  ```
-
-  add:
-
-  ```markdown
-  It then writes the .NET client from the OpenAPI reference.
-  ```
-
-- in `AGENTS.md`, after the line:
-
-  ```markdown
-  | After changing the model | `dotnet cleanarch migrations add <Name>` | the initial migration bootstrap creates |
-  ```
-
-  add:
-
-  ```markdown
-  | After changing a route or a contract | `dotnet cleanarch openapi`, which writes the OpenAPI reference and the .NET client | the tools `dotnet tool restore` restores |
-  ```
-
-<!--#endif-->
 <!--#if (agentFiles)-->
 - in `src/Web/AGENTS.md`, before the line:
 

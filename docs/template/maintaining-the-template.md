@@ -406,8 +406,9 @@ No object store runs.
   shared pages are conditioned the same way.
 - `AGENTS.md` is the only agent file, and `--agent-files false` leaves it out: a page that points to
   it conditions that sentence or row on `agentFiles`, and points to the page that owns the rule
-  otherwise. Keep `AGENTS.md` concise and pragmatic, and link to a page rather than restate it. Its
-  closing section, `## This project`, belongs to the project's team:
+  otherwise. Keep `AGENTS.md` concise and pragmatic, and link to a page rather than restate it: it
+  renders at most 125 lines in every form, and `src/Web/AGENTS.md` at most 60, which
+  `AgentFileLengthTests` holds. Its closing section, `## This project`, belongs to the project's team:
   the template ships prompts there, or example lines under `--agent-files-example true`, and writes
   nothing else in it. No join edits the root `AGENTS.md`, so a line of it never depends on a part a
   project can gain later; a join edits `src/Web/AGENTS.md` alone.

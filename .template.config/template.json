@@ -1807,6 +1807,7 @@
             "tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
             "tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",
             "tests/Architecture/AT.Architecture.Tests/Rules/ConditionedMarkdownTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/AgentFileLengthTests.cs",
             "tests/Architecture/AT.Architecture.Tests/Fixtures/TemplateForms.cs"
           ]
         },

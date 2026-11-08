@@ -1,6 +1,5 @@
 # Agents
 
-How to work in this repository: the commands, where code goes, the rules, and what done means.
 <!--#if (api && localAuth)-->
 This project is a .NET 10 HTTP API on Clean Architecture whose callers sign in with local accounts.
 <!--#endif-->
@@ -19,213 +18,124 @@ This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, 
 <!--#if (!api && publicApi)-->
 This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, that authenticates nobody.
 <!--#endif-->
+Your request comes first, then the `AGENTS.md` nearest the file you change, then this one; a folder
+holding its own, such as the web workspace when there is one, adds what that folder needs.
 
-Your request comes first, then the `AGENTS.md` nearest the file you change, then this one. A folder
-holding its own `AGENTS.md` adds what that folder needs: read it before changing a file there.
-<!--#if (anyWeb)-->
-`src/Web/AGENTS.md` is the one for the web workspace.
-<!--#endif-->
-Read [the overview](docs/getting-started/overview.md) and [the architecture](docs/architecture/README.md)
-once before a change that adds a type; [the documentation index](docs/README.md) leads to every page.
+## Start here
+
+[The documentation index](docs/README.md) says which page answers which question: open the page
+before reading code to find the answer. Before you:
+
+| Do this | Read |
+|---|---|
+| Add your first type | [the overview](docs/getting-started/overview.md), then [the architecture](docs/architecture/README.md) |
+| Add or change a feature | [adding a feature](docs/guides/adding-a-feature.md), [feature shapes](docs/architecture/feature-shapes.md) |
+| Call another feature | [reaching another feature](docs/guides/reaching-another-feature.md) |
+| Change the model | [migrations](docs/guides/migrations.md) |
+| Add a setting | [adding a setting](docs/guides/adding-a-setting.md) |
+| Write a test | [the house rules](docs/guides/testing.md#house-rules) |
+| Ask why a choice was made | [the decisions](docs/decisions/README.md) |
+
+When two sources disagree, the first wins and the other is a defect to fix in the same change: tests
+and code, then the ADRs in `docs/decisions/`, then the pages, then the tables in `docs/reference/`.
 
 ## Commands
 
-<!--#if (api)-->
-From the repository root. Right after generating, before anything else, run `dotnet tool restore`,
-which restores the project's own `dotnet cleanarch`, pinned at the template's version, then
-`dotnet cleanarch bootstrap`, and commit what it writes: it formats the usings the rename reordered,
-writes the documentation index and the OpenAPI reference, and creates each context's initial
-migration, and the other commands assume it.
-<!--#endif-->
-<!--#if (!api)-->
-From the repository root. Right after generating, before anything else, run `dotnet tool restore`,
-which restores the project's own `dotnet cleanarch`, pinned at the template's version, then
-`dotnet cleanarch bootstrap`, and commit what it writes: it formats the usings the rename reordered,
-writes the documentation index and creates each context's initial migration, and the other commands
-assume it.
-<!--#endif-->
-<!--#if (presentationBlazorServer || presentationAvalonia)-->
-It first creates the presentation project's pages.
-<!--#endif-->
-<!--#if (presentationMcp)-->
-It first adds the MCP server to the solution.
-<!--#endif-->
-<!--#if (dotnetClient)-->
-It then writes the .NET client from the OpenAPI reference.
-<!--#endif-->
-[The project tool](docs/reference/cli.md) says what each command does and when it is refused.
-
-| When | Command | Needs |
-|---|---|---|
-| Once, right after generating | `dotnet tool restore`, then `dotnet cleanarch bootstrap` | the network |
-| While you work | `dotnet cleanarch check` (what you touched: format, build, architecture and unit tests) | nothing |
-| Over the whole tree, without Docker | `dotnet cleanarch test --no-integration` | nothing |
-| The structural rules alone | `dotnet test --project tests/Architecture/AT.Architecture.Tests` | nothing |
-| After creating or moving a file | `dotnet cleanarch format` (commit apart what it rewrites in files you did not touch; it names each name it cannot fix) | nothing |
-| After adding, removing or renaming a page under `docs/`, or changing its frontmatter | `dotnet cleanarch docs-index` | nothing |
-| After changing the model | `dotnet cleanarch migrations add <Name>` | the initial migration bootstrap creates |
-| <!--#if (dotnetClient)--> |
-| After changing a route or a contract | `dotnet cleanarch openapi`, which writes the OpenAPI reference and the .NET client | the tools `dotnet tool restore` restores |
-| <!--#endif--> |
-| <!--#if (anyWeb)--> |
-| After changing a route or a contract, with the web workspace | `dotnet cleanarch openapi`, which also runs `pnpm api <reference>` | the .NET SDK, Node.js and pnpm |
-| <!--#endif--> |
-| <!--#if (canAddFeature)--> |
-| After adding a field to a feature `add feature --fields` generated | `dotnet cleanarch add field <Features> "<Name>:<type>=<default>"` | the feature's manifest, which records its fields |
-| After adding a feature's setting | `dotnet cleanarch add setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>"` | the feature registered in a host |
-| After adding a domain event | `dotnet cleanarch add event <Features> <Event> --consumer <Features>:<Reaction>`, or `--unconsumed "<reason>"` | the feature in the rich shape |
-| <!--#endif--> |
-| Every command and option | `dotnet cleanarch help`, `dotnet cleanarch <command> --help`; `-m:<N>` caps build and test parallelism | nothing |
-| <!--#if (!anyWeb)--> |
-| Before calling a change done | `dotnet cleanarch verify`, then `dotnet cleanarch coverage` | Docker, the tools `dotnet tool restore` restores |
-| <!--#endif--> |
-| <!--#if (anyWeb)--> |
-| Before calling a change done | `dotnet cleanarch verify`, then `dotnet cleanarch coverage` | Docker, the tools `dotnet tool restore` restores, Node.js and pnpm |
-| <!--#endif--> |
+| When | Run |
+|---|---|
+| Once, right after generating | `dotnet tool restore`, then `dotnet cleanarch bootstrap`; commit what it writes |
+| While you work | `dotnet cleanarch check`: format, build and tests of what you touched |
+| Over the whole tree, without Docker | `dotnet cleanarch test --no-integration` |
+| After creating or moving a file | `dotnet cleanarch format` |
+| After adding a page under `docs/` or changing its frontmatter | `dotnet cleanarch docs-index` |
+| After changing the model | `dotnet cleanarch migrations add <Name>` |
 | <!--#if (api)--> |
-| After changing the stack, a mail or a relay | `dotnet cleanarch end-to-end` | Docker |
+| After changing a route or a contract | `dotnet cleanarch openapi`: the reference and all it generates |
+| After changing the stack, a mail or a relay | `dotnet cleanarch end-to-end`, with Docker |
 | <!--#endif--> |
 | <!--#if (aspire)--> |
-| The stack from one command, with the Aspire dashboard | `dotnet run --project src/AppHost/AT.AppHost`; a Compose service or host setting you add goes into the app host too, as `LocalStackParityTests` demands | Docker, the network on its first build |
+| The stack with its dashboard; a Compose service goes there too | `dotnet run --project src/AppHost/AT.AppHost` |
 | <!--#endif--> |
-| Before taking a newer version of the package that generated the project | `dotnet cleanarch upgrade-report --keep <folder>` ([upgrading](docs/guides/upgrading.md)); it writes nothing in the project | the NuGet sources, or `--source` |
+| Before calling a change done | `dotnet cleanarch verify`, then `dotnet cleanarch coverage`, with Docker |
+| Before taking a newer template version | `dotnet cleanarch upgrade-report --keep <folder>`, which writes nothing |
+| Any other command | `dotnet cleanarch help --json`, or [the project tool](docs/reference/cli.md) |
 
-## Where code goes
-
-- [Project layout](docs/reference/project-layout.md): which project and folder a file goes in, and its
-  name.
-- [Feature shapes](docs/architecture/feature-shapes.md): an aggregate, or a service over a store;
-  choose the aggregate when use cases beyond the five operations are foreseen (`add use-case`
-  refuses a service).
-- [Modules and boundaries](docs/architecture/modules-and-boundaries.md): what may depend on what.
-<!--#if (api)-->
-- [HTTP API](docs/architecture/http-api.md): the contract every endpoint offers.
-<!--#endif-->
-- A registration, an anonymous endpoint, a folder word, a domain event or a new project joins a list a
-  test reads; [the closed lists](docs/guides/adding-a-feature.md#the-closed-lists-a-feature-joins)
-  name each one and the test that fails until it is there.
-
-## Changing code
-
-- Clean comments: the code reads by itself, through its names and its shape. A comment stays only
-  when it says what the code cannot: a reason, a constraint from outside, a reference. A comment that
-  explains what the code does means the code needs reworking: rename, extract or simplify it. A
-  reason that outlives a line goes to an ADR or a page.
-- Never silence a diagnostic with `#pragma`, `<NoWarn>`, a lowered severity or a skipped test: fix the
-  code, or ask. [The gate](docs/guides/build-and-ci.md#the-gate) says why, and lists with its reason
-  each silence this project keeps; `SilencedDiagnosticTests` fails on any other.
-- Extract an abstraction only once two real cases prove its shape.
-- A new setting is an options class with its `IValidateOptions`, bound with `ValidateOnStart`, and
-  gets its own section in [the configuration reference](docs/reference/configuration.md);
-  `ConfigurationSurfaceTests` fails until it has one.
-<!--#if (canAddFeature)-->
-  `add setting` writes all of it; [adding a setting](docs/guides/adding-a-setting.md) says what it
-  writes and what stays yours.
-<!--#endif-->
-<!--#if (!canAddFeature)-->
-  [Adding a setting](docs/guides/adding-a-setting.md) has the steps.
-<!--#endif-->
-- A test follows [the house rules](docs/guides/testing.md#house-rules), and a test that buys a
-  guarantee is seen failing once: break the code, watch it go red, restore it.
-<!--#if (accounts)-->
-- Another caller's record answers `404`, never `403`: the owner is in the query
-  ([ADR 0009](docs/decisions/0009-ownership-is-in-the-query.md)).
-<!--#endif-->
-- A rule checked by hand becomes a test in `tests/Architecture`; a decision is an ADR and the test
-  that holds it, changed together.
-
-## Files not edited by hand
+## Generators first
 
 <!--#if (canAddFeature)-->
-- `.feature-manifest/`: `remove feature` reads its files, hashes and edits to know what is the feature's
-  and to undo each edit as it was made.
-<!--#endif-->
-<!--#if (canAddFeature)-->
-- A migration: `dotnet ef` writes it, bootstrap the first, and `add field` sets the default of each
-  column it adds in the one it has just added; one a database has applied is never rewritten, as
-  [migrations](docs/guides/migrations.md) says.
-<!--#endif-->
-<!--#if (!canAddFeature)-->
-- A migration: `dotnet ef` writes it, bootstrap the first; one a database has applied is never
-  rewritten, as [migrations](docs/guides/migrations.md) says.
-<!--#endif-->
-- `coverage.minimum`: never lowered to pass; re-measured as [testing](docs/guides/testing.md#coverage)
-  says.
-- A folder's `docs/<folder>/index.md`: `docs-index` writes it from each page's frontmatter, bootstrap
-  the first, and `verify` fails when one no longer lists its folder's pages.
-- `cleanarch.json`: generation writes it and `add web-app`, `add web-package` or `add presentation` records a part added
-  since, as [the project file](docs/reference/project-layout.md#the-project-file) says.
+A feature, a field, a use case, a setting or an event comes from its generator, which writes its
+tests, its page and every registration; write by hand only what it leaves to you.
 
-## Writing docs
-
-- One question per page, in the voice of "this project": no history, no plan vocabulary.
-- A new page starts from `docs/_page-templates/`; `docs-index` then lists it in its folder's index
-  from the frontmatter every page under `docs/` opens with, whose fields
-  [the documentation index](docs/README.md#adding-a-page) lists.
-- A choice another team could reasonably have made otherwise is an ADR;
-  [decisions](docs/decisions/README.md) holds the criteria, and the page links to it in one line.
-- Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.
-  `DocumentationCitationTests` checks the root pages, the `AGENTS.md` files, every page under `docs/` and every `dotnet cleanarch` command a page cites.
-- Markdown files are UTF-8 without BOM and C# files UTF-8 with BOM, both with LF line endings;
-  `format` repairs them.
-
-## Adding or removing a feature
-
-<!--#if (canAddFeature)-->
 ```bash
 dotnet cleanarch add feature <Features> <Feature> --access owner --deletion delete|anonymise
-dotnet cleanarch add feature <Features> <Feature> --access shared
 dotnet cleanarch add feature <Features> <Feature> --access shared --fields "Title:string(120), Budget:decimal>=0"
 dotnet cleanarch add field <Features> "Code:string(20)='none', Notes:text?"
 dotnet cleanarch add use-case <Features> <UseCase> --kind command|query
 dotnet cleanarch add setting <Features> <Section> --keys "MaxItems:int(1..100)=10"
 dotnet cleanarch add event <Features> <Event> --consumer <Features>:<Reaction>
-dotnet cleanarch remove feature <Features>           # reports, writes nothing
-dotnet cleanarch remove feature <Features> --apply   # removes it, edited or not, once committed
+dotnet cleanarch remove feature <Features>   # reports; --apply removes it, once committed
 ```
 
-<!--#endif-->
-<!--#if (canAddFeature && api)-->
-`add feature` writes the skeleton, its manifest and its page, and makes the edits that compose it
-with its rows in `docs/reference/api.md`: every edit or none, each recorded in the manifest. It
-refuses while a model change waits for a migration, then writes the documentation index again,
-builds once and, from that build, adds the `Add<Features>` migration and rewrites the OpenAPI reference and what is written
-from it;
-`--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
-validator and the aggregate and carried down to its column, its contracts and its tests, an
-integration test among them; without it the fields are `Name` and `Description`, placeholders you
-rewrite. `add use-case` adds one operation to a rich feature, with its action, its contracts and its
-route's row, then rewrites the OpenAPI reference; it refuses a simple feature, to promote first as
-[feature shapes](docs/architecture/feature-shapes.md) says.
-<!--#endif-->
-<!--#if (canAddFeature && !api)-->
-`add feature` writes the skeleton in every layer but an HTTP one, which this project does not hold,
-with its manifest and its page, and makes the edits that compose it, each host's `Program.cs` among
-them: every edit or none, each recorded in the manifest. It refuses while a model change waits for a
-migration, then writes the documentation index again, builds and adds the `Add<Features>` migration;
-`--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
-validator and the aggregate and carried down to its column and its tests; without it the fields are
-`Name` and `Description`, placeholders you rewrite. `add use-case` adds one operation to a rich
-feature, refuses a simple one (promote it first, as [feature shapes](docs/architecture/feature-shapes.md)
-says) and prints the hosts that may offer it.
-<!--#endif-->
-<!--#if (canAddFeature)-->
-`add setting` writes a feature's options class and validator, registers them, ships the section in
-each host's `appsettings.json` and lists it in the configuration reference; `add event` writes a
-domain event, its consumer or its place on the list of events nobody consumes, and their tests. Each
-writes everything or nothing, and `--dry-run` prints what it would write.
-`add field` adds fields to a feature `add feature --fields` generated, in every member `--fields`
-writes them in, found through each file's syntax tree, and refuses a member changed by hand; it adds
-their migration with the default each field that cannot be null gives the rows already stored, and
-says when a required field breaks the callers of the create and update operations.
-[Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
+- Run it with `--dry-run` first; it writes everything or nothing, and refuses while a model change
+  waits for a migration.
+- Without `--fields`, the fields are `Name` and `Description`: placeholders to rewrite.
+- `add use-case` and `add event` need the rich shape; promote a simple feature first.
 <!--#endif-->
 <!--#if (!canAddFeature)-->
-This project authenticates nobody, so `add feature` refuses it; write a feature by hand from
-[adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_page-templates/feature.md`,
-then run `docs-index`. `add use-case` then adds one operation to it once it has the rich
-shape. [Removing features](docs/guides/removing-features.md) gives the reverse.
+This project authenticates nobody, so `add feature` refuses it: write a feature by hand from
+[adding a feature](docs/guides/adding-a-feature.md), its page from `docs/_page-templates/feature.md`.
+`dotnet cleanarch add use-case <Features> <UseCase> --kind command|query` then adds an operation to
+it once it has the rich shape, and `--dry-run` shows what it would write.
 <!--#endif-->
+
+## Where code goes
+
+- Domain references nothing; Application, the domain; Infrastructure, the application; Presentation,
+  the application, and only a host references the infrastructure modules.
+- [Project layout](docs/reference/project-layout.md): the project, folder and name of each file.
+- [Feature shapes](docs/architecture/feature-shapes.md): an aggregate when the feature has rules that
+  protect a state, a service over a store otherwise; size does not enter into it.
+- [Modules and boundaries](docs/architecture/modules-and-boundaries.md): how features meet.
+<!--#if (api)-->
+- [HTTP API](docs/architecture/http-api.md): the contract every endpoint offers.
+<!--#endif-->
+- A registration, an anonymous endpoint, a folder word, a domain event or a project joins a list a
+  test reads: [the closed lists](docs/guides/adding-a-feature.md#the-closed-lists-a-feature-joins).
+
+## Changing code
+
+- The code reads by itself. A comment says only what the code cannot: a reason, an outside
+  constraint, a reference. One that explains what the code does asks for a rename or an extraction.
+- Extract an abstraction only once two real cases prove its shape.
+- A test that buys a guarantee is seen failing once: break the code, watch it go red, restore it.
+- A rule checked by hand becomes a test in `tests/Architecture`; a decision is an ADR and the test
+  that holds it, changed together.
+
+## Never
+
+- Silence a diagnostic with `#pragma`, `<NoWarn>`, a lowered severity or a skipped test: fix the
+  code, or ask. [The gate](docs/guides/build-and-ci.md#the-gate) lists the silences kept.
+<!--#if (canAddFeature)-->
+- Edit by hand what a command writes: `.feature-manifest/`, `cleanarch.json`, a folder's
+  `docs/<folder>/index.md`; nor rewrite a migration a database has applied.
+<!--#endif-->
+<!--#if (!canAddFeature)-->
+- Edit by hand what a command writes: `cleanarch.json`, a folder's `docs/<folder>/index.md`; nor
+  rewrite a migration a database has applied.
+<!--#endif-->
+- Lower `coverage.minimum` to pass: [re-measure it](docs/guides/testing.md#coverage).
+<!--#if (accounts)-->
+- Answer `403` for another caller's record: it answers `404`, the owner being in the query
+  ([ADR 0009](docs/decisions/0009-ownership-is-in-the-query.md)).
+<!--#endif-->
+
+## Writing docs
+
+- One question per page, in the voice of "this project": no history, no plan vocabulary.
+- A page starts from `docs/_page-templates/` with [its frontmatter](docs/README.md#adding-a-page),
+  then `dotnet cleanarch docs-index` lists it.
+- A choice another team could have made otherwise is an ADR: [the criteria](docs/decisions/README.md).
+- Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.
 
 ## Done means
 
@@ -233,27 +143,38 @@ shape. [Removing features](docs/guides/removing-features.md) gives the reverse.
 <!--#if (ci)-->
   `.github/workflows/ci.yml` runs the same gate on every pull request.
 <!--#endif-->
-- Without Docker, or when `verify` or `coverage` stops on the machine rather than on a test, run what
-  can run (`test --no-integration`, the failing step's command by hand) and say which gate did not
-  run and why; a change is never done on a build alone.
-- The report names what ran, with its result, and what did not run. A change that compiles is not a
-  guarantee proved: say which test holds it.
-- The docs move with the code: a page that cites a moved file, the page of a new capability, the
-  configuration row of a new setting, the ADR of a new choice.
+- Without Docker, or when a gate stops on the machine rather than on a test, run what can run
+  (`test --no-integration`, the failing step by hand) and say what did not run and why.
+- The report names what ran, with its result, and the test that holds each guarantee: a change that
+  compiles proves nothing.
+- The docs move with the code: a moved file's citations, a new capability's page, a new setting's
+  row, a new choice's ADR.
 - One concern per change, as [pull requests](CONTRIBUTING.md#pull-requests) asks.
-- No `Co-Authored-By` and no "Generated with" line in a commit or a pull request you write (bots keep
-  their own messages); add an `Assisted-by: <tool>:<model>` trailer instead, and the author answers
-  for every line
-  ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)).
+- No `Co-Authored-By` nor "Generated with" in a commit or pull request: an `Assisted-by: <tool>:<model>`
+  trailer, and the author answers for every line ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)).
 
-## Where truths live
+## This project
 
-When two sources disagree, the first wins, and the disagreement is a defect to fix in the same change:
+<!--#if (!agentFilesExample)-->
+Written by this project's team: what no page above holds. Replace each _to fill_ with it and delete
+a line that does not apply; until then a line says nothing.
 
-1. The tests and the code. `tests/Architecture` holds the structural rules.
-2. The ADRs in `docs/decisions/`: why a choice was made.
-3. The pages under `docs/`: how it works and how to use it.
-4. The reference tables in `docs/reference/`: settings, routes, codes, folders.
+- Domain and words: _to fill_, what the product does and what its terms mean.
+- Systems it talks to: _to fill_, each outside service and who owns it.
+- Leave alone: _to fill_, a folder or behaviour not to change, and why.
+- Ask first: _to fill_, a change a person decides, such as a dependency or a public route.
+- Departures: _to fill_, where this project departs from the pages above, and the ADR that says why.
+<!--#endif-->
+<!--#if (agentFilesExample)-->
+Written by this project's team: what no page above holds. Each line still marked _Example_ is about a
+made-up product and says nothing of this one: replace it, or delete the line.
+
+- Domain and words: _Example_, climbing gyms rent wall slots; a slot is one wall for one hour.
+- Systems it talks to: _Example_, the payment provider, owned by finance; the door controllers.
+- Leave alone: _Example_, the pass pricing rules, set by contract with each gym.
+- Ask first: _Example_, any new package, any change to a public route.
+- Departures: _Example_, bookings keep a cancelled status, as the ADR on cancelled slots says why.
+<!--#endif-->
 <!--#if (templateMaintenance)-->
 
 ## Working on the template

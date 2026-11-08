@@ -197,20 +197,6 @@ the command stops:
   ```
 
 <!--#endif-->
-<!--#if (agentFiles)-->
-- in `AGENTS.md`, after the line:
-
-  ```markdown
-  migration, and the other commands assume it.
-  ```
-
-  add:
-
-  ```markdown
-  It first creates the presentation project's pages.
-  ```
-
-<!--#endif-->
 - in `tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   line:
 

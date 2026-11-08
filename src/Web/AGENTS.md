@@ -30,10 +30,8 @@ the API's last build instead.
   Change the API, run `pnpm api`, commit the result.
 - The workspace lockfile: pnpm writes it; commit it with the change that moved it, since CI and every
   image install exactly what it records.
-- `src/Web/patches/`: `pnpm patch` and `pnpm patch-commit` write it, and `patchedDependencies` in
-  `src/Web/pnpm-workspace.yaml` names it, by a version range where the first install resolves the
-  newest release, as for openapi-typescript's `@redocly/openapi-core`; an install that fails because
-  a new release refuses the patch needs the patch made again from that release.
+- `src/Web/patches/`: `pnpm patch` and `pnpm patch-commit` write it; when a new release refuses a
+  patch, make the patch again from that release.
 
 ## Rules
 
@@ -69,16 +67,14 @@ the API's last build instead.
 - [ADR 0024](../../docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why a
   server-rendered app runs on its own server and keeps the session there.
 <!--#endif-->
-- A new app or package comes from `dotnet new cleanarch-webapp` or `dotnet new cleanarch-webpackage`
-  at the project root; [more apps and packages](../../docs/features/web-frontend.md#more-apps-and-packages)
-  gives the lines to add after it.
+- A new app or package comes from `dotnet cleanarch add web-app` or `dotnet cleanarch add web-package`,
+  which make every edit it needs outside its folder, as [more apps and packages](../../docs/features/web-frontend.md#more-apps-and-packages) says.
 
 ## Done means
 
-`pnpm lint`, `pnpm test` and `pnpm build` pass here, and the root gate passes too: `verify` runs the
-three after a frozen install, and stops, saying how to install pnpm, on a machine without it. A change
-to what an app serves or relays is done once `end-to-end` passes, since only the browser smoke runs the
-page.
+`pnpm lint`, `pnpm test` and `pnpm build` pass here, and the root gate too, which runs them and
+needs Node.js and pnpm. A change to what an app serves or relays is done once `end-to-end` passes:
+only the browser smoke runs the page.
 <!--#if (ci)-->
 `.github/workflows/web.yml` runs the same three and fails when the committed client differs from what
 `pnpm api` writes.

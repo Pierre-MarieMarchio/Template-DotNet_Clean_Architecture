@@ -452,20 +452,6 @@ dotnet cleanarch migrations add AddAccessKeys --context auth
 
   ```
 
-<!--#if (agentFiles)-->
-- in `AGENTS.md`, after the line:
-
-  ```markdown
-  migration, and the other commands assume it.
-  ```
-
-  add:
-
-  ```markdown
-  It first adds the MCP server to the solution.
-  ```
-
-<!--#endif-->
 - in `tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   line:
 

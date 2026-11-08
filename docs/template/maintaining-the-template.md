@@ -242,7 +242,13 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 | anything else: `src`, `tests`, the shared pages, `tools`, the props, `template.json`, the other variants | every leg, the Windows ones included |
 
 The `windows, wpf, local auth` leg generates the default shape with the WPF app added and nothing
-else changed, so it proves the default project's tasks on Windows too. The two WPF legs carry the
+else changed, so it proves the default project's tasks on Windows too. A team on Windows runs those
+tasks from PowerShell, where paths, line endings and the processes a task starts differ from Linux,
+so a run on `ubuntu-latest` proves none of them there; one leg holding both the default shape and the
+Windows-only one spends the Windows runner minutes once, and it is required, so a break is found on
+the pull request rather than by a nightly run after the merge. Its steps are PowerShell, one `dotnet`
+command each, since that is what a Windows user types. Should Windows runner time come to weigh on
+the pace of pull requests, this is the leg to revisit. The two WPF legs carry the
 WPF starter's tag, as the Linux leg that adds the app with `cleanarch-presentation` does: a change to
 the starter builds the app and its tests on Linux, where the leg fails unless `test --no-integration`
 names the app's test project as skipped, and builds, tests and checks it on Windows under both kinds
@@ -344,6 +350,25 @@ An overlay file starts as a copy of its PostgreSQL counterpart, so `git log` on 
 change one of them missed.
 
 ## Adding an option
+
+An option removes, it never disables: what it leaves out is absent from the generated project, its
+code, tests, settings, pages and ADRs, so a project has no run-time flag to discover and no dead
+branch to delete. The cost is that every option multiplies the shapes to prove, which the legs and
+the refusal job pay. The `dotnet new` engine knows no constraint between parameters, so a
+combination that cannot hold is refused by a hidden parameter named after the rule
+(`authNoneNeedsExamplesNone`, `mcpNeedsAccounts`): its only choice is `refused`, its `isRequired`
+is the combination, and its description names the option to change, which `dotnet new` prints when
+it stops. The launcher evaluates that same `isRequired`, so a refusal keeps this shape and
+`refusedOptions` stays the union of the conditions; the launcher's tests fail on any combination
+where the two disagree. An engine that gains constraints between parameters would replace the
+hidden parameters.
+
+An option that names parts takes several values with `allowMultipleValues`, as `--presentation`
+does: the CLI repeats it once per value (`--presentation api --presentation mcp`; `api|mcp` and
+`api,mcp` are refused), and a condition reads `presentation == "mcp"` as "mcp is among the values"
+and `!=` as "not among them", in source modifiers, markers, generated switches and `isRequired`
+alike. One multi-valued option answers "which hosts" at once, where one boolean option per host
+would ask the same question six times.
 
 1. Declare the parameter in `.template.config/template.json` with its `displayName`, and a computed
    symbol when pages and code need a name for a combination. A hidden option or a long name goes in
@@ -586,6 +611,47 @@ Avalonia's by the leg that adds it with `cleanarch-presentation`, WPF's by the t
 the SQLite leg that adds it, the MCP server's by the legs that pass `--presentation mcp` and
 the SQLite external-auth leg that adds it with `cleanarch-presentation`.
 
+A starter's kind follows what its generator writes. A `dotnet` starter runs the template package its
+`scaffold.json` pins, at that exact version, in a hive of its own under the system's temporary
+folder, with the SDK's own templates disabled: the SDK bundles its own copy of Microsoft's templates,
+which is not the pinned version and refuses another beside it, and the engine names a lock after the
+hive's path. The starter still owns the project file, the composition root, the settings and the
+image, since editing the generator's XML would add back what the starter already knows. A starter is
+`written` when its generator writes nothing the project would keep, or cannot be pinned: running it
+would cost the network and a package for an output thrown away. A written starter follows the shape
+its generator gives at the version its descriptor names, needs no network and gives the same project
+on every machine; a change in the generator's output is noticed only by generating with the new
+version and comparing. The checkout's solution never names a starter's project, which the checkout
+cannot build. `TemplatePackagingTests` holds that each folder under `.template.config/starters` is a
+web starter or a presentation one, that a presentation starter is of kind `dotnet`, with the template
+it runs, or `written`, with the generator it follows and a project file of its own, and
+`EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt` that each value but `api` is one. A value
+names its generator and never changes meaning: `blazor-server` is `dotnet new blazor` with server
+interactivity and no authentication of its own.
+
+| Starter | Kind | Generator | What the project keeps of its output |
+|---|---|---|---|
+| `blazor-server` | `dotnet` | `dotnet new blazor` | `Components` and `wwwroot` |
+| `avalonia` | `dotnet` | `dotnet new avalonia.mvvm` | the files at its root and in `Assets`, `ViewModels` and `Views` |
+| `mcp` | `written` | `dotnet new mcpserver --transport remote` | nothing: the starter owns the project, `Program.cs`, the settings and the tools, and the sample tool goes |
+| `wpf` | `written` | `dotnet new wpf`, which ships with the SDK alone, nuget.org stopping at 3.0.0, so no hive can pin it | nothing: the starter owns the project, the window and the code-behind, and `App.xaml.cs` starts the host before any window |
+| `worker` | `written` | `dotnet new worker` | nothing: the starter owns the project, `Program.cs` and the settings, and the sample worker goes |
+
+The MCP server needs an authenticated caller: `mcpNeedsAccounts` refuses `--auth none` in both
+templates, since every tool acts for the caller its credential names and `--auth none` names nobody;
+a server acting for nobody would be refused by every owner-scoped use case and answer anyone who
+finds the address otherwise. `cleanarch-presentation` keeps `Portal` as `-n`'s default, since the
+engine fixes a default before it reads `--framework`, so its README passes `-n Mcp`.
+
+The WPF app is one project rather than view models in a `net10.0` sibling whose tests Linux could
+run: that would shape every WPF project around the template's runners, which its users do not have,
+and give the scaffold, the item template and the architecture rules a case of their own. Off Windows
+the tasks leave its test project out and print `Skipped <folder>: it targets <framework> and runs on
+Windows alone.`, rather than setting `IsTestProject` to `false`, which would leave it out in
+silence; they read the target framework from the test project's own file, which
+`WindowsTestProjectTests` holds, rather than evaluating every test project with MSBuild on each
+`check`.
+
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
 folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` and `wpf` it also brings
 `src/Presentation/AT.Presentation.Client`, `tests/Presentation/AT.Presentation.Client.UnitTests` and ADR 0023, which a project without a client lacks. For `worker`
@@ -701,7 +767,17 @@ sources of `template.json` copy them under the worker and its tests. Each namesp
 a generated switch symbol, `jobsNamespace<Folder>`, whose value is the API's or the worker's; a job
 folder a new feature brings needs one, and `TemplatePackagingTests` fails until it has it. The API's
 own files condition what composes the jobs (`AddBackgroundJobs`, `AddAuthMaintenanceJobs`, the
-sweep's registration and the `Jobs` settings) on `!jobsWorker`.
+sweep's registration and the `Jobs` settings) on `!jobsWorker`. The renaming goes through switch
+symbols because a replacement given as a custom operation is not applied to the files a glob selects;
+an engine that applied a replacement to one source's files alone would make them unnecessary. The
+jobs live once, in the API, rather than copied into the starter, where the two copies would drift,
+or in a library both hosts reference, a project every generated project would carry only to move it.
+
+The worker has a fixed name, `<Project>.Worker`: `cleanarch-presentation --framework worker` takes no
+`-n` but `Worker` (`workerIsNamedWorker`), and `presentationNameIsTaken` refuses `Worker` as the name
+of any other presentation project. It needs a server database (`workerNeedsServerDatabase`): an
+in-process lease cannot keep the API's maintenance routes out of the worker's pass, and a SQLite file
+serves one process.
 
 A project generated without the worker takes it later: `cleanarch-presentation --framework worker
 -n Worker` writes the starter and ADR 0025, and the project's `add presentation` does what the
@@ -823,7 +899,11 @@ model with the subset of each field profile. A change to a shared unit is made t
 ## The package
 
 `.template.config/TemplatePackage.csproj` packs the four templates into one NuGet package,
-`CleanArch.WebApi.Templates`; its `PackageId` is the one place that names it.
+`CleanArch.WebApi.Templates`; its `PackageId` is the one place that names it. nuget.org is the feed
+every page names, since GitHub's NuGet feed asks for a token to install even from a public
+repository, which a template's first command cannot ask for; the release mirrors the packages to
+GitHub Packages only so that the repository page's Packages panel lists them, skipping a version
+already there and pushing no symbol package, which GitHub does not take.
 
 ```bash
 dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
@@ -853,7 +933,19 @@ passes 207 characters.
 
 Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/): a `feat` or a
 `fix` lands in the changelog, a `!` or a `BREAKING CHANGE` footer makes the next version a major one,
-and the other types stay out of it. A working branch is deleted once merged.
+and the other types stay out of it, so a wrong type is a wrong release note and the type is part of
+the review. A working branch is deleted once merged: its commits are on `develop` and its pull
+request keeps the discussion and the checks, so the branches left are the work in progress.
+
+`main` follows the releases rather than being the one trunk with versions as tags, where the branch
+people land on would hold unreleased commits beside released ones; and it never takes a merge, unlike
+Git Flow's, so no version bump travels back to `develop`. Versions and notes come from the commits
+rather than from someone's memory, and nuget.org trusts the workflow's identity rather than a stored
+key that could leak and publish without a reviewer. A pull request release-please opens with
+`GITHUB_TOKEN` starts no workflow, so no check runs on it; it changes `CHANGELOG.md`,
+`templateVersion` and the release manifest only. Release branches of their own become worth having
+once several maintainers release at once, or once a fix must reach an earlier minor version, which a
+`net<major>.0` branch does not cover.
 
 A squashed pull request lands under its title, which release-please skips in silence unless it is a
 conventional commit. The `Conventional Commits title` job of
@@ -908,6 +1000,25 @@ which holds five more projects. Generation and the template package leave the fo
 The tests that read the manifests through the launcher's own settings stay in
 `launcher/CleanArch.Create.Tests`.
 
+The launcher creates a project and nothing else, and ends by running `dotnet cleanarch bootstrap` in
+it; `add web-app`, `add web-package` and `add presentation` are the project tool's, which runs the
+item template at the version `cleanarch.json` records, so an addition always matches the project's
+template version whatever launcher a user runs, and answers every question about the project from
+that file, never from its other files. Both tools ask from the manifests rather than from a copy of
+the options, which would drift at the first option added: each visible option of `ide.host.json`, in
+its order and under its label, with the choices, defaults and descriptions of `template.json` and the
+long names of `dotnetcli.host.json`, embedded from the commit the tool is packed from, or read from
+a checkout or a `.nupkg` with the launcher's `--template-source`. A refusal is evaluated, never
+restated: the tool evaluates its `isRequired`, and the computed symbols it names, on the answers,
+shows its description and asks again the options it reads. Before each question it evaluates the
+refusals over every value of the options not yet answered and leaves out a choice none of them saves,
+such as `--examples all` after `--auth none`; a question left with one choice is answered with it,
+naming the answer that leaves it, and so is an option under `--yes`, while without `--yes` a choice
+with no default is still asked. What the manifests cannot say stays in the tool and is tested against
+them: the web app's name, audience and rendering are asked only with `--web`, and a refusal that
+reads an item's `-n` is checked on the name asked. An option visible in `ide.host.json` thus reaches
+both tools with no change to them.
+
 | Facet | Where |
 |---|---|
 | Questions | read from the manifests under `.template.config/`, embedded at build; [template decision 0026](decisions/0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md) gives the rules an option and a refusal keep |
@@ -917,6 +1028,17 @@ The tests that read the manifests through the launcher's own settings stay in
 | Analysis | `SonarAnalyzer.CSharp`, pinned beside them, runs its default rules on all seven projects, and the build fails on any of them; a method of the four projects that ship holds a cognitive complexity (S3776) of 15 at most, set in `launcher/.editorconfig`. The measure counts nesting and breaks in flow rather than branches, so a flat `switch` stays cheap and a method that nests is split. A finding is fixed in the code, never silenced |
 | Gate | `verify` restores, formats, builds and tests the launcher's solution, all seven projects, after the project's gate; CI's `launcher` job does the same |
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
+
+Above Latin-1, the thread draws WGL4 glyphs only, the set Consolas, Cascadia Mono, Lucida Console,
+DejaVu Sans Mono and Menlo all carry: `♦` for the question asked, `◊` for an answer, `▲` for a
+warning, `●` for a note, `■` and `□` for the steps, square box-drawing borders, and a spinner
+turning through box-drawing glyphs (`launcher/CleanArch.Tooling/Prompts/RailSpinner.cs`). A terminal
+draws a glyph its font lacks from a fallback font, at that font's width and offset, so the marker
+lands off the rail and the columns after it shift; no console tells a program its font, so the
+glyphs cannot be chosen per terminal. The diamonds, rounded corners and braille spinner other
+prompt libraries draw stay out, and so does every emoji.
+`GuidedFlowTests.EveryGlyphDrawn_IsOneConsoleFontsCarry_SoTheThreadStaysAligned` runs a whole new
+project on the thread and fails on any glyph above Latin-1 outside the WGL4 list it holds.
 
 `dotnet cleanarch adopt` writes the project file of a project generated before the tool by reading the options the project was generated with from its files, and the launcher reads a project's name from them to say it is inside one; `GeneratedProjectTests` holds each reading on a tree of its own:
 
@@ -970,8 +1092,15 @@ runs it from the checkout; pass `--template-source` a `.nupkg` to try a packed o
 A project's `upgrade-report` command generates the project from
 the package at the version `cleanarch.json` records and at a newer one, then compares both with the
 project's files ([template decision 0021](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md));
-`docs/guides/upgrading.md` is its page. It holds three things in step with the rest of this
-repository:
+`docs/guides/upgrading.md` is its page. It generates both versions, from the name, options and parts
+`cleanarch.json` records, because a hash of each generated file would tell what the project changed
+but not what the target changes, and a three-way merge as Copier or Cruft apply would write conflict
+markers into generated code and lockfiles before anyone reviewed them. It writes nothing in the
+project and runs nothing from a package: no `dotnet new` post-action beyond printing instructions is
+accepted, and the parts' joins are not replayed, so a file a join edits reads as one to merge. An
+option is never mapped: one the two versions do not share, or a recorded value the target no longer
+offers, is the team's decision, and an item template's option renamed in the target is reported, not
+followed. It holds these things in step with the rest of this repository:
 
 | What | Kept in step with |
 |---|---|

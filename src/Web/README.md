@@ -274,7 +274,7 @@ its `pnpm-lock.yaml`.
   ```yaml
         # The browser smoke that closes the task drives every web app in Chromium: the workspace is installed for it, and the browser is cached by the Playwright release the lockfile resolves.
         - name: Set up pnpm (from package.json)
-          uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+          uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
           with:
             package_json_file: src/Web/package.json
             cache: true

@@ -95,6 +95,22 @@ public sealed class ScaffoldTests : IDisposable
     }
 
     [Fact]
+    public void APresentation_WhoseGeneratedProjectDeclaresAPackageItsDescriptorDrops_IsCreated()
+    {
+        WriteDescriptor(_desktop, """
+            { "kind": "dotnet", "name": "Acme.Shop.Desktop", "package": "Avalonia.Templates", "version": "12.1.4", "template": "avalonia.mvvm", "keep": ["Views"], "drop": ["AvaloniaUI.DiagnosticsSupport"] }
+            """);
+        Write(_desktopProject, _ownProject);
+        Write(_desktopTests, "<Project />");
+        _generated = _generatedProject.Replace("12.1.4\" />", "12.1.4\" /><PackageReference Include=\"AvaloniaUI.DiagnosticsSupport\" />", StringComparison.Ordinal);
+
+        Scaffolds.Presentations(Located(), Shell(), only: null).ShouldBe(ExitCode.Succeeded, _error.ToString());
+
+        Directory.Exists(Full(Path.Combine(_desktop, "Views"))).ShouldBeTrue();
+        File.Exists(Full(Path.Combine(_desktop, ScaffoldDescriptor.FileName))).ShouldBeFalse();
+    }
+
+    [Fact]
     public void AWebApp_IsCreatedByItsOfficialCli_ShapedByItsOverlayRemovalsAndMerges_ThenPinnedToTheVersionsInstalled()
     {
         Write(Path.Combine("Src", "Web", "package.json"), "{}");

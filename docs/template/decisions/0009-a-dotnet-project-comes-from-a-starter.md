@@ -36,7 +36,8 @@ pins and refuses an install of another version beside it.
   them, Avalonia's `App.axaml` among them, where the starter holds none of its own. A project file the
   generator writes is compared with the starter's, and a package or a property the starter's lacks
   stops the scaffold with its name, so a template version that needs more is noticed rather than
-  dropped.
+  dropped. A package the descriptor lists under `drop` passes: only a file the starter replaces uses
+  it, as Avalonia's `Program.cs` alone calls its developer tools.
 - **The project joins the solution once it is created**, with its tests, through `dotnet sln add --solution-folder`, one call per layer folder (`Src/Presentation`,
   `Tests/Presentation`), so each lands beside the template's own projects instead of in a folder
   named after its own directory; then each is formatted. The checkout's solution never names it, since the checkout has no

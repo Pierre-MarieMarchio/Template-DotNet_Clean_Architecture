@@ -35,6 +35,8 @@ internal sealed class ScaffoldDescriptor
 
     public IReadOnlyList<string> Remove => Strings("remove");
 
+    public IReadOnlyList<string> Drop => Strings("drop");
+
     public JsonObject Merge => _json["merge"]?.AsObject() ?? [];
 
     public IEnumerable<string> Arguments(string name) =>

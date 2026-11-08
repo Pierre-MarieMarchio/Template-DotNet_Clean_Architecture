@@ -26,31 +26,40 @@ internal static class OpenApiCommand
         {
             Description = "Write the reference from the API's last build instead of building it again.",
         };
+        Option<bool> noWeb = new("--no-web")
+        {
+            Description = "Leave the web workspace's schema out, on a machine without Node.js and pnpm; the web workflow checks it.",
+        };
         command.Options.Add(check);
         command.Options.Add(noBuild);
+        command.Options.Add(noWeb);
         if (context.Project is { } project)
         {
-            command.SetAction(parseResult => Run(project, context.Shell(parseResult), parseResult.GetValue(check), parseResult.GetValue(noBuild)));
+            command.SetAction(parseResult => Run(
+                project,
+                context.Shell(parseResult),
+                parseResult.GetValue(check),
+                new Generation(parseResult.GetValue(noBuild), !parseResult.GetValue(noWeb) && WebSchema.IsGenerated(project))));
         }
 
         return command;
     }
 
-    private static int Run(LocatedProject project, Shell shell, bool checking, bool noBuild) =>
-        ExitCode.FirstFailureOf(checking ? Checks(project, shell, noBuild) : Writes(project, shell, noBuild));
+    private static int Run(LocatedProject project, Shell shell, bool checking, Generation generation) =>
+        ExitCode.FirstFailureOf(checking ? Checks(project, shell, generation) : Writes(project, shell, generation));
 
-    private static IEnumerable<Func<int>> Writes(LocatedProject project, Shell shell, bool noBuild) =>
+    private static IEnumerable<Func<int>> Writes(LocatedProject project, Shell shell, Generation generation) =>
     [
-        () => OpenApiReference.Write(project, shell, noBuild),
+        () => OpenApiReference.Write(project, shell, generation.NoBuild),
         .. project.File.Client ? [() => ApiClient.Write(project, shell)] : Array.Empty<Func<int>>(),
-        .. WebSchema.IsGenerated(project) ? [() => shell.Run(Pnpm.In(project, ProjectLayout.Web, "api", OpenApiReference.PathOf(project)))] : Array.Empty<Func<int>>(),
+        .. generation.Web ? [() => shell.Run(Pnpm.In(project, ProjectLayout.Web, "api", OpenApiReference.PathOf(project)))] : Array.Empty<Func<int>>(),
     ];
 
-    private static IEnumerable<Func<int>> Checks(LocatedProject project, Shell shell, bool noBuild) =>
+    private static IEnumerable<Func<int>> Checks(LocatedProject project, Shell shell, Generation generation) =>
     [
-        () => OpenApiReference.Check(project, shell, noBuild),
+        () => OpenApiReference.Check(project, shell, generation.NoBuild),
         .. project.File.Client ? [() => CheckClient(project, shell)] : Array.Empty<Func<int>>(),
-        .. WebSchema.IsGenerated(project) ? [() => shell.Run(WebSchema.Check(project, OpenApiReference.PathOf(project)))] : Array.Empty<Func<int>>(),
+        .. generation.Web ? [() => shell.Run(WebSchema.Check(project, OpenApiReference.PathOf(project)))] : Array.Empty<Func<int>>(),
     ];
 
     private static int CheckClient(LocatedProject project, Shell shell)
@@ -63,4 +72,6 @@ internal static class OpenApiCommand
 
         return exit;
     }
+
+    private readonly record struct Generation(bool NoBuild, bool Web);
 }

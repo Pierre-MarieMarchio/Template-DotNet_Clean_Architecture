@@ -280,6 +280,11 @@ public sealed class OpenApiCommandTests : IDisposable
         Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
         _calls[^1].Arguments.ShouldBe(["exec", "node", "scripts/generate.mjs", "--check", Path.Combine(project.Root, _referencePath)]);
         _calls[^1].WorkingDirectory.ShouldBe(package);
+        _calls.Clear();
+
+        Run(["openapi", "--check", "--no-web"], project.Root).ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
+        _calls.ShouldNotBeEmpty();
+        _calls.ShouldNotContain(call => call.WorkingDirectory.StartsWith(Path.Combine(project.Root, "src", "Web"), StringComparison.Ordinal));
     }
 
     [Fact]

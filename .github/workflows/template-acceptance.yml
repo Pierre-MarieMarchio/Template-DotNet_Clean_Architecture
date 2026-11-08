@@ -419,7 +419,7 @@ jobs:
           dotnet restore Sample.Generated.Project.slnx
           dotnet build Sample.Generated.Project.slnx --configuration Release --no-restore
 
-      # A newer version that changes nothing but its number is a version in cleanarch.json and in docs/getting-started/overview.md, so the report on a project as bootstrap leaves it names those and no other file; IDE0055 may rewrite more than the usings, which only a project that went through bootstrap shows. The report writes nothing in the project, and the newer package is this checkout packed again under the next patch version.
+      # A newer version that changes nothing but its number is a version in cleanarch.json, in docs/getting-started/overview.md and in the tool pin of .config/dotnet-tools.json, a file bootstrap edits and so one to merge, so the report on a project as bootstrap leaves it names those and no other file; IDE0055 may rewrite more than the usings, which only a project that went through bootstrap shows. The report writes nothing in the project, and the newer package is this checkout packed again under the next patch version.
       - name: Assert upgrade-report names only the version after bootstrap (defaults leg)
         if: matrix.name == 'defaults'
         working-directory: ${{ runner.temp }}/generated
@@ -440,10 +440,11 @@ jobs:
             .from == $current and .to == $next
             and ([.take[].path] == ["docs/getting-started/overview.md"])
             and (.provenance != null)
-            and ([.merge, .added, .removed, .scaffolds, .decisions] | all(length == 0))
+            and ([.merge[].path] == [".config/dotnet-tools.json"])
+            and ([.added, .removed, .scaffolds, .decisions] | all(length == 0))
           ' "${{ runner.temp }}/upgrade-report.json" > /dev/null || {
             jq '{take: [.take[].path], merge: [.merge[].path], added: [.added[].path], removed: [.removed[].path], scaffolds, decisions, provenance}' "${{ runner.temp }}/upgrade-report.json"
-            fail "Bumping the version alone reports more than the version in cleanarch.json and docs/getting-started/overview.md: a file bootstrap rewrote, or a generator that draws a value."
+            fail "Bumping the version alone reports more than the version in cleanarch.json, docs/getting-started/overview.md and the tool pin: a file bootstrap rewrote, or a generator that draws a value."
           }
           own=$(jq -r '.own | length' "${{ runner.temp }}/upgrade-report.json")
           echo "::notice title=Upgrade report::$own file(s) of the project's own, in neither generation."

@@ -13,8 +13,8 @@ the simple example, a service over a store with no domain model.
 
 A signed-in caller creates notes, lists their own, reads one, replaces its title and body, and deletes
 it. A note belongs to its creator: another caller's note answers `404` `note.notFound` exactly as a
-missing one does ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)). Once an account is
-deleted, its notes are deleted too ([ADR 0012](../decisions/0012-account-deletion-each-feature-decides.md)).
+missing one does ([ADR 0004](../decisions/0004-ownership-is-in-the-query.md)). Once an account is
+deleted, its notes are deleted too, as [deleting an account](accounts.md#deleting-an-account) says.
 
 A title is required and at most 200 characters once trimmed. A body is required but may be empty, and
 holds at most 10000 characters.
@@ -100,7 +100,4 @@ An MCP server's own tests for these tools are in its test project, under `Featur
 
 ## Decisions
 
-- [ADR 0002: two feature shapes](../decisions/0002-two-feature-shapes.md)
-- [ADR 0008: optimistic concurrency end to end](../decisions/0008-optimistic-concurrency-end-to-end.md)
-- [ADR 0009: ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
-- [ADR 0012: on account deletion, each feature decides](../decisions/0012-account-deletion-each-feature-decides.md)
+- [ADR 0004: ownership is in the query](../decisions/0004-ownership-is-in-the-query.md)

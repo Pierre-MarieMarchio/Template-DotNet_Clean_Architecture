@@ -30,7 +30,7 @@ The mode was chosen when the project was generated, and it decides which modules
 accounts hold the identity schema and the account routes; an external provider holds a mapping
 from the provider's subjects to owner ids; a public API holds neither. Changing mode is a product
 decision recorded against the baseline:
-[ADR 0001](../decisions/0001-adopt-the-generated-baseline.md).
+[the stack](../architecture/README.md#the-stack).
 
 <!--#if (localAuth)-->
 ## Local accounts
@@ -48,7 +48,7 @@ apart by its `status` field:
 A client reads `status` rather than guessing from which fields are present. Every refusal is the
 same `401` `auth.login.invalidCredentials`: an unknown address, a wrong password, an unconfirmed
 address and a locked account cost the same time and read the same, so the route reveals nothing
-about who has an account ([ADR 0014](../decisions/0014-anonymous-routes-reveal-nothing.md)).
+about who has an account ([registration](accounts.md#registration-and-email-confirmation)).
 
 ### Access and refresh tokens
 
@@ -74,8 +74,7 @@ carries a `sid` claim naming it. `GET /api/v1/auth/sessions` lists the caller's 
 `logout-all` ends them all.
 
 A credential change (password, second factor, passkey removal) ends every other session; a
-password reset through the mailed link ends them all
-([ADR 0013](../decisions/0013-a-session-is-a-refresh-token-family.md)).
+password reset through the mailed link ends them all.
 
 Which sessions end depends on where the change came from. Made from a session, a password change,
 arming or dropping the second factor, or removing a passkey spares that session, which has just
@@ -111,7 +110,7 @@ WebAuthn on ASP.NET Core Identity. Registering takes two calls (`passkeys/regist
 `passkeys/register`) and re-authenticates the caller; signing in takes two anonymous calls
 (`passkeys/sign-in/options`, then `passkeys/sign-in`). A user-verified passkey is a whole sign-in,
 so it never asks for the second factor. The ceremony state travels to the client sealed, lives
-five minutes and is spent once ([ADR 0015](../decisions/0015-passkeys-stand-on-their-own.md)).
+five minutes and is spent once.
 
 Identity keeps the state between the two calls in a cookie, and this API sets no cookie for sign-in
 and keeps no session between calls, so the client carries it: a time-limited data protector seals
@@ -144,8 +143,7 @@ a password change leaves them alive, a lockout refuses them and deleting the acc
 
 This API never accepts an access key: its bearer scheme reads JWTs only. The MCP server validates
 the key by sending `AuthenticateAccessKeyCommand` and acts as its owner. A malformed, unknown,
-revoked or expired key, and one whose account may not sign in, all answer `auth.accessKey.invalid`
-([ADR 0026](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)).
+revoked or expired key, and one whose account may not sign in, all answer `auth.accessKey.invalid`.
 
 A key is a credential the owner can see and end without touching the password, whose theft costs
 less than the password's. Longer-lived access tokens would serve these clients but cannot be revoked
@@ -173,7 +171,7 @@ A client sending `X-Refresh-Token-Mode: cookie` on `login`, `login/two-factor`, 
 cookie (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/v1/auth`) instead of in the body.
 The cookie is read only beside that header, which is the defence against cross-site requests;
 `refresh` and `logout` then take no body. Every local-accounts project answers the header, web app
-or not, and a client that never sends it works as above ([ADR 0016](../decisions/0016-browser-refresh-token-in-a-cookie.md)).
+or not, and a client that never sends it works as above.
 
 A browser cannot keep a refresh token where script reads it: a cross-site scripting flaw reads
 `localStorage` too, and the token outlives the page by days, so a flaw in the page can use the
@@ -194,9 +192,6 @@ The single-page web apps of this project use this mode through the `api-client` 
 token stays in a variable, the cookie carries the refresh token, and one refresh runs at a time. A
 server-rendered app uses neither: its server signs in in body mode, keeps both tokens, and gives the
 browser a session cookie of its own.
-<!--#if (webServerRendering)-->
-[ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-<!--#endif-->
 How an app signs in is in [Web front end](web-frontend.md#signing-in).
 
 <!--#endif-->
@@ -210,7 +205,7 @@ off.
 
 The provider's subject never becomes an owner id. The first request of each (issuer, subject)
 creates a mapping to an internal `UserId`, exactly once even under concurrency, and every business
-row carries that id ([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)).
+row carries that id.
 Storing the subject on every row would spread the provider's identifier format through the schema,
 and changing provider would rewrite every table; with the mapping, it is the one place that knows a
 caller's subject. A mapping is written while the request is being authenticated, in a transaction
@@ -229,9 +224,6 @@ Authorization Code flow with PKCE, and sends its access token as `Authorization:
 <!--#if (anyWeb)-->
 A server-rendered web app runs that flow on its server, keeps the tokens there, and gives the
 browser a session cookie of its own.
-<!--#if (webServerRendering)-->
-[ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-<!--#endif-->
 How an app signs in is in [Web front end](web-frontend.md#signing-in).
 <!--#endif-->
 
@@ -259,7 +251,7 @@ The portal signs people in to itself, with a cookie, over the same accounts: the
 The MCP server authenticates its callers itself and acts for the owner its
 credential names: [presentation projects](presentation.md#calling-it) describes the credential a
 client sends and which tools it reaches
-([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
+([ADR 0005](../decisions/0005-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
 
 <!--#endif-->
 ## Roles and policies
@@ -267,7 +259,7 @@ client sends and which tools it reaches
 Authorisation is default-deny: every endpoint requires an authenticated caller unless it carries
 `[AllowAnonymous]` ([Request pipeline](../architecture/request-pipeline.md#authorisation)). Ownership
 is checked in each query, never by a policy
-([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)).
+([ADR 0004](../decisions/0004-ownership-is-in-the-query.md)).
 
 One policy, `Administrator`, guards the administration and maintenance routes.
 <!--#if (localAuth)-->
@@ -285,7 +277,7 @@ A new policy is a constant beside `Administrator` in
 `src/Presentation/AT.Presentation.Core/Common/Security/AuthorizationPolicies.cs` and one
 `AddPolicy` call where the module composes its authentication. A policy guards a route or a page of
 the host, never a use case, so a host that exposes an administration use case puts the policy on it
-again ([ADR 0039](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)).
+again ([Request pipeline](../architecture/request-pipeline.md#authorisation)).
 
 <!--#endif-->
 ## Configure
@@ -346,26 +338,9 @@ with a test provider's keys.
 `ControllerContractTests` and the integration suite run without any authentication scheme.
 `Program.cs` refuses `[Authorize]` at start-up; no test exercises that refusal.
 <!--#endif-->
+<!--#if (accounts)-->
 
 ## Decisions
 
-- [0001 Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): the authentication mode.
-<!--#if (accounts)-->
-- [0009 Ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
-<!--#endif-->
-<!--#if (localAuth)-->
-- [0013 A session is a refresh-token family](../decisions/0013-a-session-is-a-refresh-token-family.md)
-- [0014 Anonymous routes reveal nothing](../decisions/0014-anonymous-routes-reveal-nothing.md)
-- [0015 Passkeys stand on their own](../decisions/0015-passkeys-stand-on-their-own.md)
-- [0016 Browser refresh token in a cookie](../decisions/0016-browser-refresh-token-in-a-cookie.md)
-<!--#if (accessKeys)-->
-- [0026 An access key stands for its owner where a token cannot be refreshed](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)
-<!--#endif-->
-- [0040 The signing key rotates through previous keys that only validate](../decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md)
-<!--#endif-->
-<!--#if (externalAuth)-->
-- [0017 External subjects map to internal owners](../decisions/0017-external-subjects-map-to-internal-owners.md)
-<!--#endif-->
-<!--#if (accounts)-->
-- [0039 A role is checked by the host, not by the use case](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)
+- [0004 Ownership is in the query](../decisions/0004-ownership-is-in-the-query.md)
 <!--#endif-->

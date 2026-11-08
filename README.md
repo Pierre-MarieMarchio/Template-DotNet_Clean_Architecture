@@ -137,16 +137,16 @@ Each choice another team could reasonably have made otherwise is an ADR: its con
 alternatives turned down, its consequences and when to revisit it, so a team can keep or reverse it
 knowing what it costs.
 
-- [The project's decisions](docs/decisions/README.md), which every generated project receives: the
-  feature shapes, ownership in the query, events after commit, a schema per feature, the
-  generated API client and the rest.
-- Why [Mediator](docs/decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md) and not
+- [The project's decisions](docs/decisions/README.md), which a generated project receives: a domain
+  EF does not map, events after commit without an outbox, ownership in the query and the caller an
+  MCP server acts for; the other choices are argued on the pages that describe each part.
+- Why [Mediator](docs/decisions/0003-use-cases-are-mediator-messages-and-ports-are-explicit.md) and not
   MediatR, which has a commercial licence from version 13, and why
-  [no AutoMapper](docs/decisions/0036-mappings-are-written-by-hand.md): a mapping resolved at run time
+  [no AutoMapper](docs/architecture/layers-and-projects.md#mappings): a mapping resolved at run time
   is one a reader cannot follow, so mappings are written by hand.
-- [The template's decisions](docs/template/README.md#its-decisions): why options remove parts and
-  refuse combinations, where web apps and .NET projects come from, and what a project keeps from the
-  template.
+- [The template's decisions](docs/template/README.md#its-decisions): why a project carries one
+  database provider, why a pull request runs only the legs its change can affect, why a project runs
+  its tasks from a pinned tool, and where a web app comes from.
 
 ## Documentation
 

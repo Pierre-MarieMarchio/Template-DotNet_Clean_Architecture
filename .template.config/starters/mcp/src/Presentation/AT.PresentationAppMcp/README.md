@@ -299,21 +299,16 @@ dotnet cleanarch migrations add AddAccessKeys --context auth
 
   This API never accepts an access key: its bearer scheme reads JWTs only. The MCP server validates
   the key by sending `AuthenticateAccessKeyCommand` and acts as its owner. A malformed, unknown,
-  revoked or expired key, and one whose account may not sign in, all answer `auth.accessKey.invalid`
-  ([ADR 0026](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)).
+  revoked or expired key, and one whose account may not sign in, all answer `auth.accessKey.invalid`.
 
-  ```
+  A key is a credential the owner can see and end without touching the password, whose theft costs
+  less than the password's. Longer-lived access tokens would serve these clients but cannot be revoked
+  before they expire, and lengthening every token for a few clients weakens all of them. Keys accepted
+  by this API as well would give every endpoint a second credential that skips the security stamp and
+  the sessions, and a key leaked from a tool would reach the account routes. An OAuth authorisation
+  server with the device flow is the standard answer once third parties act for users, but a whole
+  server and its consent screens for what is still the owner's own credential.
 
-- in `docs/features/authentication.md`, after the line:
-
-  ```markdown
-  - [0016 Browser refresh token in a cookie](../decisions/0016-browser-refresh-token-in-a-cookie.md)
-  ```
-
-  add:
-
-  ```markdown
-  - [0026 An access key stands for its owner where a token cannot be refreshed](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)
   ```
 
 <!--#endif-->
@@ -543,32 +538,17 @@ dotnet cleanarch migrations add AddAccessKeys --context auth
 
   ```
 
-- in `docs/decisions/0001-adopt-the-generated-baseline.md`, before the lines:
+- in `docs/architecture/README.md`, before the lines:
 
   ```markdown
 
-  ## Consequences
+  A row's reason stops holding when the platform moves, when its cost shows up in an incident or a
   ```
 
   add:
 
   ```markdown
-  | An MCP server beside the API, in the shape of `dotnet new mcpserver --transport remote`, stateless on Streamable HTTP, each tool one use case called in process | An agent's client reaches the use cases as tools, acting for the caller its credential names | [Presentation project](../features/presentation.md) | — |
-  ```
-
-- in `docs/decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md`,
-  after the line:
-
-  ```markdown
-    host, go to `Presentation.Core` while it stays free of ASP.NET Core; the rest each host keeps.
-  ```
-
-  add:
-
-  ```markdown
-  - **The presentation project of this repository** is an MCP server. It composes the use cases in
-    process, one per tool, and answers each request in a scope of its own, whose caller is the one
-    its credential names ([ADR 0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
+  | An MCP server in the shape of `dotnet new mcpserver --transport remote`, stateless on Streamable HTTP, each tool one use case called in process | An agent's client reaches the use cases as tools, acting for the caller its credential names | [Presentation projects](../features/presentation.md) | — |
   ```
 
 - in `docs/features/authentication.md`, before the line:
@@ -585,7 +565,7 @@ dotnet cleanarch migrations add AddAccessKeys --context auth
   The MCP server authenticates its callers itself and acts for the owner its
   credential names: [presentation projects](presentation.md#calling-it) describes the credential a
   client sends and which tools it reaches
-  ([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
+  ([ADR 0005](../decisions/0005-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
 
   ```
 
@@ -639,7 +619,7 @@ dotnet cleanarch migrations add AddAccessKeys --context auth
   ```markdown
   Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
   owner feature writes and registers each host's account directory beside the API's; the edits name
-  both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+  both ([composition](../architecture/layers-and-projects.md#composition)).
   The feature brings no tool: the MCP server offers a use case only once its tool is declared by hand,
   as the [presentation projects](../features/presentation.md#declaring-a-tool) shows.
   ```

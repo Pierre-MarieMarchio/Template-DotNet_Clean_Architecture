@@ -180,6 +180,4 @@ The domain and use-case rules are unit-tested under `Features/Files` in each tes
 
 ## Decisions
 
-- [0018 Stored files are keyed, granted and refused](../decisions/0018-stored-files-are-keyed-granted-and-refused.md)
-- [0006 Events after commit, without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md): why every pass states its guarantee.
-- [0001 Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): the S3-compatible store, SeaweedFS locally.
+- [0002 Events after commit, without an outbox](../decisions/0002-events-after-commit-without-an-outbox.md): why every pass states its guarantee.

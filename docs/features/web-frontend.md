@@ -23,8 +23,7 @@ from the `packageManager` field of `src/Web/package.json`, which Corepack reads;
 
 Each app is its own deployable. Its development server, and in Compose its nginx container or, for
 an app rendered on the server, its Node server, relays `/api/` and `/health` to the API, so the
-browser talks to one origin per app and the API keeps CORS closed
-([ADR 0037](../decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md)).
+browser talks to one origin per app and the API keeps CORS closed ([running it](#running-it)).
 
 <!--#if (webNodeFramework)-->
 ## Creating the app
@@ -68,11 +67,11 @@ project owns, and adds the project to the solution: it builds, formats and is te
 under the same analyzers and central package versions.
 
 It calls the API through the .NET client of `src/Presentation/AT.Presentation.Client`, generated from the same document
-([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)), at the page's own address, so
+([the .NET client](../architecture/layers-and-projects.md#the-net-client)), at the page's own address, so
 the `/api` relay of its server keeps the API on the same origin.
 <!--#if (localAuth)-->
 The client asks for the refresh token in the API's `HttpOnly` cookie
-([ADR 0016](../decisions/0016-browser-refresh-token-in-a-cookie.md)) and keeps the access token in
+([Authentication](authentication.md#browsers-the-refresh-token-cookie)) and keeps the access token in
 memory.
 <!--#endif-->
 
@@ -171,8 +170,7 @@ time, because an answer from a proxy or a crash is not a problem document.
 
 After any change to the API's contract, run `pnpm api` in `src/Web`, or `dotnet cleanarch openapi`: it builds the API,
 writes its OpenAPI reference and regenerates `src/Web/packages/api-client/src/generated/schema.ts`, which is
-committed so an app type-checks without the .NET SDK
-([ADR 0019](../decisions/0019-one-generated-api-client.md)). `pnpm api --no-build` writes the
+committed so an app type-checks without the .NET SDK. `pnpm api --no-build` writes the
 reference from the API's last build instead. `add feature`, `add field` and `add use-case` run
 `dotnet cleanarch openapi` after theirs, which calls `pnpm api <reference>`.
 
@@ -223,9 +221,6 @@ presentation of a cookie as theft; only a refused refresh signs the page out.
 
 A server-rendered app keeps both tokens on its server, and the browser holds only the
 `__Host-session` cookie its server sets (`HttpOnly`, `Secure`, `SameSite=Lax`).
-<!--#if (webServerRendering)-->
-[ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-<!--#endif-->
 The page posts the same sign-in routes through the relay, which keeps the tokens the API answers and returns the
 answer without them, and calls the API without a token; `serverSessionMiddleware` adds the
 `X-CSRF: 1` header the server requires on every call that changes state, and answers `403`
@@ -291,9 +286,6 @@ A server-rendered app signs people in itself: its server is the OpenID Connect c
 authorization code flow with PKCE at the provider, and keeps the provider's tokens in its own
 memory; the browser holds only the `__Host-session` cookie its server sets (`HttpOnly`, `Secure`,
 `SameSite=Lax`).
-<!--#if (webServerRendering)-->
-[ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-<!--#endif-->
 The page navigates to the server's routes and calls the API without a token, the server adding it;
 `serverSessionMiddleware` adds the `X-CSRF: 1` header the server requires on every call that
 changes state, and answers `403` `session.csrfHeaderRequired` without:
@@ -499,11 +491,8 @@ out.
 <!--#if (publicApi)-->
 It keeps no session, and runs as one instance.
 <!--#endif-->
-<!--#if (webServerRendering)-->
-[ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-<!--#endif-->
-
 <!--#if (ci)-->
+
 ## CI
 
 The web job installs with the frozen lockfile, lints, tests and builds every app and package, runs
@@ -511,16 +500,4 @@ The web job installs with the frozen lockfile, lints, tests and builds every app
 each app under `src/Web/apps` holding a `Dockerfile` and a `package.json`, and checks that it runs as
 a user other than root and exposes only 8080. Details are in
 [Build and CI](../guides/build-and-ci.md).
-
 <!--#endif-->
-## Decisions
-
-- [0019 One generated API client](../decisions/0019-one-generated-api-client.md)
-<!--#if (webServerRendering)-->
-- [0024 A server-rendered web app runs on its own server](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)
-<!--#endif-->
-- [0037 A web app is deployed apart, behind a relay to the API](../decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md)
-<!--#if (localAuth)-->
-- [0016 Browser refresh token in a cookie](../decisions/0016-browser-refresh-token-in-a-cookie.md)
-<!--#endif-->
-- [0001 Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): one pnpm workspace, Node and pnpm pinned.

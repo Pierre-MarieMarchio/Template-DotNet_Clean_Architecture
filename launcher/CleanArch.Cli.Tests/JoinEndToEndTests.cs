@@ -63,13 +63,6 @@ public sealed partial class JoinEndToEndTests : IDisposable
         Dictionary<string, string> written = Tree(added);
         Dictionary<string, string> expected = Tree(generated);
 
-        written.Remove(_apisJobsDecision, out string? decision).ShouldBeTrue("The API's decision on its jobs stays in a project that ran them there.");
-        decision.ShouldContain($"Status: Superseded by [0025]({_workersJobsDecision})");
-        decision.ShouldContain("\nstatus: Superseded\n", customMessage: "The frontmatter of the API's decision on its jobs keeps the status its Status line no longer says.");
-        string[] index = written[_decisionIndex].Split('\n');
-        index.Single(line => line.StartsWith(_apisJobsDecisionEntry, StringComparison.Ordinal)).ShouldContain(" - Superseded. ");
-        written[_decisionIndex] = string.Join('\n', index.Where(line => !line.StartsWith(_apisJobsDecisionEntry, StringComparison.Ordinal)));
-
         written.Keys.Order(StringComparer.Ordinal).ShouldBe(expected.Keys.Order(StringComparer.Ordinal));
         written.Where(file => file.Value != expected[file.Key]).Select(file => file.Key).ShouldBeEmpty(
             "These files differ from what --presentation worker writes, though its join moved the jobs and made the lines the worker's README lists.");
@@ -104,13 +97,7 @@ public sealed partial class JoinEndToEndTests : IDisposable
 
     private const string _overview = "docs/getting-started/overview.md";
 
-    private const string _apisJobsDecision = "docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md";
-
-    private const string _workersJobsDecision = "0025-jobs-run-in-a-worker-under-a-lease.md";
-
     private const string _decisionIndex = "docs/decisions/index.md";
-
-    private const string _apisJobsDecisionEntry = "- [0011. Jobs run in the API, under a lease](0011-jobs-run-in-the-api-under-a-lease.md)";
 
     private static readonly (string Label, string Framework, string Audience, string Rendering, string[] Options)[] _firstWebApps =
     [
@@ -192,7 +179,7 @@ public sealed partial class JoinEndToEndTests : IDisposable
     }
 
     [Fact]
-    public void ServerRenderedApps_JoinedToASinglePageAppsWorkspace_BringTheirDecisionOnce_AsServerRenderingWritesIt()
+    public void ServerRenderedApps_JoinedToASinglePageAppsWorkspace_RecordTheirPorts_AndLeaveThePagesAsServerRenderingWritesThem()
     {
         string package = PackTheTemplates();
         string hive = Path.Combine(_root, "hive");
@@ -206,7 +193,6 @@ public sealed partial class JoinEndToEndTests : IDisposable
         {
             DotNet(added, ["new", "cleanarch-webapp", "-n", app, "--framework", framework, "--rendering", "ssr", "--port", port, "--scope", "acme-shop", "--debug:custom-hive", hive]);
             Join(_steps.WebJoin(added, app, new WebJoinOptions(framework, Rendering: "ssr", Port: port)));
-            File.Exists(Path.Combine(added, "src", "Web", "apps", app, _serverRenderingDecision)).ShouldBeFalse($"its join leaves no copy of the decision in {app}'s folder.");
         }
 
         DocsIndex(generated);
@@ -214,18 +200,11 @@ public sealed partial class JoinEndToEndTests : IDisposable
         Dictionary<string, string> expected = Tree(generated);
         JsonNode?[] ports = [.. JsonNode.Parse(written["cleanarch.json"])!["web"]!["apps"]!.AsArray().Select(app => app!["port"])];
         ports.Select(port => port!.GetValue<int>()).ShouldBe([5173, 8082, 8083], "cleanarch.json records each app's port: the first one's framework default, and the two added with --port.");
-        foreach (string file in (string[])[$"docs/decisions/{_serverRenderingDecision}", _decisionIndex, "docs/features/authentication.md", "docs/decisions/0016-browser-refresh-token-in-a-cookie.md"])
+        foreach (string file in (string[])[_decisionIndex, "docs/features/authentication.md", "src/Web/AGENTS.md"])
         {
             written[file].ShouldBe(expected[file], $"{file} differs from what --web-rendering ssr writes.");
         }
-
-        foreach (string file in (string[])["docs/features/web-frontend.md", "src/Web/AGENTS.md"])
-        {
-            Regex.Count(written[file], _serverRenderingDecision).ShouldBe(Regex.Count(expected[file], _serverRenderingDecision), $"{file} cites the decision otherwise than --web-rendering ssr writes it.");
-        }
     }
-
-    private const string _serverRenderingDecision = "0024-a-server-rendered-web-app-runs-on-its-own-server.md";
 
     [GeneratedRegex("[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")]
     private static partial Regex Guid();

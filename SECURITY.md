@@ -26,22 +26,22 @@ Each row links to the page that describes it.
 | Default-deny authorisation: an endpoint is protected unless it opts out, and an unknown route answers `401` to an anonymous caller | [Request pipeline › Authorisation](docs/architecture/request-pipeline.md#authorisation) |
 | <!--#endif--> |
 | <!--#if (accounts)--> |
-| Another caller's resource answers `404`, never `403`: the owner is in the query | [ADR 0009](docs/decisions/0009-ownership-is-in-the-query.md) |
+| Another caller's resource answers `404`, never `403`: the owner is in the query | [ADR 0004](docs/decisions/0004-ownership-is-in-the-query.md) |
 | <!--#endif--> |
 | <!--#if (publicApi)--> |
 | Public access is a policy written in the composition, and no caller is ever identified | [Authentication › A public API](docs/features/authentication.md#a-public-api) |
 | <!--#endif--> |
 | <!--#if (localAuth)--> |
-| Opaque refresh tokens that rotate on every use; a replay ends every session of the account | [Authentication › Access and refresh tokens](docs/features/authentication.md#access-and-refresh-tokens), [ADR 0013](docs/decisions/0013-a-session-is-a-refresh-token-family.md) |
+| Opaque refresh tokens that rotate on every use; a replay ends every session of the account | [Authentication › Access and refresh tokens](docs/features/authentication.md#access-and-refresh-tokens) |
 | Sessions an owner can list and end; a credential change ends the others | [Authentication › Sessions](docs/features/authentication.md#sessions) |
-| Two-factor sign-in and passkeys | [Authentication › Two-factor](docs/features/authentication.md#two-factor), [ADR 0015](docs/decisions/0015-passkeys-stand-on-their-own.md) |
-| A browser's refresh token in an `HttpOnly`, `SameSite=Strict` cookie, read only beside its header | [ADR 0016](docs/decisions/0016-browser-refresh-token-in-a-cookie.md) |
-| Registration and recovery reveal nothing about which addresses exist | [ADR 0014](docs/decisions/0014-anonymous-routes-reveal-nothing.md), [Accounts](docs/features/accounts.md#registration-and-email-confirmation) |
+| Two-factor sign-in and passkeys | [Authentication › Two-factor](docs/features/authentication.md#two-factor), [Authentication › Passkeys](docs/features/authentication.md#passkeys) |
+| A browser's refresh token in an `HttpOnly`, `SameSite=Strict` cookie, read only beside its header | [Authentication › Browsers](docs/features/authentication.md#browsers-the-refresh-token-cookie) |
+| Registration and recovery reveal nothing about which addresses exist | [Accounts](docs/features/accounts.md#registration-and-email-confirmation) |
 | Password policy and lockout | [Authentication › Configure](docs/features/authentication.md#configure) |
 | A security log of sign-ins and credential changes, naming no address | [Accounts › The security log](docs/features/accounts.md#the-security-log) |
 | <!--#endif--> |
 | <!--#if (externalAuth)--> |
-| Bearer tokens validated against the provider's keys; each (issuer, subject) mapped to an internal owner | [Authentication › An external identity provider](docs/features/authentication.md#an-external-identity-provider), [ADR 0017](docs/decisions/0017-external-subjects-map-to-internal-owners.md) |
+| Bearer tokens validated against the provider's keys; each (issuer, subject) mapped to an internal owner | [Authentication › An external identity provider](docs/features/authentication.md#an-external-identity-provider) |
 | <!--#endif--> |
 | <!--#if (api)--> |
 | Rate limiting per client address, answering `429` with `Retry-After` | [Request pipeline › Rate limiting](docs/architecture/request-pipeline.md#rate-limiting) |
@@ -50,9 +50,9 @@ Each row links to the page that describes it.
 | No exception text reaches a client; every refusal is a problem document with a `code` and a `traceId` | [Request pipeline › Problem details](docs/architecture/request-pipeline.md#problem-details) |
 | Request logs carry a fixed field list: never the `Authorization` header, cookies, the query or the body | [Request pipeline › Request logging](docs/architecture/request-pipeline.md#request-logging) |
 | <!--#endif--> |
-| Lost updates refused: the row version exposed as `ETag`, checked from `If-Match` | [ADR 0008](docs/decisions/0008-optimistic-concurrency-end-to-end.md) |
+| Lost updates refused: the row version exposed as `ETag`, checked from `If-Match` | [Persistence model › Concurrency](docs/architecture/persistence-model.md#concurrency) |
 | <!--#if (files)--> |
-| Stored files keyed by a random key, bound to their digest, inspected from their bytes, served through narrow signed grants | [Files › Inspection and scanning](docs/features/files.md#inspection-and-scanning), [ADR 0018](docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md) |
+| Stored files keyed by a random key, bound to their digest, inspected from their bytes, served through narrow signed grants | [Files › Inspection and scanning](docs/features/files.md#inspection-and-scanning), [Files › Storage](docs/features/files.md#storage) |
 | <!--#endif--> |
 | A setting the host cannot use stops it at start, naming the key | [Deployment › Configuration and secrets](docs/guides/deployment.md#configuration-and-secrets) |
 | <!--#if (anyWeb)--> |
@@ -129,8 +129,7 @@ Recommended:
   fifteen minutes, so about twenty requests an hour keep a chosen account shut.
 - **One symmetric key signs, with no `kid`**: during a rotation the keys of `Jwt:PreviousKeys` only
   validate, until the access-token lifetime has passed
-  ([ADR 0040](docs/decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md),
-  [rotating the signing key](docs/guides/rotating-the-signing-key.md)); a leaked key still ends every
+  ([rotating the signing key](docs/guides/rotating-the-signing-key.md)); a leaked key still ends every
   token signed with it at once, and no single access token can be revoked.
 - **A rotation whose response is lost ends every session**, since its retry reads as a replay.
 - **On `localhost`, web apps share one refresh-token cookie**, because cookies are not scoped by port.
@@ -139,7 +138,7 @@ Recommended:
 <!--#endif-->
 - **Domain events are delivered at most once, with no outbox.** A consumer whose effect cannot be
   re-derived later (mail, money, a third party) needs an outbox first:
-  [ADR 0006](docs/decisions/0006-events-after-commit-without-an-outbox.md).
+  [ADR 0002](docs/decisions/0002-events-after-commit-without-an-outbox.md).
 - **Nothing alerts when the background jobs stop.** `/health/ready` answers for HTTP only; alert on
   the job heartbeats instead.
 - **Idempotency keys expire only where the jobs run.** With the jobs off everywhere, a completed key
@@ -148,7 +147,7 @@ Recommended:
 - **Draining on `SIGTERM` is not proved by a test**; only the readiness flip is.
 <!--#if (accounts && anyFeature)-->
 - **A feature added without a deletion policy orphans its rows** when an account goes; the generator
-  makes the policy a required choice: [ADR 0012](docs/decisions/0012-account-deletion-each-feature-decides.md).
+  makes the policy a required choice: [deleting an account](docs/features/accounts.md#deleting-an-account).
 <!--#endif-->
 <!--#if (accounts && !anyFeature)-->
 - **A feature added without a deletion policy orphans its rows** when an account goes; the generator

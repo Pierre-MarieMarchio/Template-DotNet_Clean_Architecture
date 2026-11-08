@@ -31,7 +31,7 @@ internal static class EventReport
         if (spec.ConsumerFeatures is not null)
         {
             output.WriteLine($"  - Write {spec.ConsumerName}: it throws NotImplementedException until you do, and the dispatcher would log that and drop every event. So its generated test TheReaction_IsWritten fails, and verify and CI stay red until you replace it with the tests of the reaction.");
-            output.WriteLine("    It re-derives its precondition when it runs, so running twice is running once (ADR 0006); a fact whose loss would matter has a sweep.");
+            output.WriteLine("    It re-derives its precondition when it runs, so running twice is running once (ADR 0002); a fact whose loss would matter has a sweep.");
             output.WriteLine($"    {spec.ConsumerFeatures} reaches {spec.Features} only through its events: use {spec.EventNamespace} and nothing else of it.");
         }
         else

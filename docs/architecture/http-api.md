@@ -36,14 +36,14 @@ generated client types them. The document carries both whichever endpoints remai
 included when none declares a `400`; `OpenApiDocumentTests` holds both.
 <!--#if (anyWeb)-->
 The web apps' API client is generated from the same document, written at build time
-([ADR 0019](../decisions/0019-one-generated-api-client.md)).
+([Web front end](../features/web-frontend.md#calling-the-api)).
 <!--#endif-->
 <!--#if (dotnetClient)-->
 The .NET client of `src/Presentation/AT.Presentation.Client` is generated from the reference itself:
 `dotnet cleanarch openapi` rewrites its `Generated/` folder with the Kiota the tool
 manifest pins, and `dotnet cleanarch openapi --check`, which `verify` runs, fails while
 the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
-([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
+([the .NET client](layers-and-projects.md#the-net-client)).
 <!--#endif-->
 
 ## Errors and codes
@@ -240,12 +240,3 @@ A `GET` or `HEAD` answers `Cache-Control: private, no-cache`: a response may be 
 and must be revalidated, with `If-None-Match`, before reuse. An action marked `[NoStore]` answers
 `no-store`. Every response varies on `Authorization` and `Origin`, so a shared cache can never serve
 one caller's response to another. A value an endpoint sets itself is never overwritten.
-
-## Decisions
-
-- [0008. Optimistic concurrency end to end](../decisions/0008-optimistic-concurrency-end-to-end.md)
-- [0010. An idempotency key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
-- [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): MVC controllers, `Asp.Versioning`, the framework's OpenAPI generator.
-<!--#if (anyWeb)-->
-- [0019. One generated API client](../decisions/0019-one-generated-api-client.md)
-<!--#endif-->

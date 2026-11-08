@@ -14,9 +14,8 @@ the mail cannot be sent. Reminders is the example of a flat aggregate that a tim
 A signed-in caller schedules a reminder for one of their to-do items, lists an item's reminders,
 reschedules a pending one and cancels one. When the reminder falls due, this project mails the owner
 once. A reminder belongs to its creator: another caller's reminder answers `404` `reminder.notFound`
-exactly as a missing one does ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)). Once an
-account is deleted, its reminders are deleted too
-([ADR 0012](../decisions/0012-account-deletion-each-feature-decides.md)).
+exactly as a missing one does ([ADR 0004](../decisions/0004-ownership-is-in-the-query.md)). Once an
+account is deleted, its reminders are deleted too, as [deleting an account](accounts.md#deleting-an-account) says.
 
 A reminder is in one of three states, and a client must handle all three:
 
@@ -134,7 +133,5 @@ An MCP server's own tests for these tools are in its test project, under `Featur
 
 ## Decisions
 
-- [ADR 0034: features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
-- [ADR 0006: events after commit, without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md)
-- [ADR 0009: ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
-- [ADR 0012: on account deletion, each feature decides](../decisions/0012-account-deletion-each-feature-decides.md)
+- [ADR 0002: events after commit, without an outbox](../decisions/0002-events-after-commit-without-an-outbox.md)
+- [ADR 0004: ownership is in the query](../decisions/0004-ownership-is-in-the-query.md)

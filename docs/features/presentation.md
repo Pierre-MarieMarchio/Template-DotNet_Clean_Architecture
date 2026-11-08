@@ -14,7 +14,7 @@ How each presentation project this project holds is created and composed, and ho
 `src/Presentation/<Initials>.Portal` is the portal, a Blazor Web App with server interactivity. It runs on the
 server and calls the use cases in its own process, with its own composition in its `Program.cs`:
 the same features and modules as the other hosts, its own caller, its own sign-in, and neither jobs nor
-migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+migrations ([composition](../architecture/layers-and-projects.md#composition)).
 Its tests are in `tests/Presentation/<Initials>.Portal.UnitTests`.
 
 <!--#endif-->
@@ -22,9 +22,9 @@ Its tests are in `tests/Presentation/<Initials>.Portal.UnitTests`.
 `src/Presentation/<Initials>.Desktop` is the desktop app, an Avalonia app on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
 client of `src/Presentation/<Initials>.Presentation.Client`, generated from the API's OpenAPI document
-([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It references that client
+([the .NET client](../architecture/layers-and-projects.md#the-net-client)). It references that client
 alone, never the domain, the application layer or a module, so it composes no use case of its own
-([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+([composition](../architecture/layers-and-projects.md#composition)).
 Its tests are in `tests/Presentation/<Initials>.Desktop.UnitTests`.
 
 <!--#endif-->
@@ -32,11 +32,11 @@ Its tests are in `tests/Presentation/<Initials>.Desktop.UnitTests`.
 `src/Presentation/<Initials>.Desktop` is the desktop app, a WPF app for Windows on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
 client of `src/Presentation/<Initials>.Presentation.Client`, generated from the API's OpenAPI document
-([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It is one project on
+([the .NET client](../architecture/layers-and-projects.md#the-net-client)). It is one project on
 `net10.0-windows`, holding its windows, its view models, its settings, its host and its session, and
 references that client alone, never the domain, the application layer or a module, so it composes no
 use case of its own
-([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+([composition](../architecture/layers-and-projects.md#composition)).
 Its tests are in `tests/Presentation/<Initials>.Desktop.UnitTests`, on `net10.0-windows` too.
 
 WPF is Windows first: the app is developed, run and tested on Windows. Other systems build it and its
@@ -50,8 +50,8 @@ tests out and name them before and after the run, as
 assistant or an editor, connects to it over Streamable HTTP and calls its tools, each of which runs
 one use case in the server's own process. It has its own composition in its `Program.cs`: the same
 features and modules as the other hosts, its own caller, its own authentication, and neither jobs nor
-migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
-Every tool acts for the caller its credential names ([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
+migrations ([composition](../architecture/layers-and-projects.md#composition)).
+Every tool acts for the caller its credential names ([ADR 0005](../decisions/0005-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
 Its tests are in `tests/Presentation/<Initials>.Mcp.UnitTests`.
 
 <!--#endif-->
@@ -129,7 +129,7 @@ them. A component therefore sends each message in a scope of its own, through `O
 ```
 
 The scope it opens carries the circuit's caller, so `ICurrentUser` names the person signed in and
-ownership stays in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)). A page
+ownership stays in the query ([ADR 0004](../decisions/0004-ownership-is-in-the-query.md)). A page
 rendered statically, a sign-in form among them, can inject `ISender` directly: its request is the
 scope, and its user is the caller. A use case sent from anywhere else refuses to answer who calls
 it, rather than guess.
@@ -155,7 +155,7 @@ the cookie holds exactly the claims a bearer token carries: the user, the sessio
 time of the sign-in. It keeps the refresh token, encrypted in the cookie, for the sign-out, and
 expires with it; it never rotates it, since two requests of the same page would present it twice.
 The cookie is a session of the identity module
-([ADR 0013](../decisions/0013-a-session-is-a-refresh-token-family.md)): every five minutes, a
+([sessions](authentication.md#sessions)): every five minutes, a
 request and an open circuit ask whether that session is still listed, and sign out the moment it is
 not, after a password change, a sign-out everywhere or an administrator's lock. A form posting to
 `/account/sign-out`, with its antiforgery token, ends it.
@@ -166,7 +166,7 @@ Passkeys need script in the page and are left to it.
 
 The sign-in is your provider's, with the OpenID Connect code flow: `/account/sign-in` sends the
 browser there and back, and the subject the provider returns is mapped to this project's owner as
-every host maps it ([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)). Roles
+every host maps it ([an external identity provider](authentication.md#an-external-identity-provider)). Roles
 come from the same source in every host: with `Roles:Source` set to `Claim`, the provider must put
 them in the ID token, which is the token this host reads. A form posting to `/account/sign-out`,
 with its antiforgery token, ends the cookie session; the provider's own session stays.
@@ -424,7 +424,7 @@ This project has no feature yet, so the server offers no tool until one is decla
 No tool deletes, updates or replaces. A tool answers its result as JSON, in the result's structured
 content and as text. A failure is an error result carrying the problem's `code`, its `detail` and,
 for a refused input, its field `errors`: a record of another caller answers exactly as one that does not exist
-([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)).
+([ADR 0004](../decisions/0004-ownership-is-in-the-query.md)).
 <!--#if (api)-->
 The codes are the ones the [API reference](../reference/api.md) lists.
 <!--#endif-->
@@ -491,7 +491,7 @@ without one is a `401` whose `WWW-Authenticate` names the server's protected res
 `/.well-known/oauth-protected-resource/mcp`, which names the provider: a client that follows the
 protocol's authorization signs its user in there and comes back with a token. The subject is mapped
 to this project's owner as every host maps it
-([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)). The provider registers
+([an external identity provider](authentication.md#an-external-identity-provider)). The provider registers
 the server as a resource with that audience, and each client as a public client with a loopback
 redirect, unless it registers clients dynamically.
 <!--#endif-->
@@ -538,10 +538,9 @@ and from the database it composes, which a unit test does not run, the execution
 would hold each host for some twenty seconds.
 <!--#endif-->
 <!--#endif-->
+<!--#if (presentationMcp)-->
 
 ## Decisions
 
-- [0022. A presentation project reaches the core through the API or the application layer](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)
-<!--#if (presentationMcp)-->
-- [0027. An MCP server acts for the caller its credential names](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)
+- [0005. An MCP server acts for the caller its credential names](../decisions/0005-an-mcp-server-acts-for-the-caller-its-credential-names.md)
 <!--#endif-->

@@ -2,7 +2,7 @@
 
 The host that runs the background jobs, beside the API, which runs none: a generic host on
 `Microsoft.NET.Sdk.Worker` that serves no HTTP. [Background jobs](../../../docs/features/background-jobs.md)
-describes it, and [ADR 0025](../../../docs/decisions/0025-jobs-run-in-a-worker-under-a-lease.md) why.
+describes it and why it has a process of its own.
 
 ## Create the project
 
@@ -33,7 +33,7 @@ the defaults: the project's files are written for them. The item template refuse
 `--database sqlite`, whose file serves one process, and in a project without the API, whose jobs run
 in a worker already.
 
-It writes this folder, its tests and the worker's decision. The command then moves the API's
+It writes this folder and its tests. The command then moves the API's
 `Common/Jobs` and `Features/*/Jobs` folders into this project, and the `Features/*/Jobs` folders of
 the API's unit tests into its tests, renames each namespace they declare from the API's to the
 worker's wherever the project names it, and makes the lines `--presentation worker` writes in files the item template cannot edit,
@@ -45,7 +45,6 @@ the type, which then moves to the application layer or into the job's folder. La
 section from this README, as `--presentation worker` writes it: the files it cites have moved. Then
 it creates the project as above; commit it.
 
-ADR 0011 stays, superseded by ADR 0025, since it held while the API ran the jobs.
 The move is safe in a rolling deployment: a pass that must not run twice takes its `ILeaderLease`
 inside its use case, so the API still running the jobs and the new worker never run it together, and
 the other passes are idempotent. The edits, to make by hand where the command stops:
@@ -400,87 +399,22 @@ the other passes are idempotent. The edits, to make by hand where the command st
           ["src/Presentation/AT.Worker"] = ["Jobs", "Security"],
   ```
 
-- in `docs/architecture/README.md`, replace the line:
+- in `docs/architecture/layers-and-projects.md`, replace the lines:
 
   ```markdown
-  - [0011. Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
+  Jobs and migrations stay in the API: a second host runs no background job and migrates nothing,
+  since the methods that do both live in the API, which no other host may reference. Two hosts running
+  the jobs would run every pass twice, with the lease the only thing between them.
+  `TheJobs_RunInOneHost` holds that one host alone calls `AddBackgroundJobs`.
   ```
 
   with:
 
   ```markdown
-  - [0025. Jobs run in a worker, under a lease](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)
-  ```
-
-- in `docs/architecture/shared-mechanisms.md`, replace the line:
-
-  ```markdown
-  - [0011. Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
-  ```
-
-  with:
-
-  ```markdown
-  - [0025. Jobs run in a worker, under a lease](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)
-  ```
-
-- in `docs/decisions/0006-events-after-commit-without-an-outbox.md`, replace the lines:
-
-  ```markdown
-  - **A sweep is the guarantee** for a fact whose loss would matter: a periodic pass under a lease
-    ([ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md)) that re-derives the same effect, so the
-    event only makes it prompt.
-  ```
-
-  with:
-
-  ```markdown
-  - **A sweep is the guarantee** for a fact whose loss would matter: a periodic pass under a lease
-    ([ADR 0025](0025-jobs-run-in-a-worker-under-a-lease.md)) that re-derives the same effect, so the
-    event only makes it prompt.
-  ```
-
-- in `docs/decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md`, replace the lines:
-
-  ```markdown
-  - **Jobs and migrations stay in the API.** A second host runs no background job, as
-    [ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md) has it, and migrates nothing: the
-    methods that do both live in the API, which no other host may reference. `TheJobs_RunInOneHost`
-    holds that one host alone calls `AddBackgroundJobs`, the one that holds the jobs' module.
-  ```
-
-  with:
-
-  ```markdown
-  - **The worker runs the jobs, the API migrates.** The worker is the one host that runs background
-    jobs, as [ADR 0025](0025-jobs-run-in-a-worker-under-a-lease.md) has it, and the API the one that
-    migrates: the methods that do each live in that host, which no other host may reference.
-    `TheJobs_RunInOneHost` holds that one host alone calls `AddBackgroundJobs`, the one that holds
-    the jobs' module.
-  ```
-
-- in `docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md`, replace the line:
-
-  ```markdown
-  Status: Accepted
-  ```
-
-  with:
-
-  ```markdown
-  Status: Superseded by [0025](0025-jobs-run-in-a-worker-under-a-lease.md)
-  ```
-
-- in `docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md`, replace the line:
-
-  ```markdown
-  status: Accepted
-  ```
-
-  with:
-
-  ```markdown
-  status: Superseded
+  The worker is the one host that runs background jobs, and the API the one that migrates: the
+  methods that do each live in that host, which no other host may reference. Two hosts running the
+  jobs would run every pass twice, with the lease the only thing between them. `TheJobs_RunInOneHost`
+  holds that one host alone calls `AddBackgroundJobs`.
   ```
 
 - in `docs/features/background-jobs.md`, replace the lines:
@@ -508,6 +442,13 @@ the other passes are idempotent. The edits, to make by hand where the command st
   (`src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
   then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
   shutdown.
+
+  The jobs share the API's process because a process of their own is a second image, a second
+  deployment and a second composition to keep in step with the API's; one image runs both, and
+  [Several instances](#several-instances) says how to keep the passes off the HTTP instances. A
+  scheduler such as Quartz.NET or Hangfire is not used: it brings calendars, retries and a dashboard
+  that interval passes do not need, with tables of its own to migrate. The worker below becomes the
+  better shape once the jobs compete with HTTP for the same resources under load.
   ```
 
   with:
@@ -515,11 +456,11 @@ the other passes are idempotent. The edits, to make by hand where the command st
   ```markdown
   ## The worker
 
-  `src/Presentation/<Initials>.Worker` is a generic host that runs the jobs and serves no HTTP
-  ([ADR 0025](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)). Its `Program.cs` composes the
-  features and the modules the passes call, as the API's does, gives every scope no caller, and calls
-  `AddBackgroundJobs` from `Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`; each feature's jobs
-  are under its own `Features/<Feature>/Jobs/`.
+  `src/Presentation/<Initials>.Worker` is a generic host that runs the jobs and serves no HTTP. Its
+  `Program.cs` composes the features and the modules the passes call, as the API's does, gives every
+  scope no caller, and calls `AddBackgroundJobs` from
+  `Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`; each feature's jobs are under its own
+  `Features/<Feature>/Jobs/`.
   The API composes no job and binds no `Jobs` section, and keeps the maintenance routes.
   Each loop runs on `PeriodicJob.RunAsync`
   (`src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
@@ -528,14 +469,25 @@ the other passes are idempotent. The edits, to make by hand where the command st
 
   The worker migrates nothing. In Development the API migrates its database as it starts, and Compose
   starts the worker once the API answers; at release the migration bundles run before either host.
-  <!--#if (!api)-->
-  The worker migrates nothing, and neither does any other host of this project: in Development the
-  migrations are applied with `dotnet ef database update`, as [first run](../getting-started/first-run.md#run-with-compose)
-  shows, and at release the migration bundles run before the hosts.
-  <!--#endif-->
   Its tests are in `tests/Presentation/<Initials>.Worker.UnitTests`: `WorkerCompositionTests` builds the
   worker from its own `Program.cs` with every registration validated and resolves each use case's
   handler it composes in a background scope.
+  `TheJobs_RunInOneHost`, in `BackgroundWorkTests`, holds that exactly one host calls
+  `AddBackgroundJobs`.
+
+  The jobs have a process of their own because inside the API a pass shares its threads, its
+  connections, its memory and its image, which then carries every dependency a pass needs. Running the
+  API's image twice, jobs switched off on the HTTP instances, still starts an HTTP pipeline that serves
+  no request; a worker that references the API project would start with the HTTP composition's
+  registrations, and a jobs library both hosts reference would be a project whose only purpose is to
+  move between hosts. A scheduler such as Quartz.NET or Hangfire brings calendars, retries and a
+  dashboard that interval passes do not need, with tables of its own to migrate. The price is a second
+  image and a second deployment, released from the same commit; the shape is worth revisiting once the
+  worker and the API compose so nearly the same thing that keeping the two in step costs more than the
+  separation buys.
+
+  A setting a pass reads is set on the worker; a setting a use case reads is set on every host that
+  composes it.
   ```
 
 - in `docs/features/background-jobs.md`, replace the lines:
@@ -565,7 +517,10 @@ the other passes are idempotent. The edits, to make by hand where the command st
   with:
 
   ```markdown
-  Scale the API freely: it runs no pass.
+  Scale the API freely: it runs no pass. Moving the jobs from the API to the worker is safe in a
+  rolling deployment: a pass that must not run twice takes its lease in its use case, so the API that
+  still runs the jobs and the worker that starts running them never run it together, and the other
+  passes are idempotent.
   Run one worker. A second worker is stood by under each lease
   and repeats the idempotent passes, which the leases and the passes survive, but which is not a
   reason to run two. `Jobs__Enabled=false` leaves a worker idle, binding no job section.
@@ -587,18 +542,6 @@ the other passes are idempotent. The edits, to make by hand where the command st
   ```markdown
   `src/Presentation/<Initials>.Worker/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
   the idempotency purge this way.
-  ```
-
-- in `docs/features/background-jobs.md`, replace the line:
-
-  ```markdown
-  - [0011 Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
-  ```
-
-  with:
-
-  ```markdown
-  - [0025 Jobs run in a worker, under a lease](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)
   ```
 
 - in `docs/getting-started/first-run.md`, before the line:

@@ -61,8 +61,7 @@ and `PendingModelChangesTests` fails.
 
 While no database has applied it, change it rather than stacking migrations: delete the context's
 `Migrations` folder and run `bootstrap` again. Once a database has applied it, add a named migration
-instead. Why the first migration is born here is a row of
-[ADR 0001](../decisions/0001-adopt-the-generated-baseline.md).
+instead. Why the first migration is born here is a row of [the stack](../architecture/README.md#the-stack).
 
 ## Add a migration
 
@@ -140,8 +139,7 @@ Every other environment starts without touching the schema; a release applies th
 as [deployment](deployment.md#migrations-at-release) describes.
 <!--#endif-->
 <!--#if (sqlite)-->
-Every other environment refuses to start: this project runs on SQLite, a development database, and
-[ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) says how to move to a server one.
+Every other environment refuses to start: this project runs on SQLite, a development database.
 No release applies migrations to the file; [deployment](deployment.md#when) gives the way out.
 <!--#endif-->
 

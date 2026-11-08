@@ -462,7 +462,7 @@ public sealed class ModuleDependencyTests
                 "The .NET client runs on another machine than the API and speaks to it over HTTP alone, and so does a presentation "
                 + "that calls the API through it: the client references no project, and such a presentation the client alone. "
                 + "A reference to a domain, application, infrastructure or other presentation project would ship the server's code "
-                + "to it (ADR 0022, ADR 0023). Remove each reference named here and call the API over HTTP through the generated "
+                + "to it (docs/architecture/layers-and-projects.md, under Composition and The .NET client). Remove each reference named here and call the API over HTTP through the generated "
                 + "client instead.");
     }
 }

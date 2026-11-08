@@ -68,11 +68,11 @@ better shape once the jobs compete with HTTP for the same resources under load.
 <!--#if (jobsWorker)-->
 ## The worker
 
-`src/Presentation/<Initials>.Worker` is a generic host that runs the jobs and serves no HTTP
-([ADR 0025](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)). Its `Program.cs` composes the
-features and the modules the passes call, as the API's does, gives every scope no caller, and calls
-`AddBackgroundJobs` from `Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`; each feature's jobs
-are under its own `Features/<Feature>/Jobs/`.
+`src/Presentation/<Initials>.Worker` is a generic host that runs the jobs and serves no HTTP. Its
+`Program.cs` composes the features and the modules the passes call, as the API's does, gives every
+scope no caller, and calls `AddBackgroundJobs` from
+`Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`; each feature's jobs are under its own
+`Features/<Feature>/Jobs/`.
 <!--#if (api)-->
 The API composes no job and binds no `Jobs` section, and keeps the maintenance routes.
 <!--#endif-->
@@ -192,8 +192,7 @@ that session, so a proxy that multiplexes sessions breaks it silently; give the 
 <!--#endif-->
 <!--#if (sqlite)-->
 A lease excludes only the callers of its own process, so a second instance is not stood by; this
-project runs as one instance, which [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md)
-explains.
+project runs as one instance, which [deployment](../guides/deployment.md#when) explains.
 <!--#endif-->
 
 ## Several instances
@@ -308,10 +307,4 @@ A pass switched off logs a warning on every tick saying what it leaves undone.
 
 ## Decisions
 
-<!--#if (!jobsWorker)-->
-- [0011 Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
-<!--#endif-->
-<!--#if (jobsWorker)-->
-- [0025 Jobs run in a worker, under a lease](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)
-<!--#endif-->
-- [0006 Events after commit, without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md): why a sweep backs every event.
+- [0002 Events after commit, without an outbox](../decisions/0002-events-after-commit-without-an-outbox.md): why a sweep backs every event.

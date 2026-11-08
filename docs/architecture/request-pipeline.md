@@ -37,7 +37,7 @@ size limit, the pipeline before any middleware of the host's.
 
 TLS terminates upstream. The API listens on plain HTTP on port 8080, installs no HTTPS redirection
 and sends no HSTS header; [Deployment](../guides/deployment.md#behind-a-proxy) states what the
-proxy in front must do, and ADR 0001 records the choice.
+proxy in front must do, and [the stack](README.md#the-stack) records the choice.
 
 ## Authorisation
 
@@ -71,8 +71,7 @@ caller rather than `404`.
 
 `AuthorizationPolicies.Administrator` is the one named policy: it requires the role the deployment
 configures as the administrator's, and guards the maintenance and administration endpoints.
-A new policy is registered beside it. The host checks a role, never the use case
-([ADR 0039](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)).
+A new policy is registered beside it. The host checks a role, never the use case.
 
 A use case knows the caller, not the caller's roles: `ICurrentUser` names the caller and carries no
 role, so a handler scopes its query to the owner but cannot ask whether the caller is an
@@ -192,10 +191,3 @@ The chosen value is a BCP 47 tag in `CurrentLanguage.Tag`, not a culture: the pr
 invariant globalization, so the tag chooses which text is written and nothing else, and every value
 parses the same way for every caller. With no usable header, and always in a background job, the
 language is `Localization:DefaultCulture`. Problem documents are written in English.
-
-## Decisions
-
-- [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): TLS upstream, FluentValidation, the language as a tag.
-<!--#if (accounts)-->
-- [0039. A role is checked by the host, not by the use case](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)
-<!--#endif-->

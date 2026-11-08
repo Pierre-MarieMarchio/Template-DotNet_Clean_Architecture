@@ -96,7 +96,3 @@ none leaves the machine. The API reaches it at `mailpit:1025` with `Email:Securi
 | [`Email`](../reference/configuration.md#email) | the transport, the SMTP server, the sender |
 | [`Postmark`](../reference/configuration.md#postmark) | the Postmark token, base URL and stream |
 | [`Localization`](../reference/configuration.md#localization) | the default language |
-
-## Decisions
-
-- [0001 Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): SMTP or Postmark, Mailpit locally, invariant globalization.

@@ -109,5 +109,4 @@ every feature rich costs less, the shapes are revisited.
 
 ## Decisions
 
-- [0002. Two feature shapes](../decisions/0002-two-feature-shapes.md)
-- [0005. The domain is not mapped by EF](../decisions/0005-the-domain-is-not-mapped-by-ef.md)
+- [0001. The domain is not mapped by EF](../decisions/0001-the-domain-is-not-mapped-by-ef.md)

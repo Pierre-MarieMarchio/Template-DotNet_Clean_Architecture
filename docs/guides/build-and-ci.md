@@ -290,6 +290,7 @@ Every dependency but the SDK is at an exact version, and `.github/dependabot.yml
 weekly, in bands; nothing is ignored. The SDK is a floor: `global.json` names the lowest version and
 lets a later feature band of the same major version run, and each Dockerfile pins the SDK image it
 builds with.
+The toolchain, the pinning and Dependabot are rows of [the stack](../architecture/README.md#the-stack).
 
 | Dependency | Pinned in |
 |---|---|
@@ -305,8 +306,8 @@ builds with.
 
 `NuGetAudit` fails the build on any known advisory, `low` included, on a direct package as on a
 transitive one: `Directory.Build.props` sets `NuGetAuditMode` to `all` and `NuGetAuditLevel` to
-`low`, under `TreatWarningsAsErrors`. A project that is born vulnerable does not build in silence
-([ADR 0030](../decisions/0030-any-known-advisory-fails-the-build.md)), so a build can fail the day an
+`low`, under `TreatWarningsAsErrors`. A project that is born vulnerable does not build in silence,
+so a build can fail the day an
 advisory is published, with no change to the code.
 
 The level is `low` rather than `moderate` or `high`: a low advisory still reaches every instance of
@@ -339,14 +340,9 @@ advisory fails, whatever its severity. The answer is the same too: raise the dep
 patched release under `overrides` in `src/Web/pnpm-workspace.yaml` with a comment saying when it can go;
 a package that cannot take the pinned release as it is gets a pnpm patch in `src/Web/patches/`.
 <!--#endif-->
-
 <!--#if (templateMaintenance)-->
+
 The template builds what nuget.org serves each week, so an advisory published since the last release
 shows before a user meets it:
 [the weekly build of the published package](../template/maintaining-the-template.md#the-published-package-each-week).
-
 <!--#endif-->
-## Decisions
-
-The toolchain, the pinning and Dependabot are rows of
-[ADR 0001](../decisions/0001-adopt-the-generated-baseline.md).

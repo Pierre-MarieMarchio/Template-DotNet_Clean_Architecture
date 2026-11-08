@@ -21,7 +21,7 @@ public sealed class OwnedAggregateLoadTests
 
         //#endif
         WithoutAnOwner(loads).ShouldBeEmpty(
-                "Another caller's record answers 404 because the owner is in the query (ADR 0009). A port " +
+                "Another caller's record answers 404 because the owner is in the query (ADR 0004). A port " +
                 "that loads one owned aggregate takes the caller's UserId, so its adapter filters by owner " +
                 "and id in the same statement and never reads another user's row. A load with no caller " +
                 "behind it, such as a sweep, reads a batch under a name of its own. Add a UserId " +

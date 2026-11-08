@@ -226,8 +226,7 @@ edit:
 <!--#endif-->
 - `AddFileJobs` and the file instruments of the background jobs;
 - the `Files` and `Jobs:Files` settings, and the object store in Compose and `.env.example`;
-- [the Files page](../features/files.md) and [ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md),
-  then `docs-index`, which drops both from the index.
+- [the Files page](../features/files.md), then `docs-index`, which drops it from the index.
 <!--#endif-->
 <!--#if (todoLists && files)-->
 

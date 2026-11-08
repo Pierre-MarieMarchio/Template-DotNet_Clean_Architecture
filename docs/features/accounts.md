@@ -20,8 +20,7 @@ The email address is an account's only identifier: there is no user name, and Id
 `{"status":"pending"}`. The address learns by mail what happened: a confirmation link for a new
 account, a fresh link for one still unconfirmed, a notice with sign-in and reset hints for one
 already confirmed. A `400` only ever concerns the submitted values (address format, password
-policy), never whether the address is taken
-([ADR 0014](../decisions/0014-anonymous-routes-reveal-nothing.md)).
+policy), never whether the address is taken.
 
 Every anonymous route follows one rule: its answer never tells whether an address has an account
 here, since that answer is the first step of credential stuffing and of targeted phishing.
@@ -132,7 +131,7 @@ Each feature that owns user data decides the fate of its rows, delete or anonymi
 twice: a consumer of the fact is the fast path, and a leased sweep in the maintenance job
 (`Jobs:Maintenance:SweepDeletedAccountsDataEnabled`) is the guarantee, since in-process
 publication is at most once. Both check that the account is really gone before writing, and both
-are idempotent ([ADR 0012](../decisions/0012-account-deletion-each-feature-decides.md)). Every
+are idempotent. Every
 feature this project ships deletes.
 
 The account module deletes nothing but the account: the rest lives in features it does not know,
@@ -183,14 +182,4 @@ Set `IdentitySeed:AdminPassword` with `dotnet user-secrets`; a blank password fa
 <!--#endif-->
 ## Decisions
 
-- [0009 Ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
-<!--#if (anyFeature)-->
-- [0012 Account deletion: each feature decides](../decisions/0012-account-deletion-each-feature-decides.md)
-<!--#endif-->
-<!--#if (localAuth)-->
-- [0013 A session is a refresh-token family](../decisions/0013-a-session-is-a-refresh-token-family.md)
-- [0014 Anonymous routes reveal nothing](../decisions/0014-anonymous-routes-reveal-nothing.md)
-<!--#endif-->
-<!--#if (externalAuth)-->
-- [0017 External subjects map to internal owners](../decisions/0017-external-subjects-map-to-internal-owners.md)
-<!--#endif-->
+- [0004 Ownership is in the query](../decisions/0004-ownership-is-in-the-query.md)

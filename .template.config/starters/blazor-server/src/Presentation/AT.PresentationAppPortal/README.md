@@ -311,32 +311,17 @@ the command stops:
 
   ```
 
-- in `docs/decisions/0001-adopt-the-generated-baseline.md`, before the lines:
+- in `docs/architecture/README.md`, before the lines:
 
   ```markdown
 
-  ## Consequences
+  A row's reason stops holding when the platform moves, when its cost shows up in an incident or a
   ```
 
   add:
 
   ```markdown
-  | A Blazor Web App with server interactivity beside the API, its pages from `dotnet new blazor` at bootstrap, composing the use cases in process | A server-rendered site needs no client of the API and no token per user | [Presentation project](../features/presentation.md) | — |
-  ```
-
-- in `docs/decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md`,
-  after the line:
-
-  ```markdown
-    host, go to `Presentation.Core` while it stays free of ASP.NET Core; the rest each host keeps.
-  ```
-
-  add:
-
-  ```markdown
-  - **The presentation project of this repository** composes the use cases in process. Its caller is
-    the circuit's or the request's principal, given to each operation's own scope, so a use case
-    never shares a database context across a circuit's lifetime.
+  | A Blazor Web App with server interactivity, its pages from `dotnet new blazor` at bootstrap, composing the use cases in process | A server-rendered site needs no client of the API and no token per user | [Presentation projects](../features/presentation.md) | — |
   ```
 
 <!--#if (accounts)-->
@@ -407,7 +392,7 @@ the command stops:
   ```markdown
   Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
   owner feature writes and registers each host's account directory beside the API's; the edits name
-  both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+  both ([composition](../architecture/layers-and-projects.md#composition)).
   ```
 
 <!--#if (todoLists || notes)-->

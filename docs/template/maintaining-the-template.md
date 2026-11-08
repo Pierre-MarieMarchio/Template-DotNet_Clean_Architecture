@@ -53,7 +53,7 @@ the project's local tools, `CleanArch.Cli` among them once the template pins it,
 judges the dependencies users receive today. Nothing else builds the published package between
 releases: the acceptance matrix packs the checkout. A red run is an advisory published since the last
 release, or a published package that no longer builds; the fix is a release that raises the
-dependency, as [the project's policy](../decisions/0030-any-known-advisory-fails-the-build.md) says.
+dependency, as [the project's policy](../guides/build-and-ci.md#an-advisory-fails-the-build) says.
 A nuget.org holding no stable version fails the run too, since there is nothing for a user to install.
 Like the nightly acceptance run, GitHub announces a red run only to the person who last changed the
 cron line, by mail if their settings send workflow failures, and shows it under the Actions tab; look
@@ -202,7 +202,7 @@ project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job ass
 are the shapes the options produce, not their cross product, and run with `fail-fast: false`.
 
 A leg whose `runner` is `windows-latest` runs in the `template-windows` job instead, as a Windows
-user runs the project ([template decision 0014](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)):
+user runs the project ([which legs a change runs](#which-legs-a-change-runs)):
 from PowerShell, one command a step, it installs the package, generates, checks its `cleanarch.json`,
 asserts the source name leaked nowhere, then runs `bootstrap`, `build` with warnings as errors,
 `test --no-integration`, `verify` and the citation check. A Windows runner runs no Linux image, so
@@ -219,7 +219,7 @@ provider runs in Compose, and the API fetches nothing from the one it names unti
 ### Which legs a change runs
 
 A pull request runs the legs its change can affect, and every other leg still reports
-([template decision 0010](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)).
+([template decision 0002](decisions/0002-a-pull-request-runs-the-legs-its-change-can-affect.md)).
 The workflow's `Select the acceptance legs` job runs `.template.config/acceptance/SelectLegs.cs`
 after its `--self-test`, on the paths `git diff --name-only --no-renames HEAD^1 HEAD` lists for the
 pull request's merge commit. Each rule of `.template.config/acceptance/rules.json` maps path globs to
@@ -304,7 +304,7 @@ proves, and a leg that stays under about twelve minutes. It gets a leg of its ow
 
 ## Database providers
 
-A project carries one provider ([decision 0005](decisions/0005-a-project-carries-one-database-provider.md)),
+A project carries one provider ([decision 0001](decisions/0001-a-project-carries-one-database-provider.md)),
 and none ships a migration: `bootstrap` creates each context's `InitialCreate` from the project's own
 model. PostgreSQL is in-tree: compiled, tested and covered in this checkout.
 Every other provider is a whole-file overlay under `.template.config/variants/database-<name>/`: each
@@ -491,7 +491,7 @@ hash step and client folder in the `Dockerfile`, and the sentences of the `READM
 CLI.
 
 The app itself comes from a starter, one folder per `--web` value under `.template.config/starters`
-([template decision 0023](decisions/0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md)): `angular`,
+([template decision 0004](decisions/0004-a-web-app-comes-from-a-starter-static-or-server-rendered.md)): `angular`,
 `vite-react`, `vite-vue`, `vite-svelte` and `react-router`, each holding
 `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`, which both templates copy into the app's
 folder by the framework chosen and the scaffold step consumes at bootstrap. Neither template copies anything else from there. A
@@ -499,14 +499,14 @@ framework has one value: React and Vue come from Vite's CLI, so `vite-react` and
 them, and no second value creates the same framework another way.
 
 A starter whose generator also renders on the server holds that form in `ssr/FrameworkSite/`, its
-own `scaffold.json` and `overlay/` ([template decision 0023](decisions/0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md)):
+own `scaffold.json` and `overlay/` ([template decision 0004](decisions/0004-a-web-app-comes-from-a-starter-static-or-server-rendered.md)):
 `angular` does, with `ng new --ssr`, and `react-router`, with its `node-custom-server` template. Both templates copy the starter's folder without `ssr/`, leave
 its `FrameworkSite/` out under `webServerRendering`, and copy `ssr/` under the starter's symbol and
 `webServerRendering`; the shared `Dockerfile` then ends on Node, and `nginx.conf` is left out.
 `--web-rendering ssr`, and `cleanarch-webapp --rendering ssr`, are refused for every other starter
 by `serverRenderingNeedsAServerStarter`.
 
-Adding a starter, for a CLI that keeps the contract of decision 0023:
+Adding a starter, for a CLI that keeps the contract of [template decision 0004](decisions/0004-a-web-app-comes-from-a-starter-static-or-server-rendered.md):
 
 1. Write `.template.config/starters/<value>/FrameworkSite/scaffold.json`: the CLI's package, its
    exact version, its arguments (`{name}` and `{directory}` are replaced; the CLI runs with its input
@@ -554,9 +554,8 @@ Adding a starter, for a CLI that keeps the contract of decision 0023:
 ## Presentation starters
 
 `--presentation` names every host a project holds, one or several, `api` by default
-([template decision 0020](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)).
-Each value but `api` is a starter, of kind `dotnet`
-([template decision 0009](decisions/0009-a-dotnet-project-comes-from-a-starter.md)) or, for WPF, the
+([adding an option](#adding-an-option)).
+Each value but `api` is a starter, of kind `dotnet` or, for WPF, the
 MCP server and the worker, `written`, copied under its value's symbol
 (`presentationBlazorServer`, `presentationMcp`, `presentationAvalonia`, `presentationWpf`,
 `jobsWorker`, which `needsWorker` also sets). `needsApi` brings the API with what calls it, a web app, a desktop client or the MCP
@@ -574,27 +573,24 @@ project template copies the folder into the project's root under `presentationBl
 `presentationAvalonia`, which sets `dotnetClient`: it keeps the files `dotnet new avalonia.mvvm`
 writes at its root and in `Assets`, `ViewModels` and `Views`, owns the project file, `Program.cs`,
 `App.axaml.cs`, the main view model and window, and references the .NET client alone.
-`.template.config/starters/mcp` holds an MCP server written whole
-([template decision 0025](decisions/0025-an-mcp-server-is-a-presentation-project-written-whole.md)),
+`.template.config/starters/mcp` holds an MCP server written whole,
 copied under `presentationMcp`: its `scaffold.json` is of kind `written`, in the shape of
 `dotnet new mcpserver --transport remote`, so the scaffold step only adds it to the solution;
 it owns the project file, `Program.cs`, the settings, the image, the caller's authentication (an
 access key under `localAuth`, the provider's token under `externalAuth`) and one tools class per
 example feature, each excluded with its feature. Under local accounts the access keys its callers
 present come with it: `accessKeys` (`localAuth && presentationMcp`) keeps their files in the Auth
-context and the API, their tests and ADR 0026, leaves them out otherwise, and conditions the lines
+context and the API and their tests, leaves them out otherwise, and conditions the lines
 they add to shared files; `cleanarch-presentation` brings the same files and its `README.md` lists
 those lines for `add presentation`.
 `.template.config/starters/wpf`, copied under `presentationWpf`, which sets `dotnetClient` too, is
-written whole ([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
-the WPF app is one project on `net10.0-windows`, with `EnableWindowsTargeting` so that it builds on
+written whole: the WPF app is one project on `net10.0-windows`, with `EnableWindowsTargeting` so that it builds on
 every system, laid out as the Avalonia starter's: `App.xaml`, `MainWindow.xaml` and their code-behind,
 `ViewModels/`, the settings and the host under `Common/Hosting` and the session under
 `Common/Sessions`, referencing the .NET client alone. It adds `System.IO` and `System.Net.Http` to
 its usings, which `UseWPF` takes out of the implicit ones, so the files it shares with the Avalonia
 starter compile unchanged. Its one test project, on `net10.0-windows` too, runs on Windows alone,
-and the tasks name it as skipped elsewhere
-([template decision 0022](decisions/0022-a-wpf-app-is-one-windows-project-tested-on-windows.md)).
+and the tasks name it as skipped elsewhere.
 Its hosting, session, settings and tests are a copy of the Avalonia starter's, at the same paths and in the same
 namespace: `TheWpfStartersSharedCode_IsTheAvaloniaStartersOwn_ByteForByte` fails until a
 change to one copy is made to the other, and a third desktop client is the time to move them into a
@@ -654,8 +650,8 @@ silence; they read the target framework from the test project's own file, which
 
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
 folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` and `wpf` it also brings
-`src/Presentation/AT.Presentation.Client`, `tests/Presentation/AT.Presentation.Client.UnitTests` and ADR 0023, which a project without a client lacks. For `worker`
-it brings ADR 0025 instead of the page, refuses every `-n` but `Worker` (`workerIsNamedWorker`), a
+`src/Presentation/AT.Presentation.Client`, `tests/Presentation/AT.Presentation.Client.UnitTests`, which a project without a client lacks. For `worker`
+it brings no page, refuses every `-n` but `Worker` (`workerIsNamedWorker`), a
 project without the API (`workerTakesTheJobsOfTheApi`) and SQLite (`workerNeedsServerDatabase`), and
 the project's `add presentation` moves the jobs, as [the worker](#the-worker) says. `--has-api`, true by default, says whether the project holds the
 API: its computed `api` conditions the README's lines, and `presentationNeedsTheApi` refuses a
@@ -682,10 +678,7 @@ lines of a first app's workspace, which `add web-app` makes before the app's whi
 records no workspace), each leaving to the others the lines their symbols write. For an app added to
 a workspace, the overview, the first run and the web front end page stay as they are, since they
 describe the app the project was generated with; a first app's workspace brings the web front end
-page and the end-to-end tests of the web apps whole. A server-rendered app brings ADR 0024 into its own
-folder, since the engine refuses to overwrite the copy an earlier one placed, and `add web-app` moves it
-to `docs/decisions` or drops it when the project holds it already; the app's `README.md` lists the
-lines citing it.
+page and the end-to-end tests of the web apps whole.
 Under `externalAuth` the WebAssembly app has code of its own, and its unit tests come from
 `.template.config/variants/blazor-wasm-sign-in/`, which both templates copy to the project's root,
 since the starter's folder lands in `src/Web/apps/`; the scaffold step adds them to the solution with
@@ -720,9 +713,9 @@ and `tests` and fails until a new one is refused.
 ## The app host
 
 `--aspire` adds `src/AppHost/AT.AppHost`, an Aspire app host, beside Docker Compose, which stays the
-reference ([ADR 0032](../decisions/0032-the-app-host-follows-compose.md)). Its source is in-tree, built
+reference ([when](../guides/running-the-app-host.md#when)). Its source is in-tree, built
 and tested in this checkout like `src/Presentation/AT.Presentation.Client`, and `template.json` leaves it out with its
-integration tests, `LocalStackParityTests`, its page and its ADR under `!aspire`; `ProjectFileTests`
+integration tests, `LocalStackParityTests`, and its page under `!aspire`; `ProjectFileTests`
 reads it as absent here. It starts the hosts and the web apps `cleanarch.json` records rather than
 a list of its own, so `add presentation` and `add web-app` need no edit of it, and its C# conditions
 only on the options a project cannot change: the database, the authentication, Files and the
@@ -752,12 +745,10 @@ refuses SQLite, whose file the app host's processes cannot share with Compose's 
 
 ## The worker
 
-`--presentation worker` moves the jobs out of the API
-([template decision 0024](decisions/0024-the-worker-takes-the-jobs-out-of-the-api.md)), and without the API
+`--presentation worker` moves the jobs out of the API, and without the API
 it is the host that runs them. The worker's own files
-are a starter written whole, `.template.config/starters/worker`
-([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
-its project file, `Program.cs`, settings, `Dockerfile`, caller identity and the compositions of the
+are a starter written whole, `.template.config/starters/worker`, as [presentation starters](#presentation-starters)
+says: its project file, `Program.cs`, settings, `Dockerfile`, caller identity and the compositions of the
 directories its passes read, with its test project and `WorkerCompositionTests`. Its `scaffold.json`
 is of kind `written`, so the scaffold step only adds the two projects to the solution and
 formats them. The jobs themselves stay where they are in this checkout, the API's `Common/Jobs` and
@@ -780,13 +771,13 @@ in-process lease cannot keep the API's maintenance routes out of the worker's pa
 serves one process.
 
 A project generated without the worker takes it later: `cleanarch-presentation --framework worker
--n Worker` writes the starter and ADR 0025, and the project's `add presentation` does what the
+-n Worker` writes the starter, and the project's `add presentation` does what the
 template's sources and symbols do at generation. It moves the API's `Common/Jobs` and
 `Features/*/Jobs`, and the `Features/*/Jobs` of its unit tests, into the worker and its tests;
 renames each namespace they declare, in every file of the project, from `<Project>.Api.` to
 `<Project>.Worker.`, the rule `EveryNamespaceTheWorkerTakes_HasItsSwitchSymbol` holds the switch
 symbols to; and makes the edits the starter's `README.md` lists for the lines conditioned on
-`jobsWorker`, which also set ADR 0011 to `Superseded by` ADR 0025, since a decision is never erased, which `TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders`
+`jobsWorker`, which `TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders`
 holds. It refuses before writing while git reports a change to a file it would move, edit or remove,
 builds the solution and the worker's tests in a copy of the project with the join made, and writes
 nothing when that build fails, naming what a job uses that only the API declares. A line no option of
@@ -794,9 +785,8 @@ the item can tell apart stays out of that branch: the API-alone sentence of the 
 is conditioned on `!jobsWorker` alone, so that no presentation project's README needs it, and a test
 literal that names a job namespace names the worker's, which the rename leaves alone. A launcher test
 generates a project with `--presentation api --presentation worker` and the same project without the
-worker, adds it with the item template and the join, and requires the two trees to be the same but
-for ADR 0011, superseded, and its line in the decisions index, once `docs-index` has written each
-tree's index as bootstrap would.
+worker, adds it with the item template and the join, and requires the two trees to be the same once
+`docs-index` has written each tree's index as bootstrap would.
 
 ## Web lockfiles
 
@@ -847,7 +837,7 @@ and commits what it writes.
 `cleanarch.json` records what a project was generated with: the template package and version, the
 project's name, every option that is not a part under its value, `client` when `src/Presentation/AT.Presentation.Client`
 holds the .NET client, the web workspace with its apps and packages, and the presentation project
-([template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)).
+([template decision 0003](decisions/0003-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)).
 This checkout holds the file the defaults generate; `dotnet cleanarch` finds the root by it and reads
 the options there rather than through markers.
 
@@ -867,7 +857,7 @@ a generated symbol that replaces it, its place in the list of `.template.config/
 ## Project folders
 
 A project's folder carries the project's initials in place of its name
-([ADR 0029](../decisions/0029-a-project-folder-carries-the-products-initials-not-its-name.md)), so
+([the folder map](../reference/project-layout.md#the-folder-map)), so
 this checkout's folders start with `AT.` and its project files with `AppTemplate.`. The two
 generated symbols `projectFolderPrefixAnyCase` and `projectFolderPrefix` compute the initials from the
 name and replace `AT.` in every path and file; `cleanarch-presentation` and `cleanarch-webapp`
@@ -912,7 +902,7 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 | Facet | Where |
 |---|---|
 | Content | every file of the checkout under `content/`, minus what generation always leaves out, the scratch folders (`.git`, `.claude`, `bin`, `obj`, `node_modules`, `TestResults`, `artifacts`), the plans and the package project; `TemplatePackagingTests` holds the list against `template.json` |
-| Version | the `templateVersion` symbol of `.template.config/template.json`, which release-please raises, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview and its `cleanarch.json`, as [template decision 0018](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md) allows |
+| Version | the `templateVersion` symbol of `.template.config/template.json`, which release-please raises, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview and its `cleanarch.json`, as [what a project receives](using-the-template.md#what-a-project-receives-and-what-stays-here) allows |
 | Metadata | id, authors, description, tags, licence, `CHANGELOG.md`, `.template.config/icon.png` and `.template.config/package/README.md`, all in the package project, at the package's root and outside `content/`, so no project receives them |
 | Readme | `.template.config/package/README.md`, not the repository's: nuget.org renders Markdown without HTML, and neither a relative link or image nor an image from a host it does not allow; `TemplatePackagingTests` holds each package's readme, the launcher's and the project tool's among them, to that |
 
@@ -977,10 +967,8 @@ through the launcher, attests the packages' provenance and attaches them to the 
 for a short-lived nuget.org key (Trusted Publishing, with `NUGET_USER` the account's name as a
 repository variable) and pushes the three packages; a version already on nuget.org fails the push. Its
 `mirror` job then pushes the same packages to GitHub Packages, so the repository page lists them
-([template decision 0007](decisions/0007-github-packages-mirrors-nuget-org.md)). Last,
+([the package](#the-package)). Last,
 `promote` fast-forwards `main` to the release commit, and refuses if `main` is not its ancestor.
-[Template decision 0027](decisions/0027-develop-integrates-main-holds-the-releases.md) gives the
-reasons.
 
 ## The launcher
 
@@ -995,8 +983,8 @@ which holds five more projects. Generation and the template package leave the fo
 | `launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root: `BuiltInCommands.cs` lists every command, and the ones that stay the tool's each have a folder, `launcher/CleanArch.Cli/Eject` with the source it ships and `launcher/CleanArch.Cli/UpgradeReport` reading template packages through `CleanArch.Tooling`; `launcher/CleanArch.Cli/Joins` holds the join steps `add` runs, which are not commands. `launcher/CleanArch.Cli/Generators` holds one folder per generator, its command, request, plan, edits, report and templates, over `launcher/CleanArch.Cli/Generators/Shared`, the pipeline every generator runs and the code they share, which references no generator; its tests are in `launcher/CleanArch.Cli.Tests`, whose `launcher/CleanArch.Cli.Tests/Architecture` holds the launcher's boundaries: no command or generator references another, `Kernel` and `Shared` reference none, `CleanArch.Cli.Commands` references System.CommandLine alone, and only the two process launchers call `Process.Start` |
 | `launcher/CleanArch.Cli.Commands` | the commands `eject` can copy into a project, never packed on its own: it references System.CommandLine alone, since an ejected command is a file-based app that declares nothing else. Each command has a folder and a namespace of its own and references no other; `launcher/CleanArch.Cli.Commands/Hosting` holds the root command, the registration and the context, and `launcher/CleanArch.Cli.Commands/Kernel` what the commands share, the process launcher the context carries and every external call among it, the documentation index and the scaffold steps `bootstrap` runs, referencing neither the commands nor `Hosting`. `CleanArch.Cli` composes them with the ones that stay the tool's, and ships the source of every folder, which eject merges into one namespace |
 
-[Template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
-[0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) say what each tool is for.
+[Template decision 0003](decisions/0003-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) says
+what each tool is for.
 The tests that read the manifests through the launcher's own settings stay in
 `launcher/CleanArch.Create.Tests`.
 
@@ -1021,9 +1009,9 @@ both tools with no change to them.
 
 | Facet | Where |
 |---|---|
-| Questions | read from the manifests under `.template.config/`, embedded at build; [template decision 0026](decisions/0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md) gives the rules an option and a refusal keep |
+| Questions | read from the manifests under `.template.config/`, embedded at build; [adding an option](#adding-an-option) gives the rules an option and a refusal keep |
 | Version | the same `templateVersion`; the launcher installs `CleanArch.WebApi.Templates` at its own version |
-| Thread | drawn with the glyphs every console font carries; [template decision 0016](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md) gives the rule and the test that holds it |
+| Thread | drawn with the glyphs every console font carries, as the paragraphs below the table say |
 | Packages | `Spectre.Console` and `System.CommandLine`, pinned in `launcher/Directory.Packages.props`, which imports the repository's |
 | Analysis | `SonarAnalyzer.CSharp`, pinned beside them, runs its default rules on all seven projects, and the build fails on any of them; a method of the four projects that ship holds a cognitive complexity (S3776) of 15 at most, set in `launcher/.editorconfig`. The measure counts nesting and breaks in flow rather than branches, so a flat `switch` stays cheap and a method that nests is split. A finding is fixed in the code, never silenced |
 | Gate | `verify` restores, formats, builds and tests the launcher's solution, all seven projects, after the project's gate; CI's `launcher` job does the same |
@@ -1065,8 +1053,9 @@ server under an external provider, and the same project without it, to which `cl
 --workspace` and `add web-app` add the app: the two trees must match but for the options the overview
 records, so an edit of `src/Web/README.md` or of the app's `README.md` that is missing, wrong or
 placed elsewhere than the project template writes its lines fails it. A third adds two
-server-rendered apps to a project generated with a single-page app and requires ADR 0024, its line
-in the decisions index and the lines citing it as `--web-rendering ssr` writes them, once. Each of
+server-rendered apps to a project generated with a single-page app and requires the ports
+`cleanarch.json` records, the authentication page and the decisions index to be what
+`--web-rendering ssr` writes. Each of
 these runs `docs-index` in the tree generated with the part, as its bootstrap would, so the indexes
 the joins write are compared too, and a fourth requires the indexes of a project that added the MCP
 server to be those of one generated with it.
@@ -1091,7 +1080,7 @@ runs it from the checkout; pass `--template-source` a `.nupkg` to try a packed o
 
 A project's `upgrade-report` command generates the project from
 the package at the version `cleanarch.json` records and at a newer one, then compares both with the
-project's files ([template decision 0021](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md));
+project's files;
 `docs/guides/upgrading.md` is its page. It generates both versions, from the name, options and parts
 `cleanarch.json` records, because a hash of each generated file would tell what the project changed
 but not what the target changes, and a three-way merge as Copier or Cruft apply would write conflict

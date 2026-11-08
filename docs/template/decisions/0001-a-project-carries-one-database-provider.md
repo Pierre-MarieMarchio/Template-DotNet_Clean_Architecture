@@ -1,11 +1,11 @@
 ---
 type: decision
-title: 0005. A project carries one database provider
+title: 0001. A project carries one database provider
 description: Why a generated project holds one database provider, chosen at generation, and no other provider's code.
 status: Accepted
 ---
 
-# 0005. A project carries one database provider
+# 0001. A project carries one database provider
 
 Status: Accepted
 
@@ -32,8 +32,8 @@ providers on one builder throws.
   them. The contract is in [Maintaining the template](../maintaining-the-template.md#database-providers).
 
 How each provider keeps the row version and the feature schemas is the project's decision, in
-[0008](../../decisions/0008-optimistic-concurrency-end-to-end.md) and
-[0007](../../decisions/0007-one-database-a-schema-per-feature.md); how a project gets its first
+[concurrency](../../architecture/persistence-model.md#concurrency) and
+[one database, a schema per feature](../../architecture/persistence-model.md#one-database-a-schema-per-feature); how a project gets its first
 migration is in [migrations](../../guides/migrations.md).
 
 ## Consequences

@@ -46,7 +46,7 @@ public sealed class ProjectFileTests
         solutions.ShouldBe(
             [Name + ".slnx"],
             Case.Sensitive,
-            $"cleanarch.json names the project {Name}, so its one solution is {Name}.slnx: an .sln beside it or in its place is the format ADR 0041 turned down.");
+            $"cleanarch.json names the project {Name}, so its one solution is {Name}.slnx: an .sln beside it or in its place is the format docs/reference/project-layout.md turns down under The project file.");
         Holds($"src/Domain/{Folder("Domain")}").ShouldBeTrue($"cleanarch.json names the project {Name}, which has no src/Domain/{Folder("Domain")}.");
     }
 

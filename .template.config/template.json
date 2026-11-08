@@ -1674,12 +1674,6 @@
           ]
         },
         {
-          "condition": "(!sqlite)",
-          "exclude": [
-            "docs/decisions/0021-sqlite-is-a-development-database.md"
-          ]
-        },
-        {
           "condition": "(sqlite)",
           "exclude": [
             "src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
@@ -1736,15 +1730,7 @@
             "src/Web/**",
             ".github/workflows/web.yml",
             "docs/features/web-frontend.md",
-            "docs/decisions/0019-one-generated-api-client.md",
-            "docs/decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md",
             "tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs"
-          ]
-        },
-        {
-          "condition": "(!webServerRendering)",
-          "exclude": [
-            "docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md"
           ]
         },
         {
@@ -1801,8 +1787,6 @@
         {
           "condition": "(!templateMaintenance)",
           "exclude": [
-            "docs/decisions/0003-use-cases-and-ports-are-explicit.md",
-            "docs/decisions/0004-features-meet-through-ports-and-events.md",
             "tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
             "tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
             "tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",
@@ -1836,11 +1820,6 @@
             "tests/Integration/AT.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
             "src/Presentation/AT.Api/Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
             "tests/Presentation/AT.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs",
-            "docs/decisions/0013-a-session-is-a-refresh-token-family.md",
-            "docs/decisions/0014-anonymous-routes-reveal-nothing.md",
-            "docs/decisions/0015-passkeys-stand-on-their-own.md",
-            "docs/decisions/0016-browser-refresh-token-in-a-cookie.md",
-            "docs/decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md",
             "docs/guides/rotating-the-signing-key.md",
             "tests/EndToEnd/AT.EndToEnd.Tests/Accounts.cs",
             "tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
@@ -1866,7 +1845,6 @@
             "src/Presentation/AT.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
             "tests/Presentation/AT.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
             "tests/Integration/AT.Api.IntegrationTests/Infrastructure/ExternalProvider.cs",
-            "docs/decisions/0017-external-subjects-map-to-internal-owners.md",
             "src/Presentation/AT.Presentation.Core/Common/Security/AuthenticationExternalOptions.cs",
             "src/Presentation/AT.Presentation.Core/Common/Security/AuthenticationExternalOptionsValidator.cs",
             "src/Presentation/AT.Presentation.Core/Common/Security/TokenRoleMapping.cs",
@@ -1878,15 +1856,7 @@
           "condition": "(!accounts)",
           "exclude": [
             "docs/features/accounts.md",
-            "docs/decisions/0009-ownership-is-in-the-query.md",
-            "docs/decisions/0031-the-feature-generator-composes-what-it-writes.md",
-            "docs/decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md"
-          ]
-        },
-        {
-          "condition": "(!(anyFeature && accounts))",
-          "exclude": [
-            "docs/decisions/0012-account-deletion-each-feature-decides.md"
+            "docs/decisions/0004-ownership-is-in-the-query.md"
           ]
         },
         {
@@ -1937,7 +1907,6 @@
             "tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
             "tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs",
             "docs/features/files.md",
-            "docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md",
             "tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
             "tests/Presentation/AT.Api.UnitTests/Composition/StoredFileOwnerQueryTests.cs"
           ]
@@ -2034,8 +2003,7 @@
             "src/AppHost/**",
             "tests/Integration/AT.AppHost.IntegrationTests/**",
             "tests/Architecture/AT.Architecture.Tests/Rules/LocalStackParityTests.cs",
-            "docs/guides/running-the-app-host.md",
-            "docs/decisions/0032-the-app-host-follows-compose.md"
+            "docs/guides/running-the-app-host.md"
           ]
         },
         {
@@ -2048,14 +2016,13 @@
           "condition": "(!dotnetClient)",
           "exclude": [
             "src/Presentation/AT.Presentation.Client/**",
-            "tests/Presentation/AT.Presentation.Client.UnitTests/**",
-            "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md"
+            "tests/Presentation/AT.Presentation.Client.UnitTests/**"
           ]
         },
         {
           "condition": "(!presentationMcp)",
           "exclude": [
-            "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md"
+            "docs/decisions/0005-an-mcp-server-acts-for-the-caller-its-credential-names.md"
           ]
         },
         {
@@ -2071,8 +2038,7 @@
             "src/Presentation/AT.Api/Features/Auth/Controllers/AccessKeysController.cs",
             "tests/Application/AT.Application.Auth.UnitTests/Features/AccessKeys/**",
             "tests/Integration/AT.Api.IntegrationTests/Auth/AccessKeyManagementTests.cs",
-            "tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**",
-            "docs/decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md"
+            "tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**"
           ]
         },
         {
@@ -2107,14 +2073,7 @@
           "exclude": [
             "src/Presentation/AT.Api/Common/Jobs/**",
             "src/Presentation/AT.Api/Features/*/Jobs/**",
-            "tests/Presentation/AT.Api.UnitTests/Features/*/Jobs/**",
-            "docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md"
-          ]
-        },
-        {
-          "condition": "(!jobsWorker)",
-          "exclude": [
-            "docs/decisions/0025-jobs-run-in-a-worker-under-a-lease.md"
+            "tests/Presentation/AT.Api.UnitTests/Features/*/Jobs/**"
           ]
         }
       ]

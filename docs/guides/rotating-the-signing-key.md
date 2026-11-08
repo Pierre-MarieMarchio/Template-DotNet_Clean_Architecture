@@ -15,7 +15,7 @@ signed-in caller was refused on the way.
 An access token is an HS256 JWT signed with `Jwt:Key`. Every host that composes authentication
 accepts a token signed with `Jwt:Key` or with one of `Jwt:PreviousKeys`, and signs only with
 `Jwt:Key`; [the configuration reference](../reference/configuration.md#jwt) holds the rules each key
-is held to, and [ADR 0040](../decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md) says why the previous keys only validate.
+is held to.
 
 A token carries no key id and no JWKS document publishes the keys: every host that validates a
 token already holds the secret, and trying one or two HS256 keys costs nothing, where a `kid` would
@@ -29,7 +29,7 @@ validate the tokens calls for an asymmetric key and a published key set instead.
 | What a caller holds | What the rotation does to it |
 |---|---|
 | An access token | accepted until it expires while its key is listed in `Jwt:PreviousKeys`, refused once the key is gone |
-| A refresh token | nothing: it is a random value stored hashed, never signed with the key, so every session survives ([ADR 0013](../decisions/0013-a-session-is-a-refresh-token-family.md)) |
+| A refresh token | nothing: it is a random value stored hashed, never signed with the key, so every session survives ([sessions](../features/authentication.md#sessions)) |
 | An access key, or a session cookie a server-rendered host keeps | nothing: an access key is a random value stored hashed, and a cookie is protected by its host's data-protection keys; neither is signed with this key |
 
 A leaked key is the exception: tokens it signed must stop working at once, so it never goes to

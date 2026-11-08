@@ -1262,14 +1262,13 @@ public sealed class TemplatePackagingTests
         string[] taken = [.. MovedSources(sources)
             .SelectMany(source => source.GetProperty("include").EnumerateArray()
                 .Select(include => Text(source, "source")![2..] + include.GetString()))
-            .Append("docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md")
             .Order(StringComparer.Ordinal)];
         string[] leftOut = [.. sources[0].GetProperty("modifiers").EnumerateArray()
             .Where(modifier => Text(modifier, "condition") == "(jobsWorker)")
             .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(path => path.GetString()!))
             .Order(StringComparer.Ordinal)];
 
-        taken.Length.ShouldBeGreaterThanOrEqualTo(4, "Far fewer moved folders were found than the worker takes, so this rule is not reading template.json.");
+        taken.Length.ShouldBeGreaterThanOrEqualTo(3, "Far fewer moved folders were found than the worker takes, so this rule is not reading template.json.");
         leftOut.ShouldBe(taken, "Under jobsWorker the API's source must leave out exactly the folders the worker's sources copy, or a job would run in both hosts or in neither.");
     }
 
@@ -1671,32 +1670,32 @@ public sealed class TemplatePackagingTests
     [InlineData(
         "avalonia/src/Presentation/AT.PresentationAppDesktop/README.md",
         "anyPresentation|presentationAvalonia|dotnetClient",
-        10,
-        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "src/Presentation/AT.Presentation.Client/", "tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx" })]
+        9,
+        new[] { "docs/features/presentation.md", "src/Presentation/AT.Presentation.Client/", "tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx" })]
     [InlineData(
         "mcp/src/Presentation/AT.PresentationAppMcp/README.md",
         "anyPresentation|presentationMcp|accessKeys",
         11,
-        new[] { "docs/features/presentation.md", "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md" })]
+        new[] { "docs/features/presentation.md", "docs/decisions/0005-an-mcp-server-acts-for-the-caller-its-credential-names.md" })]
     [InlineData(
         "wpf/src/Presentation/AT.PresentationAppDesktop/README.md",
         "anyPresentation|presentationWpf|dotnetClient",
-        10,
-        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "src/Presentation/AT.Presentation.Client/", "tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx" })]
+        9,
+        new[] { "docs/features/presentation.md", "src/Presentation/AT.Presentation.Client/", "tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx" })]
     [InlineData(
         "blazor-wasm/FrameworkSite/README.md",
         "webBlazorWasm|dotnetClient",
         7,
         new[]
         {
-            "src/Web/apps/FrameworkSite/", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "src/Presentation/AT.Presentation.Client/", "tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx",
+            "src/Web/apps/FrameworkSite/", "src/Presentation/AT.Presentation.Client/", "tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx",
             "docs/getting-started/overview.md", "docs/features/web-frontend.md",
         })]
     [InlineData(
         "worker/src/Presentation/AT.Worker/README.md",
         "jobsWorker",
         12,
-        new[] { "docs/decisions/0025-jobs-run-in-a-worker-under-a-lease.md", "docs/features/presentation.md" })]
+        new[] { "docs/features/presentation.md" })]
     public void TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders(string readme, string symbols, int files, string[] notListed) =>
         ReadmeListsEveryLineWrittenFor(Path.Combine(StartersFolder, readme), readme, symbols, readme.StartsWith(_workerStarter, StringComparison.Ordinal) ? _withoutTheApi : null, files, notListed);
 
@@ -1710,7 +1709,7 @@ public sealed class TemplatePackagingTests
         20,
         new[]
         {
-            "src/Web/", ".github/workflows/web.yml", "docs/features/web-frontend.md", "docs/decisions/0019-one-generated-api-client.md",
+            "src/Web/", ".github/workflows/web.yml", "docs/features/web-frontend.md",
             "tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs", "docs/getting-started/overview.md",
         })]
     [InlineData(

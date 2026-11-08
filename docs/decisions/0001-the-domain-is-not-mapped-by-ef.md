@@ -1,11 +1,11 @@
 ---
 type: decision
-title: 0005. The domain is not mapped by EF
+title: 0001. The domain is not mapped by EF
 description: Why EF maps row records and never the domain types, and how an aggregate is persisted through rows, a mapper and a store.
 status: Accepted
 ---
 
-# 0005. The domain is not mapped by EF
+# 0001. The domain is not mapped by EF
 
 Status: Accepted
 
@@ -31,7 +31,7 @@ Three `SaveChanges` interceptors run in this order: the flush writes each tracke
 rows, the audit interceptor stamps what that wrote, and the dispatcher publishes events after the
 commit. Because they are interceptors rather than steps of the unit of work, any `SaveChangesAsync`
 flushes and publishes, and the synchronous overload is refused
-([ADR 0006](0006-events-after-commit-without-an-outbox.md)).
+([ADR 0002](0002-events-after-commit-without-an-outbox.md)).
 
 Rehydration goes through the aggregate's own factories and checks structure only: a state and its
 dates agree, children belong to their root. Policy limits such as caps and lengths apply to new
@@ -48,7 +48,7 @@ writes, so lowering one never makes stored data unloadable.
 <!--#endif-->
 - An aggregate costs a record, a mapper and a tracker more than a mapped entity; the generator writes
   them. A feature with no state to protect has none of the three
-  ([ADR 0002](0002-two-feature-shapes.md)).
+  ([feature shapes](../architecture/feature-shapes.md#from-simple-to-rich)).
 - No code may save around the interceptors, and none needs to.
 
 [The save pipeline](../architecture/persistence-model.md#the-save-pipeline) describes the order and

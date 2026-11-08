@@ -57,6 +57,13 @@ runs on `PeriodicJob.RunAsync`
 (`src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
 then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
 shutdown.
+
+The jobs share the API's process because a process of their own is a second image, a second
+deployment and a second composition to keep in step with the API's; one image runs both, and
+[Several instances](#several-instances) says how to keep the passes off the HTTP instances. A
+scheduler such as Quartz.NET or Hangfire is not used: it brings calendars, retries and a dashboard
+that interval passes do not need, with tables of its own to migrate. The worker below becomes the
+better shape once the jobs compete with HTTP for the same resources under load.
 <!--#endif-->
 <!--#if (jobsWorker)-->
 ## The worker
@@ -86,6 +93,22 @@ shows, and at release the migration bundles run before the hosts.
 Its tests are in `tests/Presentation/<Initials>.Worker.UnitTests`: `WorkerCompositionTests` builds the
 worker from its own `Program.cs` with every registration validated and resolves each use case's
 handler it composes in a background scope.
+`TheJobs_RunInOneHost`, in `BackgroundWorkTests`, holds that exactly one host calls
+`AddBackgroundJobs`.
+
+The jobs have a process of their own because inside the API a pass shares its threads, its
+connections, its memory and its image, which then carries every dependency a pass needs. Running the
+API's image twice, jobs switched off on the HTTP instances, still starts an HTTP pipeline that serves
+no request; a worker that references the API project would start with the HTTP composition's
+registrations, and a jobs library both hosts reference would be a project whose only purpose is to
+move between hosts. A scheduler such as Quartz.NET or Hangfire brings calendars, retries and a
+dashboard that interval passes do not need, with tables of its own to migrate. The price is a second
+image and a second deployment, released from the same commit; the shape is worth revisiting once the
+worker and the API compose so nearly the same thing that keeping the two in step costs more than the
+separation buys.
+
+A setting a pass reads is set on the worker; a setting a use case reads is set on every host that
+composes it.
 <!--#endif-->
 
 Every pass sends its command and records what came of it through one `JobPass`, in the jobs host's
@@ -114,7 +137,24 @@ the duration of the pass.
 A pass that must not run twice at once takes `ILeaderLease` inside its use case: an in-process lock
 held for the duration of the pass, since SQLite is a file for one instance.
 <!--#endif-->
-A second instance's pass logs that it stood by and reports zero.
+A crashed process releases the lease with its connection, so nothing waits for a timeout. A second
+instance's pass logs that it stood by and reports zero.
+
+The lease sits in the use case, never in the loop, so that every caller of the operation is
+excluded: a timer, an HTTP request or another host alike. A background service only triggers
+its pass. `BackgroundWorkTests` holds that no background service takes the lease and that a use case
+does;
+<!--#if (postgreSql)-->
+`LeaderLeaseTests` proves the exclusion on a real PostgreSQL.
+<!--#endif-->
+<!--#if (sqlServer)-->
+`LeaderLeaseTests` proves the exclusion on a real SQL Server.
+<!--#endif-->
+<!--#if (sqlite)-->
+`LeaderLeaseTests` proves the exclusion inside one process.
+<!--#endif-->
+A lease's name is part of the deployment: two releases running side by side during a rolling
+deployment must spell it the same, or both run the pass.
 <!--#if (!anyFeature)-->
 No pass of this project takes one yet: the maintenance purges are idempotent.
 <!--#endif-->
@@ -180,7 +220,10 @@ A project generated with `--presentation worker` starts that way, and the `READM
 template writes in the worker's folder lists every other line the join changes.
 <!--#endif-->
 <!--#if (jobsWorker && api)-->
-Scale the API freely: it runs no pass.
+Scale the API freely: it runs no pass. Moving the jobs from the API to the worker is safe in a
+rolling deployment: a pass that must not run twice takes its lease in its use case, so the API that
+still runs the jobs and the worker that starts running them never run it together, and the other
+passes are idempotent.
 <!--#endif-->
 <!--#if (jobsWorker)-->
 Run one worker. A second worker is stood by under each lease

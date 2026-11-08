@@ -7,8 +7,6 @@ namespace CleanArch.Cli.Joins;
 
 internal static partial class ReadmeEdits
 {
-    private const string _fence = "```";
-
     public static bool Lists(string readme) => MarkdownSection.Of(readme, ItemAdditions.JoiningSection) is not null;
 
     public static List<ReadmeEdit> Listed(string root, string relative)
@@ -64,7 +62,7 @@ internal static partial class ReadmeEdits
 
     private static List<string> Fence(string[] section, ref int index, string relative)
     {
-        while (++index < section.Length && !section[index].TrimStart().StartsWith(_fence, StringComparison.Ordinal))
+        while (++index < section.Length && !MarkdownFence.Opens(section[index]))
         {
             if (section[index].StartsWith("- ", StringComparison.Ordinal) || section[index].StartsWith("## ", StringComparison.Ordinal))
             {
@@ -77,10 +75,11 @@ internal static partial class ReadmeEdits
             throw new JoinRefusedException($"{relative} ends inside an edit.");
         }
 
+        string fence = MarkdownFence.Marker(section[index]);
         int indent = section[index].Length - section[index].TrimStart().Length;
         var lines = new List<string>();
 
-        while (++index < section.Length && section[index].Trim() != _fence)
+        while (++index < section.Length && !MarkdownFence.Closes(section[index], fence))
         {
             lines.Add(Unindented(section[index], indent));
         }

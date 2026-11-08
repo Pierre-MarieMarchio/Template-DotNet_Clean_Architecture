@@ -31,6 +31,8 @@ const sessionCookiePattern = /^__Host-session=[A-Za-z0-9_-]{43}; Path=\/; HttpOn
 const signInCookiePattern = /^__Host-sign-in=[A-Za-z0-9_-]{43}; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=600$/;
 const clearedSession = '__Host-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
 const clearedSignIn = '__Host-sign-in=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
+const jwtPattern = /eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+/;
+
 const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const settings: ProviderSettings = {
   EXTERNAL_AUTH_AUTHORITY: issuer,
@@ -283,10 +285,12 @@ describe('providerSessions', () => {
     expect(answer.headers.getSetCookie()[0]).toMatch(sessionCookiePattern);
     expect(answer.headers.getSetCookie()[1]).toBe(clearedSignIn);
     expect(providerCalls).toContain('/token authorization_code');
-    for (const secret of ['access-1', 'refresh-1', 'eyJ']) {
+    for (const secret of ['access-1', 'refresh-1']) {
       expect(body).not.toContain(secret);
       expect(head).not.toContain(secret);
     }
+    expect(body).not.toMatch(jwtPattern);
+    expect(head).not.toMatch(jwtPattern);
   });
 
   it('refuses a callback whose state is not the one this browser was sent with, before the provider sees the code', async () => {

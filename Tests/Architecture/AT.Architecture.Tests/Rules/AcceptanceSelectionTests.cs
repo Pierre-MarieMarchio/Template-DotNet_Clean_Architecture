@@ -278,6 +278,11 @@ public sealed class AcceptanceSelectionTests
                 || (starter == "blazor-wasm" && Field("wasm_app") is not null))
             .Select(starter => $"starter-{starter}"));
 
+        if (options.Length == 0 && tags.Count == 0)
+        {
+            tags.Add("defaults");
+        }
+
         return tags;
     }
 
@@ -318,7 +323,8 @@ public sealed class AcceptanceSelectionTests
                     "web",
                 ]);
 
-        ChosenTags(JsonNode.Parse("{}")!.AsObject(), ["react"], ["worker"]).ShouldBeEmpty();
+        ChosenTags(JsonNode.Parse("{}")!.AsObject(), ["react"], ["worker"]).ShouldBe(["defaults"]);
+        ChosenTags(JsonNode.Parse("""{ "database": "sqlite" }""")!.AsObject(), ["react"], ["worker"]).ShouldBe(["database-sqlite"]);
     }
 
     [Fact]

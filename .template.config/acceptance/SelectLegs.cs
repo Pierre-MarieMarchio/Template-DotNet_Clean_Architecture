@@ -381,6 +381,7 @@ internal static class LegSelector
     [
         new("a template-only page", "pull_request", [], ["docs/template/maintaining-the-template.md"], []),
         new("the launcher and a template-only gate", "pull_request", [], ["Launcher/CleanArch.Create/Program.cs", "Tools/CheckWorkflows.cs"], []),
+        new("the project tool and its tests", "pull_request", [], ["Launcher/CleanArch.Tooling/ProjectNames.cs", "Launcher/CleanArch.Cli.Tests/x.cs"], ["defaults"]),
         new("the repository README, not a web app's", "pull_request", [], ["README.md"], []),
         new("a web app's page", "pull_request", [], ["Src/Web/apps/FrameworkSite/README.md"], _webLegs),
         new("the web workflow and the webapp item", "pull_request", [], [".github/workflows/web.yml", ".template.config/webapp/.template.config/template.json"], _webLegs),

@@ -12,6 +12,14 @@
     },
     {
       "paths": [
+        "Launcher/CleanArch.Cli/**",
+        "Launcher/CleanArch.Cli.Commands/**",
+        "Launcher/CleanArch.Tooling/**"
+      ],
+      "tags": ["defaults"]
+    },
+    {
+      "paths": [
         "docs/template/**",
         "docs/plans/**",
         "docs/guide_architecture_pour_agent.md",

@@ -1,7 +1,7 @@
 [
   {
     "name": "defaults",
-    "tags": [],
+    "tags": ["defaults"],
     "options": "",
     "auth_context": "true",
     "integration": "true",

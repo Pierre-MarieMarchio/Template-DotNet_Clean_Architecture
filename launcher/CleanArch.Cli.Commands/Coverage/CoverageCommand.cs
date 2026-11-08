@@ -53,29 +53,31 @@ internal static class CoverageCommand
                 Directory.Delete(results, recursive: true);
             }
 
-            string[] skipped = TestRuns.Skipped(root, shell.Output);
-            bool built = settings.MaxCpuCount is not null || skipped.Length > 0;
-            int exit = built
-                ? shell.Run(Dotnet.Build(root, ProjectPath.Relative(root, solution), settings.Configuration, settings.Nodes))
-                : ExitCode.Succeeded;
-            if (exit != ExitCode.Succeeded)
+            return TestRuns.AroundSkipped(root, shell.Output, skipped =>
             {
-                return exit;
-            }
+                bool built = settings.MaxCpuCount is not null || skipped.Length > 0;
+                int exit = built
+                    ? shell.Run(Dotnet.Build(root, ProjectPath.Relative(root, solution), settings.Configuration, settings.Nodes))
+                    : ExitCode.Succeeded;
+                if (exit != ExitCode.Succeeded)
+                {
+                    return exit;
+                }
 
-            string? filter = skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
-            try
-            {
-                return ExitCode.FirstFailureOf(
-                [
-                    () => shell.Run(CoveredTests(root, ProjectPath.Relative(root, filter ?? solution), settings, built, results)),
-                    () => Judge(project, shell, outputs),
-                ]);
-            }
-            finally
-            {
-                SolutionFilter.Delete(filter);
-            }
+                string? filter = skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
+                try
+                {
+                    return ExitCode.FirstFailureOf(
+                    [
+                        () => shell.Run(CoveredTests(root, ProjectPath.Relative(root, filter ?? solution), settings, built, results)),
+                        () => Judge(project, shell, outputs),
+                    ]);
+                }
+                finally
+                {
+                    SolutionFilter.Delete(filter);
+                }
+            });
         });
 
     private static ExternalCall CoveredTests(string root, string target, BuildSettings settings, bool built, string results) =>

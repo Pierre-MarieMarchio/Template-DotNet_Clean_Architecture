@@ -63,7 +63,7 @@ public sealed class VerifyCommandTests : IDisposable
             return;
         }
 
-        _output.ToString().ShouldContain("Skipped tests/Windows: it targets net10.0-windows and runs on Windows alone.");
+        _output.ToString().Split("Skipped tests/Windows: it targets net10.0-windows and runs on Windows alone.").Length.ShouldBe(3, "The skipped project is named before the run and again after it.");
         runnable.ShouldNotBeNull().ShouldContain("A.Unit.csproj");
         runnable.ShouldNotContain("A.Windows.csproj");
     }

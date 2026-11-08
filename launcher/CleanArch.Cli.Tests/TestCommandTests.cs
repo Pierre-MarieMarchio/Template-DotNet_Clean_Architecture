@@ -90,7 +90,7 @@ public sealed class TestCommandTests : IDisposable
 
         Run(["test"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        _output.ToString().ShouldContain("Skipped tests/Windows: it targets net10.0-windows and runs on Windows alone.");
+        _output.ToString().Split("Skipped tests/Windows: it targets net10.0-windows and runs on Windows alone.").Length.ShouldBe(3, "The skipped project is named before the run and again after it.");
         _dotnet.Calls.ShouldBe(
         [
             "build artifacts/test/runnable.slnf --configuration Debug",

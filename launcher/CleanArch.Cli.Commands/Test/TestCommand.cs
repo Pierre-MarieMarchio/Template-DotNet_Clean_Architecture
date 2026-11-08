@@ -10,7 +10,7 @@ internal static class TestCommand
 
     public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
-    private sealed record Selection(string? RunFilter, string? BuildFilter, bool LeavesOut);
+    private sealed record Selection(string? RunFilter, string? BuildFilter, bool LeavesOut, string[] NotRun, string[] Skipped);
 
     private static Command Create(CommandContext context)
     {
@@ -77,6 +77,7 @@ internal static class TestCommand
             {
                 SolutionFilter.Delete(selection.RunFilter);
                 SolutionFilter.Delete(selection.BuildFilter);
+                NameLeftOut(project.Root, shell.Output, selection);
             }
         });
 
@@ -87,21 +88,33 @@ internal static class TestCommand
         string[] tests = TestProjects.All(root);
         string[] dockerFree = [.. tests.Where(TestProjects.IsDockerFree)];
         string[] notRun = dockerFreeOnly ? [.. tests.Except(dockerFree, StringComparer.Ordinal)] : [];
-        foreach (string test in notRun)
+        string[] skipped = TestProjects.SkippedHere(tests);
+        bool leavesOut = skipped.Length > 0 || notRun.Length > 0;
+        Selection selection = dockerFreeOnly
+            ? DockerFree(root, solution, tests, new Selection(null, null, leavesOut, notRun, skipped))
+            : new Selection(Runnable(root, solution, skipped), null, leavesOut, notRun, skipped);
+        NameLeftOut(root, output, selection);
+        return selection;
+    }
+
+    private static Selection DockerFree(string root, string solution, string[] tests, Selection selection) =>
+        selection with
+        {
+            RunFilter = SolutionFilter.WriteDockerFree(root, solution, tests, selection.Skipped),
+            BuildFilter = selection.LeavesOut ? SolutionFilter.Write(root, solution, "docker-free-build.slnf", tests) : null,
+        };
+
+    private static string? Runnable(string root, string solution, string[] skipped) =>
+        skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
+
+    private static void NameLeftOut(string root, TextWriter output, Selection selection)
+    {
+        foreach (string test in selection.NotRun)
         {
             output.WriteLine(TestProjects.NotRunLine(root, test));
         }
 
-        string[] skipped = TestRuns.Skipped(root, output);
-        bool leavesOut = skipped.Length > 0 || notRun.Length > 0;
-        if (!dockerFreeOnly)
-        {
-            return new Selection(skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null, null, leavesOut);
-        }
-
-        string run = SolutionFilter.WriteDockerFree(root, solution, tests, skipped);
-        string? build = leavesOut ? SolutionFilter.Write(root, solution, "docker-free-build.slnf", tests) : null;
-        return new Selection(run, build, leavesOut);
+        TestRuns.Name(root, selection.Skipped, output);
     }
 
     private static int Execute(LocatedProject project, Shell shell, BuildSettings settings, Selection selection, IReadOnlyList<string> reporting)

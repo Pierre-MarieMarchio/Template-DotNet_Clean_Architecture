@@ -4,10 +4,9 @@ internal sealed class TreeComparison
 {
     private const string _solutionEditors = "the scaffolds of add presentation and add web-app add the .NET projects they create to it";
 
-    private readonly Trees _trees;
-    private readonly HashSet<string> _olderFiles;
-    private readonly HashSet<string> _newerFiles;
-    private readonly HashSet<string> _held;
+    private readonly FoldedTree _older;
+    private readonly FoldedTree _newer;
+    private readonly FoldedTree _project;
     private readonly string _name;
     private readonly IReadOnlyDictionary<string, string> _joined;
     private readonly FileSameness _sameness;
@@ -22,21 +21,20 @@ internal sealed class TreeComparison
 
     private TreeComparison(Trees trees, IReadOnlyCollection<string> projectFiles, string name, IReadOnlyDictionary<string, string> joined, IReadOnlySet<string>? heldGuids)
     {
-        _trees = trees;
-        _olderFiles = new HashSet<string>(ProjectTree.Files(trees.Older), StringComparer.Ordinal);
-        _newerFiles = new HashSet<string>(ProjectTree.Files(trees.Newer), StringComparer.Ordinal);
-        _held = new HashSet<string>(projectFiles, StringComparer.Ordinal);
+        _older = new FoldedTree(trees.Older, ProjectTree.Files(trees.Older));
+        _newer = new FoldedTree(trees.Newer, ProjectTree.Files(trees.Newer));
+        _project = new FoldedTree(trees.Project, projectFiles);
         _name = name;
         _joined = joined;
         _sameness = FileSameness.For(trees.Project, heldGuids);
-        _scaffolds = ScaffoldedParts.In(trees.Older, trees.Newer, _olderFiles.Union(_newerFiles));
+        _scaffolds = ScaffoldedParts.In(_older, _newer);
     }
 
     public static Comparison Compare(Trees trees, IReadOnlyCollection<string> projectFiles, string name, IReadOnlyDictionary<string, string> joined, IReadOnlySet<string>? heldGuids)
     {
         var comparison = new TreeComparison(trees, projectFiles, name, joined, heldGuids);
 
-        foreach (string path in comparison._olderFiles.Union(comparison._newerFiles).Union(comparison._held).Order(StringComparer.Ordinal))
+        foreach (string path in comparison._older.Keys.Union(comparison._newer.Keys).Union(comparison._project.Keys).Order(StringComparer.Ordinal))
         {
             comparison.Classify(path);
         }
@@ -46,7 +44,7 @@ internal sealed class TreeComparison
 
     private void Classify(string path)
     {
-        var at = new Presence(_olderFiles.Contains(path), _newerFiles.Contains(path), _held.Contains(path));
+        var at = new Presence(_older.Holds(path), _newer.Holds(path), _project.Holds(path));
 
         if (BootstrapWriters.Writer(path) is { } writer)
         {
@@ -74,7 +72,7 @@ internal sealed class TreeComparison
             _bootstrap[writer] = paths = [];
         }
 
-        paths.Add(path);
+        paths.Add(_project.PathOf(path));
     }
 
     private bool Scaffolded(string path, string folder, Presence at)
@@ -85,7 +83,7 @@ internal sealed class TreeComparison
         {
             if (!UnchangedByTheTarget(path, at))
             {
-                _scaffoldNotes.Add($"{path}: {ChangeOf(at)} by the target version; the part was created from it, so take what the new descriptor brings by hand.");
+                _scaffoldNotes.Add($"{Shown(path)}: {ChangeOf(at)} by the target version; the part was created from it, so take what the new descriptor brings by hand.");
             }
 
             return true;
@@ -96,7 +94,7 @@ internal sealed class TreeComparison
             if (!UnchangedByTheTarget(path, at))
             {
                 string target = folder + "/" + inside["overlay/".Length..];
-                _findings.Add(new Finding(FindingKind.Merge, target, $"the part's scaffold laid {path} over the part it created", at.Older ? path : null, at.Newer ? path : null));
+                _findings.Add(new Finding(FindingKind.Merge, Shown(target), $"the part's scaffold laid {Shown(path)} over the part it created", at.Older ? _older.PathOf(path) : null, at.Newer ? _newer.PathOf(path) : null));
             }
 
             return true;
@@ -127,7 +125,7 @@ internal sealed class TreeComparison
         }
         else
         {
-            _own.Add(path);
+            _own.Add(_project.PathOf(path));
         }
     }
 
@@ -137,21 +135,21 @@ internal sealed class TreeComparison
             ?? (ProjectTree.IsTheSolution(path, _name) && _scaffolds.AddToTheSolution ? _solutionEditors : null);
         string? join = _joined.TryGetValue(path, out string? part) ? $"the join of {part} edits it" : null;
 
-        if (Same(_trees.Older, _trees.Newer, path))
+        if (Same(_older, _newer, path))
         {
             _unchanged++;
         }
         else if (!inProject)
         {
-            _findings.Add(new Finding(FindingKind.Merge, path, Note("the project deleted it", join), path, path));
+            _findings.Add(new Finding(FindingKind.Merge, Shown(path), Note("the project deleted it", join), _older.PathOf(path), _newer.PathOf(path)));
         }
-        else if (edited is null && join is null && Same(_trees.Older, _trees.Project, path))
+        else if (edited is null && join is null && Same(_older, _project, path))
         {
-            _findings.Add(new Finding(FindingKind.Take, path, null, path, path));
+            _findings.Add(new Finding(FindingKind.Take, Shown(path), null, _older.PathOf(path), _newer.PathOf(path)));
         }
         else
         {
-            _findings.Add(new Finding(FindingKind.Merge, path, Note(edited, join), path, path));
+            _findings.Add(new Finding(FindingKind.Merge, Shown(path), Note(edited, join), _older.PathOf(path), _newer.PathOf(path)));
         }
     }
 
@@ -159,15 +157,15 @@ internal sealed class TreeComparison
     {
         if (!inProject)
         {
-            _findings.Add(new Finding(FindingKind.Added, path, null, null, path));
+            _findings.Add(new Finding(FindingKind.Added, Shown(path), null, null, _newer.PathOf(path)));
         }
-        else if (Same(_trees.Newer, _trees.Project, path))
+        else if (Same(_newer, _project, path))
         {
             _unchanged++;
         }
         else
         {
-            _findings.Add(new Finding(FindingKind.Added, path, "the project holds a file of its own at this path: merge by hand", null, path));
+            _findings.Add(new Finding(FindingKind.Added, Shown(path), "the project holds a file of its own at this path: merge by hand", null, _newer.PathOf(path)));
         }
     }
 
@@ -179,13 +177,15 @@ internal sealed class TreeComparison
             return;
         }
 
-        string? note = Same(_trees.Older, _trees.Project, path) ? null : "the project changed it: decide by hand";
-        _findings.Add(new Finding(FindingKind.Removed, path, note, path, null));
+        string? note = Same(_older, _project, path) ? null : "the project changed it: decide by hand";
+        _findings.Add(new Finding(FindingKind.Removed, Shown(path), note, _older.PathOf(path), null));
     }
 
-    private bool UnchangedByTheTarget(string path, Presence at) => at.Older && at.Newer && Same(_trees.Older, _trees.Newer, path);
+    private bool UnchangedByTheTarget(string path, Presence at) => at.Older && at.Newer && Same(_older, _newer, path);
 
-    private bool Same(string left, string right, string path) => _sameness.Same(Path.Combine(left, path), Path.Combine(right, path));
+    private bool Same(FoldedTree left, FoldedTree right, string path) => _sameness.Same(left.Full(path), right.Full(path));
+
+    private string Shown(string path) => new[] { _project, _newer, _older }.FirstOrDefault(tree => tree.Holds(path))?.PathOf(path) ?? path;
 
     private static string ChangeOf(Presence at)
     {

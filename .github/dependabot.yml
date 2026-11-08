@@ -120,7 +120,7 @@ updates:
       #endif
       #if (sonar)
       # The analysis image, tools/sonar-scanner.Dockerfile, on the same SDK as the API's.
-      - /Tools
+      - /tools
       #endif
       #if (anyWeb)
       # Every web app's image, nginx or Node, by directory glob.

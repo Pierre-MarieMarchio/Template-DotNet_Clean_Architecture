@@ -51,7 +51,8 @@ Each rule has one home, and a test holds it wherever a test can.
 - New behaviour comes with a test you have seen fail: break the code, watch the test go red, restore
   it.
 - A constraint you checked by hand becomes a rule in `tests/Architecture`.
-- A decision that could reasonably have gone the other way is an ADR.
+- A choice goes on the page it concerns, with its reason; an ADR only as a last resort, as
+  [when to write one](docs/decisions/README.md#when-to-write-one) says.
 - Commits and pull requests name their human author only, with no `Co-Authored-By` or "Generated
   with" line naming an AI tool; the author answers for every line and can explain it. Where a tool
   wrote code, an `Assisted-by: <tool>:<model>` trailer and the pull request's Assistance section are

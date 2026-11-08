@@ -30,4 +30,6 @@ propose one.
 ## Its decisions
 
 [The index of the template's decisions](decisions/index.md) lists each one by number, with its
-status and the question it answers; [the index](index.md) lists these pages.
+status and the question it answers; [the index](index.md) lists these pages. A template decision
+follows the project's rule: a last resort, for a choice the pages about the template cannot carry,
+as [when to write one](../decisions/README.md#when-to-write-one) says.

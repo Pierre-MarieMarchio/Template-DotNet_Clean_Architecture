@@ -133,9 +133,9 @@ combinations refused, what the name substitutes into, and the item templates `cl
 
 ## Architectural decisions
 
-Each choice another team could reasonably have made otherwise is an ADR: its context, the
-alternatives turned down, its consequences and when to revisit it, so a team can keep or reverse it
-knowing what it costs.
+The pages carry the reason of each part. An ADR is a last resort, kept for a significant,
+costly-to-reverse choice between real alternatives: its context, the alternatives turned down, its
+consequences and when to revisit it, so a team can keep or reverse it knowing what it costs.
 
 - [The project's decisions](docs/decisions/README.md), which a generated project receives: a domain
   EF does not map, events after commit without an outbox, ownership in the query and the caller an

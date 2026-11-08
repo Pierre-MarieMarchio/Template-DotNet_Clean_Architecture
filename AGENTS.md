@@ -108,8 +108,8 @@ it once it has the rich shape, and `--dry-run` shows what it would write.
   constraint, a reference. One that explains what the code does asks for a rename or an extraction.
 - Extract an abstraction only once two real cases prove its shape.
 - A test that buys a guarantee is seen failing once: break the code, watch it go red, restore it.
-- A rule checked by hand becomes a test in `tests/Architecture`; a decision is an ADR and the test
-  that holds it, changed together.
+- A rule checked by hand becomes a test in `tests/Architecture`; a decision is written down with the
+  test that holds it, changed together.
 
 ## Never
 
@@ -134,7 +134,8 @@ it once it has the rich shape, and `--dry-run` shows what it would write.
 - One question per page, in the voice of "this project": no history, no plan vocabulary.
 - A page starts from `docs/_page-templates/` with [its frontmatter](docs/README.md#adding-a-page),
   then `dotnet cleanarch docs-index` lists it.
-- A choice another team could have made otherwise is an ADR: [the criteria](docs/decisions/README.md).
+- A choice goes on the page it concerns; an ADR only as a last resort, as
+  [the criteria](docs/decisions/README.md#when-to-write-one) say.
 - Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.
 
 ## Done means

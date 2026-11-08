@@ -27,7 +27,7 @@ the pages this project holds, so a page appears there once it exists, and leaves
 
 [The decisions](decisions/README.md) say when a choice deserves an ADR, and
 [their index](decisions/index.md) lists every one with its status.
-[ADR 0001](decisions/0001-adopt-the-generated-baseline.md) records the choices this project started
+[The stack](architecture/README.md#the-stack) records the choices this project started
 with.
 
 ## Adding a page

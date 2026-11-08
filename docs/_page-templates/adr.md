@@ -26,7 +26,7 @@ it lost; leaving things as they are counts when it was one: <alternatives>.
 ## Consequences
 
 What becomes easier, what becomes harder, and what a maintainer must know before changing it; if it
-changes a row of ADR 0001, the row it changes: <consequences>.
+changes a row of [the stack](../architecture/README.md#the-stack), the row it changes: <consequences>.
 
 ## When this decision does not apply
 

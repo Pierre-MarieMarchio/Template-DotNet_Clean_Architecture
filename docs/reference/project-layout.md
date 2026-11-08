@@ -17,7 +17,7 @@ the pages: the capital letters of the name in order, or a part's first letter wh
 none, so a product named Acme.Shop keeps its project Acme.Shop.Application.Auth in
 src/Application/AS.Application.Auth. A module promoted to a project of its own follows the rule, and
 a second product goes in a root folder of its own, since the tool finds a project by its
-`cleanarch.json` ([ADR 0029](../decisions/0029-a-project-folder-carries-the-products-initials-not-its-name.md)).
+`cleanarch.json`.
 A folder named after the whole project would lengthen every path by the product's name, twice for a
 test, and a long name checked out a few folders deep reaches the 260 characters Windows allows
 without long paths turned on, or the 200 past which NuGet warns NU5123 for a packed file; the
@@ -49,7 +49,7 @@ their markup, in the shape `dotnet new wpf` gives them; a file named `<Type>.xam
 <!--#endif-->
 <!--#if (dotnetClient)-->
 The .NET client's root also holds `Generated/`, which `dotnet cleanarch openapi`
-writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
+writes and nobody edits ([the .NET client](../architecture/layers-and-projects.md#the-net-client)).
 <!--#endif-->
 
 A brace lists every word a project allows at that level; a feature holds only the words it has

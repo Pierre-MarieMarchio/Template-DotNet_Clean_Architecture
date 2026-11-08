@@ -130,8 +130,7 @@ Under `Features/<Feature>/`, every path answers four questions in order:
 
 A concept folder exists only when it has content. What serves one operation stays in that
 operation's folder, what serves one port stays with the port, and what serves several is promoted to
-the concept folders. The vocabulary is closed per project and checked in both directions
-([ADR 0035](../decisions/0035-folders-take-their-names-from-a-closed-vocabulary.md));
+the concept folders. The vocabulary is closed per project and checked in both directions;
 [the project layout](../reference/project-layout.md) lists every word, the suffix each one takes, and
 the test that holds it.
 
@@ -148,6 +147,4 @@ feature or several, so the tree says which files leave with a feature.
 
 ## Decisions
 
-- [0034. Features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
-- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
-- [0035. Folders take their names from a closed vocabulary](../decisions/0035-folders-take-their-names-from-a-closed-vocabulary.md)
+- [0003. Use cases are Mediator messages, and ports are explicit](../decisions/0003-use-cases-are-mediator-messages-and-ports-are-explicit.md)

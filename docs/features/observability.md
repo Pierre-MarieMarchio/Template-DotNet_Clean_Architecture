@@ -121,7 +121,3 @@ local run land in the dashboard with no setting of yours, and Compose keeps expo
 | [`OpenTelemetry`](../reference/configuration.md#opentelemetry) | the switch for the logs, traces and metrics, the OTLP endpoint and protocol, the service name, the trace sampling ratio |
 | [`Shutdown`](../reference/configuration.md#shutdown) | how long in-flight requests drain |
 | [Standard ASP.NET Core keys](../reference/configuration.md#standard-aspnet-core-keys) | `Logging:LogLevel:*` |
-
-## Decisions
-
-- [0001 Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): OpenTelemetry over OTLP.

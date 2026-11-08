@@ -20,7 +20,7 @@ says. A new folder in an existing project is not a new project.
 
 1. Name it `AppTemplate.<Layer>.<Capability>` and put it under `src/<Layer>/`, in a folder that
    carries the product's initials in place of its name, `<Initials>.<Layer>.<Capability>`, as the
-   folders beside it do ([ADR 0029](../decisions/0029-a-project-folder-carries-the-products-initials-not-its-name.md));
+   folders beside it do ([the folder map](../reference/project-layout.md#the-folder-map));
    `ProjectFolderTests` names the folder a misplaced project belongs in.
 2. Write its project file from a sibling's: packages without a version, which
    `Directory.Packages.props` pins, and only the references its layer allows. An infrastructure

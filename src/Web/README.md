@@ -77,9 +77,8 @@ dotnet cleanarch add web-app --name PlaceholderSite --framework <framework>
 Pass the project's `--auth`, `--ci` and `--agent-files` too when they are not the defaults.
 
 `--workspace` writes this folder, the shared packages, the browser smoke among them, the API client,
-the web apps' end-to-end tests, `docs/features/web-frontend.md`,
-`docs/decisions/0019-one-generated-api-client.md`, `docs/decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md`, the server-rendered app's decision under
-`--rendering ssr` and, unless `--ci false`, `.github/workflows/web.yml`. The API side is in every project already. The lines `--web` writes in
+the web apps' end-to-end tests, `docs/features/web-frontend.md` and, unless `--ci false`,
+`.github/workflows/web.yml`. The API side is in every project already. The lines `--web` writes in
 files the item template cannot edit are listed below, then those of the app's own `README.md`.
 `dotnet cleanarch add web-app`, the first time it joins an app to a project whose `cleanarch.json`
 records no workspace, makes all of them, leaves those in place already, or makes none when one of
@@ -346,7 +345,7 @@ its `pnpm-lock.yaml`.
   with:
 
   ```markdown
-  | A shared contracts assembly | the web apps use a client generated from the API's OpenAPI document | [ADR 0019](../decisions/0019-one-generated-api-client.md) |
+  | A shared contracts assembly | the web apps use a client generated from the API's OpenAPI document | [Web front end](../features/web-frontend.md#calling-the-api) |
   ```
 
 - in `docs/architecture/http-api.md`, after the line:
@@ -359,102 +358,19 @@ its `pnpm-lock.yaml`.
 
   ```markdown
   The web apps' API client is generated from the same document, written at build time
-  ([ADR 0019](../decisions/0019-one-generated-api-client.md)).
+  ([Web front end](../features/web-frontend.md#calling-the-api)).
   ```
 
-- in `docs/architecture/http-api.md`, after the line:
+- in `docs/architecture/README.md`, after the line:
 
   ```markdown
-  - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): MVC controllers, `Asp.Versioning`, the framework's OpenAPI generator.
-  ```
-
-  add:
-
-  ```markdown
-  - [0019. One generated API client](../decisions/0019-one-generated-api-client.md)
-  ```
-
-- in `docs/decisions/0001-adopt-the-generated-baseline.md`, after the line:
-
-  ```markdown
-  | The API image on alpine, running unprivileged | The healthcheck needs `wget`, which the chiseled images lack | [The image](../guides/deployment.md#the-image) | — |
+  | Host images on alpine, running unprivileged | The healthcheck needs `wget`, which the chiseled images lack | [The image](../guides/deployment.md#the-image) | — |
   ```
 
   add:
 
   ```markdown
   | One pnpm workspace under `src/Web`, Node and pnpm pinned | Apps and packages share one lockfile; nothing in the .NET build needs Node | [Web front end](../features/web-frontend.md) | — |
-  ```
-
-<!--#if (localAuth)-->
-- in `docs/decisions/0016-browser-refresh-token-in-a-cookie.md`, before the line:
-
-  ```markdown
-  ## Consequences
-  ```
-
-  add:
-
-  ```markdown
-  In this project's single-page web apps, the client package's `createBrowserSession` keeps the
-  access token in a variable only, never in storage, and calls `refresh()` once at start so a reload
-  costs one request. Concurrent refreshes share one request, since two would present one token twice
-  and end the session, and only a refused refresh signs the page out. A server-rendered app keeps both
-  tokens on its server instead, behind a session cookie of its own.
-  <!--#if (webServerRendering)-->
-  [ADR 0024](0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-  <!--#endif-->
-
-  ```
-
-<!--#endif-->
-<!--#if (localAuth)-->
-- in `docs/decisions/0016-browser-refresh-token-in-a-cookie.md`, after the line:
-
-  ```markdown
-  - `BrowserSessionTests` and `RefreshTokenCookieTests` hold the cookie, the header and the refusals.
-  ```
-
-  add:
-
-  ```markdown
-    `src/Web/packages/api-client/test/session.test.ts` holds the browser side.
-  ```
-
-<!--#endif-->
-<!--#if (hasClient)-->
-- in `docs/decisions/0023-a-dotnet-client-generated-by-kiota.md`, after the line:
-
-  ```markdown
-  and problem answer, `code` and field errors included.
-  ```
-
-  add:
-
-  ```markdown
-  This is [ADR 0019](0019-one-generated-api-client.md) for .NET: one generated client and one thin
-  wrapper, the same for every app.
-  ```
-
-<!--#endif-->
-- in `docs/decisions/0020-one-risk-one-type-of-test.md`, before the line:
-
-  ```markdown
-  - **Coverage is a tripwire.** The floor in `coverage.minimum` catches an area shipped with no test.
-  ```
-
-  add:
-
-  ```markdown
-  - **What the browser blocks or breaks in a served web app is held by a browser smoke**: one Playwright
-    test per app, in Chromium alone, run by `end-to-end` against the stack. No lower type sees a
-    Content-Security-Policy violation, a console error or a call through the relay from inside a page,
-    and a request that reads headers and bytes does not run what the page loads.
-  <!--#if (externalAuth)-->
-    Against a provider under `.invalid`, which never resolves, the smoke stands in for its discovery
-    document and expects an app that signs in from the page to read it there; it exempts no violation
-    and no error.
-  <!--#endif-->
   ```
 
 <!--#if (localAuth)-->
@@ -478,7 +394,8 @@ its `pnpm-lock.yaml`.
 - in `docs/features/authentication.md`, after the lines:
 
   ```markdown
-  or not, and a client that never sends it works as above ([ADR 0016](../decisions/0016-browser-refresh-token-in-a-cookie.md)).
+  refusals. A browser app served from another site than the API is refused by `SameSite=Strict`, and
+  calls for revisiting this mode.
 
   ```
 
@@ -489,9 +406,6 @@ its `pnpm-lock.yaml`.
   token stays in a variable, the cookie carries the refresh token, and one refresh runs at a time. A
   server-rendered app uses neither: its server signs in in body mode, keeps both tokens, and gives the
   browser a session cookie of its own.
-  <!--#if (webServerRendering)-->
-  [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-  <!--#endif-->
   How an app signs in is in [Web front end](web-frontend.md#signing-in).
 
   ```
@@ -509,9 +423,6 @@ its `pnpm-lock.yaml`.
   ```markdown
   A server-rendered web app runs that flow on its server, keeps the tokens there, and gives the
   browser a session cookie of its own.
-  <!--#if (webServerRendering)-->
-  [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-  <!--#endif-->
   How an app signs in is in [Web front end](web-frontend.md#signing-in).
   ```
 
@@ -654,7 +565,7 @@ its `pnpm-lock.yaml`.
 - in `docs/guides/build-and-ci.md`, after the line:
 
   ```markdown
-  change without its regenerated client fails.
+  with the Kiota the tool manifest pins and fails on any difference from the committed `Generated/`.
   ```
 
   add:

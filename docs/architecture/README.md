@@ -185,12 +185,12 @@ when a row is revisited.
 
 | Not here | Instead | See |
 |---|---|---|
-| MediatR, a dispatcher resolved at run time | Mediator's source generator writes each host's dispatch at compile time | [ADR 0033](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md) |
+| MediatR, a dispatcher resolved at run time | Mediator's source generator writes each host's dispatch at compile time | [ADR 0003](../decisions/0003-use-cases-are-mediator-messages-and-ports-are-explicit.md) |
 | A generic repository, `IQueryable` in a port | four words for four ways to reach storage | [Ports and adapters](ports-and-adapters.md#repository-queries-store-table) |
-| EF Core mapping the domain types | row records, a mapper and a tracker | [ADR 0005](../decisions/0005-the-domain-is-not-mapped-by-ef.md) |
-| Soft delete | `DELETE` removes rows | [ADR 0038](../decisions/0038-deleting-removes-rows.md) |
-| An outbox, a message bus | events published in process after the commit, and sweeps that re-derive | [ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md) |
-| AutoMapper, Mapperly | mappings written by hand, checked by the compiler: a mapping that pairs members by name would publish a field with no line in the diff; `BannedPackageTests` refuses both packages | [ADR 0036](../decisions/0036-mappings-are-written-by-hand.md) |
+| EF Core mapping the domain types | row records, a mapper and a tracker | [ADR 0001](../decisions/0001-the-domain-is-not-mapped-by-ef.md) |
+| Soft delete | `DELETE` removes rows | [Persistence model](persistence-model.md#deleting-removes-rows) |
+| An outbox, a message bus | events published in process after the commit, and sweeps that re-derive | [ADR 0002](../decisions/0002-events-after-commit-without-an-outbox.md) |
+| AutoMapper, Mapperly | mappings written by hand, checked by the compiler: a mapping that pairs members by name would publish a field with no line in the diff; `BannedPackageTests` refuses both packages | [Layers and projects](layers-and-projects.md#mappings) |
 | <!--#if (api)--> |
 | Minimal APIs | MVC controllers, which carry the filters, the result mapping and the `ETag` handling | [HTTP API](http-api.md) |
 | <!--#endif--> |
@@ -201,7 +201,7 @@ when a row is revisited.
 | Migrations at start-up outside Development | one bundle per context, applied at release | [Deployment](../guides/deployment.md#migrations-at-release) |
 | <!--#endif--> |
 | <!--#if (sqlite)--> |
-| Running outside Development | SQLite is a development database, and the API refuses to start elsewhere | [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) |
+| Running outside Development | SQLite is a development database, and the API refuses to start elsewhere | [Deployment](../guides/deployment.md#when) |
 | <!--#endif--> |
 | HTTPS redirection, HSTS | TLS terminates upstream | [Deployment](../guides/deployment.md#behind-a-proxy) |
 | <!--#if (accounts)--> |
@@ -218,7 +218,7 @@ when a row is revisited.
 | Machine-to-machine authentication | every token belongs to a person who signed in | [Authentication](../features/authentication.md) |
 | <!--#endif--> |
 | <!--#if (anyWeb)--> |
-| A shared contracts assembly | the web apps use a client generated from the API's OpenAPI document | [ADR 0019](../decisions/0019-one-generated-api-client.md) |
+| A shared contracts assembly | the web apps use a client generated from the API's OpenAPI document | [Web front end](../features/web-frontend.md#calling-the-api) |
 | <!--#endif--> |
 | <!--#if (!anyWeb)--> |
 | <!--#if (api)--> |
@@ -228,24 +228,9 @@ when a row is revisited.
 
 ## Decisions
 
-- [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md)
-- [0002. Two feature shapes](../decisions/0002-two-feature-shapes.md)
-- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
-- [0034. Features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
-- [0005. The domain is not mapped by EF](../decisions/0005-the-domain-is-not-mapped-by-ef.md)
-- [0006. Events after commit without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md)
-- [0007. One database, a schema per feature](../decisions/0007-one-database-a-schema-per-feature.md)
-- [0008. Optimistic concurrency end to end](../decisions/0008-optimistic-concurrency-end-to-end.md)
+- [0001. The domain is not mapped by EF](../decisions/0001-the-domain-is-not-mapped-by-ef.md)
+- [0002. Events after commit without an outbox](../decisions/0002-events-after-commit-without-an-outbox.md)
+- [0003. Use cases are Mediator messages, and ports are explicit](../decisions/0003-use-cases-are-mediator-messages-and-ports-are-explicit.md)
 <!--#if (accounts)-->
-- [0009. Ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
-<!--#endif-->
-- [0010. An idempotency key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
-<!--#if (!jobsWorker)-->
-- [0011. Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
-<!--#endif-->
-<!--#if (sqlite)-->
-- [0021. SQLite is a development database](../decisions/0021-sqlite-is-a-development-database.md)
-<!--#endif-->
-<!--#if (jobsWorker)-->
-- [0025. Jobs run in a worker, under a lease](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)
+- [0004. Ownership is in the query](../decisions/0004-ownership-is-in-the-query.md)
 <!--#endif-->

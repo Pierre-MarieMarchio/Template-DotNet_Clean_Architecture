@@ -42,10 +42,10 @@ not by the decision.
 
 ## Changing an inherited choice
 
-[ADR 0001](0001-adopt-the-generated-baseline.md) lists the choices this project inherited: its
+[The stack](../architecture/README.md#the-stack) lists the choices this project inherited: its
 stack, tools, foundations and deployment shape. To reverse or replace one of them, write a product
-ADR that names the row, then link that ADR from the row's "Changed by" cell. ADR 0001 stays
-Accepted, and its table shows which inherited choices still hold.
+ADR that names the row, then link that ADR from the row's "Changed by" cell, so the table shows which
+inherited choices still hold.
 
 ## The decisions
 

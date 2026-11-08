@@ -36,7 +36,7 @@ public sealed class RoleCheckTests
             .Select(member => $"{member.DeclaringType?.Name}.{member.Name}")
             .ShouldBeEmpty(
                 "A use case knows who the caller is, never the caller's roles or claims: a role is a policy the host "
-                + "puts on what it exposes (ADR 0039). Remove the member, and check the role in the host.");
+                + "puts on what it exposes (docs/architecture/request-pipeline.md, under Authorisation). Remove the member, and check the role in the host.");
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class RoleCheckTests
                 .GetResult()
                 .ShouldHold(
                     $"{ArchitectureAssemblies.NamespaceOf(application)} reads a principal, calls IsInRole or names an "
-                    + "authorisation policy. A role is checked by the host that exposes the use case (ADR 0039); "
+                    + "authorisation policy. A role is checked by the host that exposes the use case; "
                     + "the use case sees the caller through ICurrentUser alone.");
         }
     }

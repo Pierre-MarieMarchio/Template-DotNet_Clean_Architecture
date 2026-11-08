@@ -539,14 +539,6 @@
       ]
     },
     {
-      "source": "../../docs/",
-      "target": "./docs/",
-      "condition": "(webBlazorWasm && !hasClient)",
-      "include": [
-        "decisions/0023-a-dotnet-client-generated-by-kiota.md"
-      ]
-    },
-    {
       "source": "../../src/Web/",
       "target": "./src/Web/",
       "condition": "(workspace)",
@@ -586,29 +578,8 @@
       "target": "./docs/",
       "condition": "(workspace)",
       "include": [
-        "features/web-frontend.md",
-        "decisions/0019-one-generated-api-client.md",
-        "decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md"
+        "features/web-frontend.md"
       ]
-    },
-    {
-      "source": "../../docs/",
-      "target": "./docs/",
-      "condition": "(workspace && webServerRendering)",
-      "include": [
-        "decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md"
-      ]
-    },
-    {
-      "source": "../../docs/decisions/",
-      "target": "./src/Web/apps/",
-      "condition": "(webServerRendering && !workspace)",
-      "include": [
-        "0024-a-server-rendered-web-app-runs-on-its-own-server.md"
-      ],
-      "rename": {
-        "0024-a-server-rendered-web-app-runs-on-its-own-server.md": "FrameworkSite/0024-a-server-rendered-web-app-runs-on-its-own-server.md"
-      }
     },
     {
       "source": "../../tests/EndToEnd/",

@@ -8,7 +8,7 @@ description: Which type of test holds which risk, where a new test goes, and how
 
 Each risk this project carries is held by one type of test, the cheapest that can fail for its real
 cause. A second type is added only when it can fail for a cause the first cannot see
-([ADR 0020](../decisions/0020-one-risk-one-type-of-test.md)). The stack is xUnit v3 on
+([the risks this project holds](#the-risks-this-project-holds)). The stack is xUnit v3 on
 Microsoft.Testing.Platform, Shouldly, NSubstitute, NetArchTest for the architecture rules, Roslyn's
 syntax API for the rules that read C# source, so a comment or a string never counts as code, and
 <!--#if (postgreSql)-->
@@ -20,6 +20,7 @@ Testcontainers for SQL Server.
 <!--#if (sqlite)-->
 a SQLite file for the database.
 <!--#endif-->
+Those tools are rows of [the stack](../architecture/README.md#the-stack).
 
 ## The test types
 
@@ -86,11 +87,11 @@ integration suite grows too slow to run on every change.
 | Default deny | integration over every mapped endpoint; architecture for the anonymous list | `DefaultDenyAuthorizationTests`, `HttpSurfaceTests` |
 | <!--#endif--> |
 | <!--#if (anyFeature)--> |
-| Data ownership, in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)) | integration, every entry point that names a row; architecture for the owned load's signature | each feature's ownership tests in the integration suite; `OwnedAggregateLoadTests` |
+| Data ownership, in the query ([ADR 0004](../decisions/0004-ownership-is-in-the-query.md)) | integration, every entry point that names a row; architecture for the owned load's signature | each feature's ownership tests in the integration suite; `OwnedAggregateLoadTests` |
 | <!--#endif--> |
 | <!--#if (localAuth)--> |
 | Sign-in, sessions, two-factor, passkeys, lockout | integration; unit for each use case's refusals | the `Security/` and `Auth/` integration folders, `tests/Integration/AT.Infrastructure.Auth.IntegrationTests` |
-| Anonymous routes reveal nothing ([ADR 0014](../decisions/0014-anonymous-routes-reveal-nothing.md)) | integration | `LoginUniformityTests` and the "answers as a missing one" tests |
+| Anonymous routes reveal nothing ([registration](../features/accounts.md#registration-and-email-confirmation)) | integration | `LoginUniformityTests` and the "answers as a missing one" tests |
 | <!--#endif--> |
 | Optimistic concurrency | integration where two writers meet; unit for the precondition decision | each feature's concurrency tests, `ApiControllerBaseTests` |
 | Idempotency | integration for the lease; architecture for the opt-in to `POST` | `IdempotencyLeaseTests`, `IdempotentActionTests` |
@@ -98,7 +99,7 @@ integration suite grows too slow to run on every change.
 | Background work under a lease | integration; architecture for the hosted services | `LeaderLeaseTests`, `BackgroundWorkTests` |
 | <!--#if (files)--> |
 | Doubles that tell the truth | contract tests run against the double and each adapter | `FileContentStoreContract`, `FileContentInventoryContract` |
-| Stored-file safety: keys, grants, inspection | unit for the policy and the state machine; integration for the stores | the files suites ([ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md)) |
+| Stored-file safety: keys, grants, inspection | unit for the policy and the state machine; integration for the stores | the files suites ([storage](../features/files.md#storage)) |
 | <!--#endif--> |
 | <!--#if (api)--> |
 | The stack as shipped | end-to-end, one test per flow | `tests/EndToEnd/AT.EndToEnd.Tests` |
@@ -384,8 +385,3 @@ Async calls pass `TestContext.Current.CancellationToken`; NSubstitute placeholde
   BOM, and one with it, or with a CR, fails `MarkdownEncodingTests`.
 - An unused `using` and a stale `<see cref="…"/>` fail the build, since every project generates its
   documentation file.
-
-## Decisions
-
-The test stack is a row of [ADR 0001](../decisions/0001-adopt-the-generated-baseline.md); the
-strategy above is [ADR 0020](../decisions/0020-one-risk-one-type-of-test.md).

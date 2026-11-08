@@ -84,7 +84,7 @@ public sealed class AcceptanceSelectionTests
             .Select(leg => leg.Entry["options"]?.GetValue<string>()?.Trim())
             .ShouldContain(_windowsDefaultShape,
                 $"No Windows leg generates the default shape with '{_windowsDefaultShape}' alone, so a change to src, tests or tools no " +
-                "longer runs the default project's tasks on Windows: docs/template/decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md.");
+                "longer runs the default project's tasks on Windows: docs/template/maintaining-the-template.md, under Which legs a change runs.");
     }
 
     [Fact]

@@ -23,7 +23,7 @@ public sealed partial class NuGetAuditPolicyTests
         values.ShouldBe(
             [expected],
             $"Directory.Build.props sets {property} once, to {expected}: any advisory on any dependency "
-            + "fails the build, as ADR 0030 decides. Restore the value, and raise the dependency or "
+            + "fails the build, as docs/guides/build-and-ci.md says under An advisory fails the build. Restore the value, and raise the dependency or "
             + "suppress the one advisory with NuGetAuditSuppress instead of relaxing the policy.");
     }
 
@@ -39,7 +39,7 @@ public sealed partial class NuGetAuditPolicyTests
 
         offenders.ShouldBeEmpty(
             "A NoWarn or WarningsNotAsErrors naming NU1901 to NU1904 hides an advisory from the build, "
-            + "against ADR 0030. Remove it, raise the dependency, or list the advisory in "
+            + "against the rule that any known advisory fails it (docs/guides/build-and-ci.md). Remove it, raise the dependency, or list the advisory in "
             + "NuGetAuditSuppress with its reason.");
     }
 

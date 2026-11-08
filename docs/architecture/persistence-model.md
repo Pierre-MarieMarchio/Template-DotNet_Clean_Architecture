@@ -146,7 +146,7 @@ Three `SaveChanges` interceptors run, in the order the context attaches them:
 
 They are interceptors rather than steps of the unit of work, so a stray `SaveChangesAsync()` flushes
 and publishes too, while the synchronous `SaveChanges()` is refused
-([ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md)). The business context
+([ADR 0002](../decisions/0002-events-after-commit-without-an-outbox.md)). The business context
 attaches all three with `UseAggregateFlushing`, `UseAuditStamping` and `UseDomainEventDispatch`.
 No code under `src` calls the synchronous `SaveChanges()` on any context, and an architecture test holds it.
 <!--#if (localAuth)-->
@@ -190,8 +190,7 @@ failure.
 
 `DELETE` removes rows; there is no deleted flag. A flag makes every query carry a predicate that one
 forgotten filter turns into a data leak, and retention is a question for an audit trail.
-`NoPersistenceRecord_CarriesADeletedFlag` holds it, and
-[ADR 0038](../decisions/0038-deleting-removes-rows.md) says why.
+`NoPersistenceRecord_CarriesADeletedFlag` holds it.
 
 What must outlive a deletion is written elsewhere, to an audit trail or a history table the
 feature's reads never query; an undo or a restore is a feature with its own state. Temporal tables or
@@ -274,10 +273,7 @@ refusal to start outside Development keeps a second instance out of reach.
 
 ## Decisions
 
-- [0005. The domain is not mapped by EF](../decisions/0005-the-domain-is-not-mapped-by-ef.md)
-- [0007. One database, a schema per feature](../decisions/0007-one-database-a-schema-per-feature.md)
-- [0008. Optimistic concurrency end to end](../decisions/0008-optimistic-concurrency-end-to-end.md)
+- [0001. The domain is not mapped by EF](../decisions/0001-the-domain-is-not-mapped-by-ef.md)
 <!--#if (accounts)-->
-- [0009. Ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
+- [0004. Ownership is in the query](../decisions/0004-ownership-is-in-the-query.md)
 <!--#endif-->
-- [0038. Deleting removes rows](../decisions/0038-deleting-removes-rows.md)

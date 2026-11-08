@@ -14,9 +14,8 @@ an aggregate that protects its own rules, and the feature [Reminders](reminders.
 A signed-in caller creates lists, renames and deletes them, adds items to a list, completes and
 reopens them, and tags them. Every list belongs to its creator: another caller's list or item answers
 `404` `todoList.notFound` or `todoItem.notFound` exactly as a missing one does
-([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)). Once an account is deleted, its lists,
-and the items and tags on them, are deleted too
-([ADR 0012](../decisions/0012-account-deletion-each-feature-decides.md)).
+([ADR 0004](../decisions/0004-ownership-is-in-the-query.md)). Once an account is deleted, its lists,
+and the items and tags on them, are deleted too, as [deleting an account](accounts.md#deleting-an-account) says.
 
 ## How it works
 
@@ -119,8 +118,4 @@ An MCP server's own tests for these tools are in its test project, under `Featur
 
 ## Decisions
 
-- [ADR 0002: two feature shapes](../decisions/0002-two-feature-shapes.md)
-- [ADR 0034: features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
-- [ADR 0008: optimistic concurrency end to end](../decisions/0008-optimistic-concurrency-end-to-end.md)
-- [ADR 0009: ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
-- [ADR 0012: on account deletion, each feature decides](../decisions/0012-account-deletion-each-feature-decides.md)
+- [ADR 0004: ownership is in the query](../decisions/0004-ownership-is-in-the-query.md)

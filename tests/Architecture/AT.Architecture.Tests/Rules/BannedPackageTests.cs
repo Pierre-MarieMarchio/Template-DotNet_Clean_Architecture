@@ -13,15 +13,15 @@ public sealed class BannedPackageTests
     [
         (
             "MediatR",
-            "its licence is commercial. Use cases are sent through the source-generated Mediator, whose licence is MIT (ADR 0033)."),
+            "its licence is commercial. Use cases are sent through the source-generated Mediator, whose licence is MIT (ADR 0003)."),
         (
             "AutoMapper",
             "a mapping is written by hand, where the compiler checks it and a reader finds it. " +
-            "Write the mapping as a method on the type it produces (ADR 0036)."),
+            "Write the mapping as a method on the type it produces (docs/architecture/layers-and-projects.md, under Mappings)."),
         (
             "Riok.Mapperly",
             "it pairs members by name, so a property added on both sides crosses a boundary with no line naming it. " +
-            "Write the mapping as a method on the type it produces (ADR 0036)."),
+            "Write the mapping as a method on the type it produces (docs/architecture/layers-and-projects.md, under Mappings)."),
     ];
 
     [Fact]

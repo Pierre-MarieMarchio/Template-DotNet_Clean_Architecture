@@ -126,7 +126,7 @@ it once it has the rich shape, and `--dry-run` shows what it would write.
 - Lower `coverage.minimum` to pass: [re-measure it](docs/guides/testing.md#coverage).
 <!--#if (accounts)-->
 - Answer `403` for another caller's record: it answers `404`, the owner being in the query
-  ([ADR 0009](docs/decisions/0009-ownership-is-in-the-query.md)).
+  ([ADR 0004](docs/decisions/0004-ownership-is-in-the-query.md)).
 <!--#endif-->
 
 ## Writing docs
@@ -151,7 +151,7 @@ it once it has the rich shape, and `--dry-run` shows what it would write.
   row, a new choice's ADR.
 - One concern per change, as [pull requests](CONTRIBUTING.md#pull-requests) asks.
 - No `Co-Authored-By` nor "Generated with" in a commit or pull request: an `Assisted-by: <tool>:<model>`
-  trailer, and the author answers for every line ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)).
+  trailer, and the author answers for every line ([pull requests](CONTRIBUTING.md#pull-requests)).
 
 ## This project
 

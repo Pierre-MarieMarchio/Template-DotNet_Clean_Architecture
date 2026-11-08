@@ -56,8 +56,7 @@ as answered for you, since the jobs run in it, and passes `--presentation worker
 The launcher creates projects and nothing else. Run in a project, it says so and names the tool
 that adds: `dotnet cleanarch add web-app`, `add web-package` or `add presentation`, which reads the
 project's facts from its `cleanarch.json` and runs the item template at the version the project
-records, as [template decision 0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md)
-says.
+records, as [the launcher](maintaining-the-template.md#the-launcher) says.
 
 Each question is also a flag named like the option, and `--yes` takes the default of each one not
 given, or the only value the template leaves it: `--auth none --yes` generates with
@@ -74,8 +73,8 @@ dnx CleanArch.Create -- new -n Acme.Shop --auth external --examples notes --yes
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the
 published package, and `--hive <folder>` keeps the template engine's settings apart, as
 `--debug:custom-hive` does. Everything below is `dotnet new` itself, which the launcher runs.
-[Template decision 0026](decisions/0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md) records why
-the launcher reads the manifests rather than copying them.
+[The launcher](maintaining-the-template.md#the-launcher) says why it reads the manifests rather than
+copying them.
 
 ## Install and uninstall
 
@@ -156,7 +155,7 @@ conditions cannot search a name, and the build then stops on CA1707.
 
 | Option | Values | Default | Gives |
 |---|---|---|---|
-| `--presentation` | `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker`, once per value | `api` | the hosts the project holds in `src/Presentation`, one or several ([template decision 0020](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)): `api` is the HTTP API, `<Project>.Api`, which a web app, a desktop client or the MCP server under `--auth local` brings when it is not chosen; `blazor-server` is `<Project>.Portal`, a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `mcp` is `<Project>.Mcp`, an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names, bringing the access keys under `--auth local`; `avalonia` is `<Project>.Desktop`, a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`; `wpf` is `<Project>.Desktop` for Windows, written in the shape of `dotnet new wpf`, one project with its view models and host, Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip; `worker` is `<Project>.Worker`, written in the shape of `dotnet new worker`, which takes the API's background jobs and their tests, and which a project holding neither the API nor the worker gets without choosing it. Without the worker the jobs run in the API |
+| `--presentation` | `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker`, once per value | `api` | the hosts the project holds in `src/Presentation`, one or several ([adding an option](maintaining-the-template.md#adding-an-option)): `api` is the HTTP API, `<Project>.Api`, which a web app, a desktop client or the MCP server under `--auth local` brings when it is not chosen; `blazor-server` is `<Project>.Portal`, a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `mcp` is `<Project>.Mcp`, an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names, bringing the access keys under `--auth local`; `avalonia` is `<Project>.Desktop`, a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`; `wpf` is `<Project>.Desktop` for Windows, written in the shape of `dotnet new wpf`, one project with its view models and host, Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip; `worker` is `<Project>.Worker`, written in the shape of `dotnet new worker`, which takes the API's background jobs and their tests, and which a project holding neither the API nor the worker gets without choosing it. Without the worker the jobs run in the API |
 | `--web` | `none`, `placeholder`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `blazor-wasm` | `none` | the first web app in `src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
@@ -217,8 +216,7 @@ A combination is refused rather than generated half-working because an option re
 leaves out instead of switching it off: example features and Files belong to a caller, so a public
 API without accounts has nobody to own them, and an MCP server's tools each act for the caller its
 credential names, which `--auth none` leaves unnamed.
-[Template decision 0001](decisions/0001-options-remove-parts-and-refuse-combinations.md) gives the
-reasons.
+[Adding an option](maintaining-the-template.md#adding-an-option) gives the reasons.
 
 `cleanarch-presentation` refuses the same combinations of the project's options it repeats, as `-n`
 each name of a project the template writes, and with `--has-api false` a desktop client, or the MCP
@@ -254,7 +252,6 @@ changelog, the plans, the package project `.template.config/TemplatePackage.cspr
 `template-acceptance.yml`, `template-release.yml`, the issue forms under `.github/ISSUE_TEMPLATE`,
 `CODE_OF_CONDUCT.md`, `SUPPORT.md`, and the three tree-auditing gates `tools/CheckDocPaths.cs`, `tools/CheckWorkflows.cs` and
 `tools/CheckComments.cs`.
-[Template decision 0018](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md) records why.
 
 ## Item templates
 

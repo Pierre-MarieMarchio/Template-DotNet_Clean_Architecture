@@ -122,8 +122,7 @@ database instrumentation to add.
 the composition root in `Program.cs`, and under `Common/` the HTTP mechanisms every feature shares.
 
 A wire type is the API's own: each feature declares its requests and responses under `Contracts/`
-and maps them by hand in `Contracts/Mapping/`
-([ADR 0036](../decisions/0036-mappings-are-written-by-hand.md)). No application type and no port
+and maps them by hand in `Contracts/Mapping/`, as [mappings](#mappings) says. No application type and no port
 type is serialised
 as it is, so a field added inside the application is never published by that edit alone.
 
@@ -175,8 +174,7 @@ composes no use case and no module. It is developed, run and tested on Windows; 
 and `Common/` adds the base address, the resilience handler, the session and the reading of a
 problem's `code`. Only a presentation that runs on the user's machine calls it, so it is a
 presentation project and not a layer of its own. It references no project, and a presentation that
-calls the API through it references it alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`);
-[ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md) says why.
+calls the API through it references it alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`).
 
 A folder of its own beside the four layers would read as a fifth layer, though nothing but a
 presentation calls it, and the rule that keeps it from the core names the project, not a folder.
@@ -310,6 +308,4 @@ to owners and the `Administrator` policy.
 
 ## Decisions
 
-- [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): four layers, and a host-agnostic Presentation.Core.
-- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
-- [0022. A presentation project reaches the core through the API or the application layer](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)
+- [0003. Use cases are Mediator messages, and ports are explicit](../decisions/0003-use-cases-are-mediator-messages-and-ports-are-explicit.md)

@@ -1,11 +1,11 @@
 ---
 type: decision
-title: 0027. An MCP server acts for the caller its credential names
+title: 0005. An MCP server acts for the caller its credential names
 description: Why the MCP server runs the use cases in process for the caller its credential names, over streamable HTTP.
 status: Accepted
 ---
 
-# 0027. An MCP server acts for the caller its credential names
+# 0005. An MCP server acts for the caller its credential names
 
 Status: Accepted
 
@@ -13,7 +13,7 @@ Status: Accepted
 
 An agent's client, an assistant or an editor, calls tools over the Model Context Protocol. Here each
 tool is a use case, and every owner-scoped use case filters by its caller
-([ADR 0009](0009-ownership-is-in-the-query.md)): a server that acts for one fixed account shows that
+([ADR 0004](0004-ownership-is-in-the-query.md)): a server that acts for one fixed account shows that
 account's records to everyone, and one that acts for no one can call none of them. The protocol has
 two transports. With stdio, the client starts the server as a child process on the user's machine.
 With Streamable HTTP, the server runs as a service, and the protocol's authorization makes it an
@@ -25,7 +25,7 @@ as long as the user works, and refreshes nothing it was not told how to.
 
 - **Streamable HTTP, on the server, in process.** `<Project>.Mcp` is an ASP.NET Core host that
   composes the use cases in its own process
-  ([ADR 0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)),
+  ([composition](../architecture/layers-and-projects.md#composition)),
   stateless, so any instance answers any call and the server sends the client no request of its own.
 <!--#if (localAuth)-->
 - **The caller is the access key's owner.** A client sends, as a bearer credential, an access key its
@@ -37,7 +37,7 @@ as long as the user works, and refreshes nothing it was not told how to.
 - **The caller is the token's subject.** The provider the API trusts issues the token, for the
   server's own audience, `Mcp:Resource`; a token issued for the API is refused, and the server passes
   no token on. The subject maps to the owner id as every host maps it
-  ([ADR 0017](0017-external-subjects-map-to-internal-owners.md)).
+  ([an external identity provider](../features/authentication.md#an-external-identity-provider)).
 <!--#endif-->
 - **Anonymous is refused**, but for the health endpoints, as on the API.
 - **A tool is one use case, declared by hand**, under a name and a description written for the

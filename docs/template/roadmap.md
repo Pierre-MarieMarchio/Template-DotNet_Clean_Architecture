@@ -13,7 +13,7 @@ item ships on its own; a shipped item leaves this page for [the changelog](../..
 
 A web app or a presentation project comes from its framework's official generator when there is
 one: `bootstrap` runs it at a pinned version, then the template wires its output in and leaves the
-rest to the project, as [decision 0023](decisions/0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md) does
+rest to the project, as [decision 0004](decisions/0004-a-web-app-comes-from-a-starter-static-or-server-rendered.md) does
 for the web apps today. A framework without a generator gets its project written by the template,
 as the placeholder app is.
 
@@ -54,7 +54,7 @@ Each group comes in no fixed order:
   Capacitor on the same API client.
 - **What remains of the project tool**: `dotnet cleanarch templates copy` and the code templates a
   generator writes from, and the steps the project file adds to a command, as
-  [ADR 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) decides.
+  [template decision 0003](decisions/0003-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) decides.
 
 ## Not planned
 

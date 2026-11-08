@@ -1,11 +1,11 @@
 ---
 type: decision
-title: 0006. Events after commit, without an outbox
+title: 0002. Events after commit, without an outbox
 description: Why domain events are published in process after the commit, at most once, with no outbox and no retry.
 status: Accepted
 ---
 
-# 0006. Events after commit, without an outbox
+# 0002. Events after commit, without an outbox
 
 Status: Accepted
 
@@ -32,16 +32,9 @@ What makes this safe is the shape every consumer must have:
 
 - **It re-derives its precondition** when it runs, so running twice is the same as running once, and
   never running leaves the system consistent but stale.
-<!--#if (!jobsWorker)-->
 - **A sweep is the guarantee** for a fact whose loss would matter: a periodic pass under a lease
-  ([ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md)) that re-derives the same effect, so the
+  ([background jobs](../features/background-jobs.md#leases)) that re-derives the same effect, so the
   event only makes it prompt.
-<!--#endif-->
-<!--#if (jobsWorker)-->
-- **A sweep is the guarantee** for a fact whose loss would matter: a periodic pass under a lease
-  ([ADR 0025](0025-jobs-run-in-a-worker-under-a-lease.md)) that re-derives the same effect, so the
-  event only makes it prompt.
-<!--#endif-->
 - **Every event is consumed or listed** as unconsumed with its reason.
 
 ## Consequences
@@ -53,7 +46,7 @@ What makes this safe is the shape every consumer must have:
 - `DomainEventTests` relates the events raised to the consumers registered, in both directions.
 <!--#if (anyFeature)-->
 - Account deletion follows this shape: a consumer per feature and a leased sweep
-  ([ADR 0012](0012-account-deletion-each-feature-decides.md)).
+  ([deleting an account](../features/accounts.md#deleting-an-account)).
 <!--#endif-->
 <!--#if (files)-->
 - Files reclaims unreferenced bytes by a sweep; the deletion event only shortens the wait.

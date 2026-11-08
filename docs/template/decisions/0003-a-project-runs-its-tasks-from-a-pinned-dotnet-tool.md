@@ -1,11 +1,11 @@
 ---
 type: decision
-title: 0017. A project runs its tasks from a pinned .NET tool
+title: 0003. A project runs its tasks from a pinned .NET tool
 description: Why a project runs its tasks from a .NET tool pinned at the template's version, while another tool only creates projects.
 status: Accepted
 ---
 
-# 0017. A project runs its tasks from a pinned .NET tool
+# 0003. A project runs its tasks from a pinned .NET tool
 
 Status: Accepted
 
@@ -34,7 +34,7 @@ expose one by one.
 - **A tool to create, a tool to work, as Vite does.** `dnx CleanArch.Create` creates a project and
   nothing else, as `npm create vite` does. Everything done inside a project, including adding a web
   app, a web package or a presentation project, belongs to the project's own tool, as `vite` does,
-  following [0019](0019-the-launcher-creates-and-the-project-tool-adds.md).
+  as [the launcher](../maintaining-the-template.md#the-launcher) says.
 - **The project's tool ships as a .NET tool.** `CleanArch.Cli` is packed from this repository under
   the `templateVersion` of `.template.config/template.json`, as the launcher is. Its command is
   `dotnet-cleanarch`, run as `dotnet cleanarch <command>`, and its commands, help and completion
@@ -165,10 +165,10 @@ expose one by one.
   generator's version.
 - The acceptance matrix tests one tool over each leg's project file instead of a conditioned copy
   per leg, and the generators gain unit tests of their own.
-- A project keeps in step with a package from the template, the condition under which
-  [0002](0002-nothing-about-the-template-reaches-a-project.md) says to revisit it. This ADR is
-  accepted together with [0018](0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md),
-  which supersedes 0002 and adds the tool to what reaches a project, and with 0019.
+- A project keeps in step with a package from the template: the tool joins its provenance among
+  what reaches a project, as
+  [what a project receives](../using-the-template.md#what-a-project-receives-and-what-stays-here)
+  says.
 
 ## Revisit when
 

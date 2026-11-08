@@ -14,7 +14,7 @@ internal static class NewEvent
         + "  <Event>       PascalCase, past tense, ending in DomainEvent, e.g. InvoicePaidDomainEvent\n"
         + "  --consumer    the feature that reacts, and what it does: Reminders:CancelReminders writes\n"
         + "                CancelRemindersOnInvoicePaidConsumer in Reminders and registers it. Its body is yours:\n"
-        + "                it re-derives its precondition and changes nothing when it runs twice (ADR 0006).\n"
+        + "                it re-derives its precondition and changes nothing when it runs twice (ADR 0002).\n"
         + "  --unconsumed  instead of a consumer, the reason nothing listens, written beside the event's name in\n"
         + "                DomainEventTests. One of the two is required: an event is consumed or listed.\n"
         + "  --fields      what the event carries besides OccurredOn, which it always ends with. Name:type, in the\n"
@@ -72,7 +72,7 @@ internal static class NewEvent
         {
             problems.Add(
                 request.Consumer is null
-                    ? "Say who listens: --consumer <Features>:<Reaction>, or --unconsumed \"<reason>\" when nothing does. An event is consumed or listed as unconsumed with its reason (ADR 0006), and one of the two is required."
+                    ? "Say who listens: --consumer <Features>:<Reaction>, or --unconsumed \"<reason>\" when nothing does. An event is consumed or listed as unconsumed with its reason (ADR 0002), and one of the two is required."
                     : "--consumer and --unconsumed exclude each other: an event with a consumer is not listed as unconsumed.");
         }
 

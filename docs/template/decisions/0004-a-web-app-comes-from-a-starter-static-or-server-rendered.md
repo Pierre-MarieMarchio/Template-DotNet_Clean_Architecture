@@ -1,21 +1,20 @@
 ---
 type: decision
-title: 0023. A web app comes from a starter, static or server-rendered
+title: 0004. A web app comes from a starter, static or server-rendered
 description: Why a web app comes from a starter, one shared wiring and a folder per framework, static or rendered on the server.
 status: Accepted
 ---
 
-# 0023. A web app comes from a starter, static or server-rendered
+# 0004. A web app comes from a starter, static or server-rendered
 
-Status: Accepted; supersedes [0008](0008-a-web-app-comes-from-a-starter.md) and [0011](0011-a-starter-may-render-on-the-server.md)
+Status: Accepted
 
 ## Context
 
 A generated project may start with a web app, and add more later with `cleanarch-webapp`. A
 framework's starter, its build settings and its dependency set change with every release, so a copy
 kept in the template would age between two template releases, and keeping it would be keeping a
-second product: the app comes from the framework's official CLI at bootstrap
-([0003](0003-framework-apps-come-from-official-clis.md) gives the reasons). What surrounds the app,
+second product: the app comes from the framework's official CLI at bootstrap. What surrounds the app,
 its `Dockerfile`, `nginx.conf`, `compose.yml` and `README.md`, is the same for every framework but
 for the names, the default port, the build's output folder and a few framework habits, so a folder
 per framework would repeat every wiring fix once per framework and cost a copy per new value.
@@ -23,7 +22,7 @@ per framework would repeat every wiring fix once per framework and cost a copy p
 Some generators write a server-rendered app as readily as a single-page one: the Angular CLI with
 `--ssr`, React Router by default. A server-rendered app runs on Node rather than nginx and needs a
 nonce per response rather than a hash computed at build, which
-[ADR 0024 of the project](../../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)
+[the project's web front end page](../../features/web-frontend.md#images-and-headers)
 records. The template has to offer that form without doubling its values.
 
 ## Decision
@@ -71,7 +70,7 @@ records. The template has to offer that form without doubling its values.
   `react-router` another, its `node-custom-server` template with `ssr: true`.
 - **`ssr` is refused for every starter that does not hold it**, `--web none` included, by
   `serverRenderingNeedsAServerStarter`, a hidden required parameter whose condition `refusedOptions`
-  repeats ([0001](0001-options-remove-parts-and-refuse-combinations.md)). Every authentication mode
+  repeats ([adding an option](../maintaining-the-template.md#adding-an-option)). Every authentication mode
   takes `ssr`.
 - **A server-rendered starter keeps its own output contract.** `pnpm build` writes into `dist/` the
   server entry the image runs with Node, `dist/server/server.mjs`, holding every dependency of the
@@ -81,9 +80,9 @@ records. The template has to offer that form without doubling its values.
   does for the others: the relay, the page headers, the cache rules and the Content-Security-Policy,
   whose `script-src` takes a nonce per response and, for Angular, the hashes of the inline scripts
   its build writes into the page template, computed when the server starts. With accounts, the
-  overlay's server keeps the session, as the project's ADR 0024 describes.
+  overlay's server keeps the session, as the project's [web front end page](../../features/web-frontend.md#signing-in) describes.
 - **A .NET starter keeps the same place and the same server.** `blazor-wasm` is a starter of kind
-  `dotnet` ([0009](0009-a-dotnet-project-comes-from-a-starter.md)): `add web-app` runs
+  `dotnet` ([presentation starters](../maintaining-the-template.md#presentation-starters)): `add web-app` runs
   `dotnet new blazorwasm` for it and adds the project to the solution, and its folder holds the
   project file and `Program.cs` the project owns beside `scaffold.json`. Its output is the published
   `wwwroot`, built by the .NET SDK from the repository root: the shared `Dockerfile` and `nginx.conf`

@@ -264,8 +264,8 @@ To change a value, remove the part by hand or add it:
 ## Why it starts like this
 
 The project inherits choices made before any feature existed: the stack, the tools, the
-foundations shipped ahead of their first use, the deployment shape. They are recorded as one decision,
-[ADR 0001](../decisions/0001-adopt-the-generated-baseline.md), one row each with its reason. Reversing
+foundations shipped ahead of their first use, the deployment shape. They are recorded in
+[the stack](../architecture/README.md#the-stack), one row each with its reason. Reversing
 a row is a decision of your own, written as an ADR that names the row.
 
 ## Where to go next

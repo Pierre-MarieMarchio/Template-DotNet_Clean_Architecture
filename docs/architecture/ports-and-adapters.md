@@ -126,4 +126,4 @@ call it cares about. Recording doubles are public, so a test can read back what 
 
 ## Decisions
 
-- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
+- [0003. Use cases are Mediator messages, and ports are explicit](../decisions/0003-use-cases-are-mediator-messages-and-ports-are-explicit.md)

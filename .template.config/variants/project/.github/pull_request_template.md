@@ -42,4 +42,4 @@ Optional: fill it when a tool wrote part of this change; nothing to declare othe
 - [ ] No commit or description names an AI tool as co-author: no `Co-Authored-By`, no "Generated with" line.
 - [ ] Where a tool wrote code, I added an `Assisted-by: <tool>:<model>` trailer to the commit and filled in Assistance above (recommended).
 - [ ] I answer for every line of this pull request, generated or not, and can explain and maintain it
-  (`docs/decisions/0028-the-author-answers-for-every-line.md`).
+  (`CONTRIBUTING.md`, under Pull requests).

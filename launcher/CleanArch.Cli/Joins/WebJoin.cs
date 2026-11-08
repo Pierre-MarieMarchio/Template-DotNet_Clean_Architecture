@@ -6,8 +6,6 @@ namespace CleanArch.Cli.Joins;
 
 internal static class WebJoin
 {
-    private const string _serverRenderingDecision = "0024-a-server-rendered-web-app-runs-on-its-own-server.md";
-
     private const string _workspaceReadme = "src/Web/README.md";
 
     public static int Run(LocatedProject project, string name, WebJoinOptions options, TextWriter output, TextWriter error) =>
@@ -27,7 +25,6 @@ internal static class WebJoin
         string folder = "src/Web/apps/" + name;
 
         ItemJoin.Run(project.Root, new JoinedItem(folder, "cleanarch-webapp", Required: false, FirstAppsWorkspaceReadme(project)), output);
-        PlaceTheServerRenderingDecision(project.Root, folder, output);
         JoinClosing.Indexed(project, output);
         ProjectRecord record = ProjectRecord.Read(project.Root, output);
         record.RecordWebApp(joined, scope);
@@ -75,25 +72,4 @@ internal static class WebJoin
 
     private static string? FirstAppsWorkspaceReadme(LocatedProject project) =>
         project.File.Web is null && ReadmeEdits.Lists(Path.Combine(project.Root, _workspaceReadme)) ? _workspaceReadme : null;
-
-    private static void PlaceTheServerRenderingDecision(string root, string app, TextWriter output)
-    {
-        string brought = Path.Combine(root, app, _serverRenderingDecision);
-        string decision = Path.Combine(root, "docs", "decisions", _serverRenderingDecision);
-
-        if (!File.Exists(brought))
-        {
-            return;
-        }
-
-        if (File.Exists(decision))
-        {
-            File.Delete(brought);
-            output.WriteLine($"In place already: docs/decisions/{_serverRenderingDecision}");
-            return;
-        }
-
-        File.Move(brought, decision);
-        output.WriteLine($"Moved: {app}/{_serverRenderingDecision} to docs/decisions/{_serverRenderingDecision}");
-    }
 }

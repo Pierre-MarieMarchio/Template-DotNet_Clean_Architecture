@@ -24,11 +24,11 @@ Each rule has one home, and a test holds it wherever a test can.
 | The contract every endpoint offers | [HTTP API](docs/architecture/http-api.md) |
 | <!--#endif--> |
 | <!--#if (agentFiles)--> |
-| Clean comments: the code reads by itself; a comment only says what the code cannot | [AGENTS.md › Changing code](AGENTS.md#changing-code), [ADR 0001](docs/decisions/0001-adopt-the-generated-baseline.md) |
+| Clean comments: the code reads by itself; a comment only says what the code cannot | [AGENTS.md › Changing code](AGENTS.md#changing-code), [the stack](docs/architecture/README.md#the-stack) |
 | Extract an abstraction only once two real cases prove it | [AGENTS.md › Changing code](AGENTS.md#changing-code) |
 | <!--#endif--> |
 | <!--#if (!agentFiles)--> |
-| Clean comments: the code reads by itself; a comment only says what the code cannot | [ADR 0001](docs/decisions/0001-adopt-the-generated-baseline.md) |
+| Clean comments: the code reads by itself; a comment only says what the code cannot | [the stack](docs/architecture/README.md#the-stack) |
 | Extract an abstraction only once two real cases prove it | [Architecture › What is deliberately absent](docs/architecture/README.md#what-is-deliberately-absent) |
 | <!--#endif--> |
 | How tests are written | [Testing › House rules](docs/guides/testing.md#house-rules) |
@@ -56,8 +56,7 @@ Each rule has one home, and a test holds it wherever a test can.
   with" line naming an AI tool; the author answers for every line and can explain it. Where a tool
   wrote code, an `Assisted-by: <tool>:<model>` trailer and the pull request's Assistance section are
   recommended; bots such as Dependabot or release-please keep their own messages as they write them,
-  emoji included, since a bot did write them
-  ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)).
+  emoji included, since a bot did write them.
 - Each commit follows [the commit message form](#commit-messages).
 
 ## Commit messages
@@ -81,7 +80,7 @@ problem, and why this change solves it.
   - `Link: <url>` for a discussion or a document the body cannot hold;
   - `Assisted-by: <tool>:<model>` where a tool wrote part of the change.
 - **No `Co-Authored-By` naming an AI tool, and no "Generated with" line**: the author answers for
-  every line ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)). This project
+  every line, as [pull requests](#pull-requests) says. This project
   asks for no `Signed-off-by` line.
 
 For example:

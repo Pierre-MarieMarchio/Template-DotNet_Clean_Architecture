@@ -14,7 +14,7 @@ message it applies to, at a place in the order that a test holds.
 
 A behaviour wraps messages only. What belongs to one feature stays in its handler; a reaction to a
 fact is a domain event's consumer, which no behaviour reaches
-([ADR 0033](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)).
+([ADR 0003](../decisions/0003-use-cases-are-mediator-messages-and-ports-are-explicit.md)).
 <!--#if (api)-->
 What belongs to HTTP, a header, a status or a route's precondition, belongs to the
 [request pipeline](../architecture/request-pipeline.md) of the API.
@@ -95,7 +95,7 @@ one does.
    and to the table above. Write the project ADR that records it, numbered from 1000 as
    [changing an inherited choice](../decisions/README.md#changing-an-inherited-choice) says: it names
    the behaviour, its place in the order, and what it adds to
-   [ADR 0033](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md), which
+   [ADR 0003](../decisions/0003-use-cases-are-mediator-messages-and-ports-are-explicit.md), which
    stays as it is.
 
 ## Check

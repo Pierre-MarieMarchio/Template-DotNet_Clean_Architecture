@@ -10,7 +10,7 @@ description: How one feature reads, changes or reacts to another through a port 
 
 A feature needs another one: to read its state, to change it, or to let it react to a fact. At the
 end, the two meet through a port or a domain event, the only ways
-[ADR 0034](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md) allows, and each feature
+[modules and boundaries](../architecture/modules-and-boundaries.md#features-meet-through-ports-and-events) allows, and each feature
 can still be removed without editing the other's internals.
 
 | The feature needs to | Through | Runs |
@@ -47,12 +47,12 @@ both commit, or neither does.
 
 1. Declare the port in `<B>`'s application folder,
    `src/Application/AT.Application/Features/<B>/Ports/<Capability>/I<Capability>.cs`, as
-   [ADR 0034](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md) says: the port belongs to
+   [modules and boundaries](../architecture/modules-and-boundaries.md#features-meet-through-ports-and-events) says: the port belongs to
    the feature that owns the state. It answers a `<Capability>Status` enum beside it that closes the
    ways the call can go, never a `Result`: the use case that calls it chooses the error code.
 <!--#if (accounts)-->
    It takes the owner, so another caller's record answers as a missing one
-   ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)).
+   ([ADR 0004](../decisions/0004-ownership-is-in-the-query.md)).
 <!--#endif-->
 2. Implement it in `<B>`'s `Services/` folder, as `<Capability>Service`, internal: it loads `<B>`'s
    aggregate through `<B>`'s repository and calls the aggregate method that holds the rule, so `<B>`'s
@@ -81,7 +81,7 @@ and the account-deletion sweep calls.
 ## A domain event
 
 Feature `<A>` announces a fact; any feature, `<A>` included, reacts after the commit
-([ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md)).
+([ADR 0002](../decisions/0002-events-after-commit-without-an-outbox.md)).
 
 ### Raise it
 

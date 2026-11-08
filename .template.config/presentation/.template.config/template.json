@@ -830,14 +830,6 @@
       ]
     },
     {
-      "source": "../../docs/",
-      "target": "./docs/",
-      "condition": "(accessKeys)",
-      "include": [
-        "decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md"
-      ]
-    },
-    {
       "source": "../../src/Presentation/",
       "target": "./src/Presentation/",
       "condition": "((presentationAvalonia || presentationWpf) && !hasClient)",
@@ -907,25 +899,9 @@
     {
       "source": "../../docs/",
       "target": "./docs/",
-      "condition": "(presentationWorker)",
-      "include": [
-        "decisions/0025-jobs-run-in-a-worker-under-a-lease.md"
-      ]
-    },
-    {
-      "source": "../../docs/",
-      "target": "./docs/",
       "condition": "(presentationMcp)",
       "include": [
-        "decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md"
-      ]
-    },
-    {
-      "source": "../../docs/",
-      "target": "./docs/",
-      "condition": "((presentationAvalonia || presentationWpf) && !hasClient)",
-      "include": [
-        "decisions/0023-a-dotnet-client-generated-by-kiota.md"
+        "decisions/0005-an-mcp-server-acts-for-the-caller-its-credential-names.md"
       ]
     }
   ],

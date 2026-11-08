@@ -1,13 +1,13 @@
 ---
 type: decision
-title: 0033. Use cases are Mediator messages, and ports are explicit
+title: 0003. Use cases are Mediator messages, and ports are explicit
 description: Why a use case is a Mediator message and its handler, and a feature's ports stay explicit interfaces.
 status: Accepted
 ---
 
-# 0033. Use cases are Mediator messages, and ports are explicit
+# 0003. Use cases are Mediator messages, and ports are explicit
 
-Status: Accepted; supersedes ADR 0003
+Status: Accepted
 
 ## Context
 
@@ -40,7 +40,7 @@ handler.
 
 Domain events are not Mediator messages. They keep their own dispatcher and
 `IDomainEventConsumer<TEvent>`, with their after-commit delivery
-([ADR 0006](0006-events-after-commit-without-an-outbox.md)), and the pipeline behaviours do not
+([ADR 0002](0002-events-after-commit-without-an-outbox.md)), and the pipeline behaviours do not
 reach their consumers.
 
 **The way out.** A port is named for its intent, in one of four words: a `Repository` loads and

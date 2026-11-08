@@ -361,28 +361,59 @@ public sealed class TemplatePackagingTests
     [Fact]
     public void ThePackageTemplatesTools_AreAtTheWorkspacesVersions()
     {
-        string root = ProjectReferenceGraph.RepositoryRoot;
-        var pinned = Directory.EnumerateFiles(Path.Combine(root, "src", "Web", "packages"), "package.json", SearchOption.AllDirectories)
-            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            .SelectMany(path => DevDependencies(path))
-            .Where(dependency => dependency.Version.Length > 0 && char.IsDigit(dependency.Version[0]))
-            .ToLookup(dependency => dependency.Name, dependency => dependency.Version, StringComparer.Ordinal);
-        var template = DevDependencies(Path.Combine(root, ".template.config", "webpackage", "content", "placeholder-package", "package.json"))
+        var pinned = WorkspacePackagesPinnedTools();
+        var template = DevDependencies(Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "webpackage", "content", "placeholder-package", "package.json"))
             .Where(dependency => pinned.Contains(dependency.Name))
             .ToList();
 
         template.ShouldNotBeEmpty("The package template shares no pinned tool with the workspace's packages, so this rule reads the wrong files.");
 
-        template
-            .Where(dependency => !pinned[dependency.Name].All(version => version == dependency.Version))
-            .Select(dependency => $"{dependency.Name} {dependency.Version}, the workspace: {string.Join(", ", pinned[dependency.Name].Distinct(StringComparer.Ordinal))}")
+        Drifted(template.Select(dependency => (".template.config/webpackage", dependency)), pinned)
             .ShouldBeEmpty(
                 "cleanarch-webpackage pins a tool at another version than the workspace's packages, which Dependabot moves without it: "
                 + "two Vitest versions in one workspace clear each other's shared module cache while pnpm runs them side by side.");
     }
 
+    [Fact]
+    public void EachScaffoldsTools_AreAtTheWorkspacesVersions()
+    {
+        var pinned = WorkspacePackagesPinnedTools();
+        var scaffolds = Directory.EnumerateFiles(StartersFolder, "scaffold.json", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains("\"package.json\"", StringComparison.Ordinal))
+            .SelectMany(path => ScaffoldDevDependencies(path)
+                .Where(dependency => pinned.Contains(dependency.Name))
+                .Select(dependency => (Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, path), dependency)))
+            .ToList();
+
+        scaffolds.ShouldNotBeEmpty("No scaffold.json merges a tool the workspace's packages pin, so this rule reads the wrong files.");
+
+        Drifted(scaffolds, pinned)
+            .ShouldBeEmpty(
+                "A web starter's scaffold.json pins a tool at another version than the workspace's packages, which Dependabot moves without it: "
+                + "two Vitest versions in one workspace clear each other's shared module cache while pnpm runs them side by side.");
+    }
+
+    private static ILookup<string, string> WorkspacePackagesPinnedTools() =>
+        Directory.EnumerateFiles(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "src", "Web", "packages"), "package.json", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(path => DevDependencies(path))
+            .Where(dependency => dependency.Version.Length > 0 && char.IsDigit(dependency.Version[0]))
+            .ToLookup(dependency => dependency.Name, dependency => dependency.Version, StringComparer.Ordinal);
+
+    private static IEnumerable<string> Drifted(IEnumerable<(string File, (string Name, string Version) Dependency)> pins, ILookup<string, string> pinned) =>
+        pins
+            .Where(pin => !pinned[pin.Dependency.Name].All(version => version == pin.Dependency.Version))
+            .Select(pin => $"{pin.File}: {pin.Dependency.Name} {pin.Dependency.Version}, the workspace: {string.Join(", ", pinned[pin.Dependency.Name].Distinct(StringComparer.Ordinal))}");
+
     private static IEnumerable<(string Name, string Version)> DevDependencies(string packageJson) =>
-        JsonNode.Parse(File.ReadAllText(packageJson))!["devDependencies"]?.AsObject()
+        DevDependencies(JsonNode.Parse(File.ReadAllText(packageJson)));
+
+    private static IEnumerable<(string Name, string Version)> ScaffoldDevDependencies(string scaffoldJson) =>
+        DevDependencies(JsonNode.Parse(File.ReadAllText(scaffoldJson))?["merge"]?["package.json"]);
+
+    private static IEnumerable<(string Name, string Version)> DevDependencies(JsonNode? packageJson) =>
+        packageJson?["devDependencies"]?.AsObject()
+            .Where(pair => pair.Value is not null)
             .Select(pair => (pair.Key, pair.Value!.GetValue<string>()))
         ?? [];
 

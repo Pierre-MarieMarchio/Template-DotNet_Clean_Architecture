@@ -183,12 +183,12 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet tool restore --add-source "${{ runner.temp }}/tools"
 
-      # Before any item template or official CLI writes a file: bootstrap's formatting may reorder these, and must remove none.
+      # Before any item template or official CLI writes a file: bootstrap's formatting may reorder these, and must remove none. Generated is left out: bootstrap writes the .NET client again from this shape's own reference.
       - name: Record the using directives the template wrote
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.cs' -print0 \
+          find . \( -name .git -o -name bin -o -name obj -o -name node_modules -o -name Generated \) -prune -o -name '*.cs' -print0 \
             | xargs -0 -r awk 'FNR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, "") } /^(global )?using [A-Za-z_][^(;]*;$/ { print FILENAME ": " $0 }' \
             | LC_ALL=C sort > "${{ runner.temp }}/usings-generated.txt"
           echo "$(wc -l < "${{ runner.temp }}/usings-generated.txt") using directives recorded."
@@ -373,7 +373,7 @@ jobs:
             exit 1
           fi
           dotnet cleanarch bootstrap
-          removed=$(LC_ALL=C comm -23 "${{ runner.temp }}/usings-generated.txt" <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.cs' -print0 \
+          removed=$(LC_ALL=C comm -23 "${{ runner.temp }}/usings-generated.txt" <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules -o -name Generated \) -prune -o -name '*.cs' -print0 \
             | xargs -0 -r awk 'FNR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, "") } /^(global )?using [A-Za-z_][^(;]*;$/ { print FILENAME ": " $0 }' \
             | LC_ALL=C sort))
           if [ -n "$removed" ]; then

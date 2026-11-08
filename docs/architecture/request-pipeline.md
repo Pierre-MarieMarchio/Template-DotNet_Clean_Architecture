@@ -47,6 +47,14 @@ protected unless it opts out with `[AllowAnonymous]`. The two health endpoints o
 Development only, do the OpenAPI document and its reference page.
 `DefaultDenyAuthorizationTests` reads every endpoint the host maps and expects `401` from each one
 that does not opt out, without a token and with a garbage one.
+<!--#if (localAuth)-->
+`AdministratorPolicyTests` holds that an ordinary caller gets `403` with a code and an anonymous one
+`401` on the administration routes.
+<!--#endif-->
+<!--#if (externalAuth)-->
+`ExternalAuthenticationHostTests` holds that the provider's administrator role passes the
+`Administrator` policy and another role is refused.
+<!--#endif-->
 
 <!--#endif-->
 <!--#if (localAuth)-->
@@ -65,6 +73,18 @@ caller rather than `404`.
 configures as the administrator's, and guards the maintenance and administration endpoints.
 A new policy is registered beside it. The host checks a role, never the use case
 ([ADR 0039](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)).
+
+A use case knows the caller, not the caller's roles: `ICurrentUser` names the caller and carries no
+role, so a handler scopes its query to the owner but cannot ask whether the caller is an
+administrator. Checked in the use case, a role would teach the application layer the deployment's
+role names and the claims they come from, need a special case for a background job, which has no
+caller, and keep an administration use case from a host whose own rule differs. `RoleCheckTests`
+holds both faces: `ICurrentUser` exposes no role or claim, and no type of the application layer reads
+a principal, calls `IsInRole` or names a policy. A second host that composes an administration use
+case puts the policy on it again, since nothing in the use case refuses an ordinary caller; a new
+policy is a constant beside `Administrator` and an `AddPolicy` call in each host that composes
+authentication. The choice is revisited when the project needs permissions finer than one
+administrator role, or a use case must refuse a caller by role whatever host sends it.
 <!--#endif-->
 <!--#if (publicApi)-->
 This API authenticates nobody. The fallback policy admits every caller, and an action marked

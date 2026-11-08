@@ -686,7 +686,8 @@ the app. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
 `add presentation` reads that section and makes the edits, every one or none, so a bullet keeps
 the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced
-lines, then the added ones. A page a part brings, its feature page or its ADR, needs no edit to be
+lines, then the added ones. A fence of four backticks or more holds lines that contain a fenced
+block of their own, and closes at a fence of at least its length, as CommonMark has it. A page a part brings, its feature page or its ADR, needs no edit to be
 listed: `add presentation` and `add web-app` run `docs-index` once their edits are made, and the
 folder's index lists the page as it lists those of a project generated with the part, so no shared
 file under `docs/` conditions a listing of pages on a part.

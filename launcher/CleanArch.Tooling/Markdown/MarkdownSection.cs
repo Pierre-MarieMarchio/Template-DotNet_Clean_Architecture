@@ -18,14 +18,18 @@ public static class MarkdownSection
 
         int level = HeadingDepth(heading);
         var body = new List<string>();
-        bool fenced = false;
+        string fence = string.Empty;
         foreach (string line in lines.Skip(start + 1))
         {
-            if (MarkdownFence.Opens(line))
+            if (fence.Length == 0 && MarkdownFence.Opens(line))
             {
-                fenced = !fenced;
+                fence = MarkdownFence.Marker(line);
             }
-            else if (!fenced && HeadingDepth(line) is > 0 and int depth && depth <= level)
+            else if (fence.Length > 0 && MarkdownFence.Closes(line, fence))
+            {
+                fence = string.Empty;
+            }
+            else if (fence.Length == 0 && HeadingDepth(line) is > 0 and int depth && depth <= level)
             {
                 break;
             }

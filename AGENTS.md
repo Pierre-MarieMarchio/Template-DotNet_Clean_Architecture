@@ -157,7 +157,7 @@ it once it has the rich shape, and `--dry-run` shows what it would write.
 
 <!--#if (!agentFilesExample)-->
 Written by this project's team: what no page above holds. Replace each _to fill_ with it and delete
-a line that does not apply; until then a line says nothing.
+a line that does not apply; a line still marked _to fill_ is no rule yet.
 
 - Domain and words: _to fill_, what the product does and what its terms mean.
 - Systems it talks to: _to fill_, each outside service and who owns it.
@@ -173,7 +173,7 @@ made-up product and says nothing of this one: replace it, or delete the line.
 - Systems it talks to: _Example_, the payment provider, owned by finance; the door controllers.
 - Leave alone: _Example_, the pass pricing rules, set by contract with each gym.
 - Ask first: _Example_, any new package, any change to a public route.
-- Departures: _Example_, bookings keep a cancelled status, as the ADR on cancelled slots says why.
+- Departures: _Example_, bookings keep a cancelled status; the ADR on cancelled slots says why.
 <!--#endif-->
 <!--#if (templateMaintenance)-->
 

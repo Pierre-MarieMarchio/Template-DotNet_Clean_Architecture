@@ -162,6 +162,11 @@ write needs an authenticated caller.
 <!--#endif-->
 
 Each writes every file and edit or none, and `--dry-run` prints them and writes and runs nothing.
+<!--#if (canAddFeature)-->
+The edits that compose a feature are lines placed beside a line each shared file holds, rather than
+features discovered by reflection, which would leave no composition to read in `Program.cs`, or edits
+made in part, which would leave a tree that neither builds nor says what is missing.
+<!--#endif-->
 [Adding a feature](../guides/adding-a-feature.md) and [removing features](../guides/removing-features.md)
 give the steps around them.
 

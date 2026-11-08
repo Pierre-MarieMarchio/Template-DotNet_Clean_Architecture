@@ -142,6 +142,7 @@ as [deployment](deployment.md#migrations-at-release) describes.
 <!--#if (sqlite)-->
 Every other environment refuses to start: this project runs on SQLite, a development database, and
 [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) says how to move to a server one.
+No release applies migrations to the file; [deployment](deployment.md#when) gives the way out.
 <!--#endif-->
 
 ```bash

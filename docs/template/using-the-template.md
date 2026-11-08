@@ -239,8 +239,8 @@ and one sentence of `docs/getting-started/overview.md`, both written from the `t
 symbol, name the package, the version and the options of the day of generation, a fact that stays
 true. And its tool: `.config/dotnet-tools.json` pins `CleanArch.Cli` at that version, and a project
 moves to a later one only when its team runs `dotnet tool update`, after comparing the pinned version
-with the template's changelog. The tool carries only what a project runs, its tasks, its generators
-and their code templates, and its help and messages speak of "this project", as the pages do; a line
+with the template's changelog. The tool carries only what a project runs, its tasks and its generators,
+and its help and messages speak of "this project", as the pages do; a line
 about the template in either is a defect, but the provenance sentence and the item-template commands
 a project runs. A project keeps one documentation check of its own, `DocumentationCitationTests` in
 `tests/Architecture`: every `dotnet cleanarch` command a page cites is one

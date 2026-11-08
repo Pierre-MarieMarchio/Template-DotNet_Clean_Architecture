@@ -419,6 +419,7 @@ jobs:
       - name: Create the initial migrations
         run: |
           dotnet tool restore
+          dotnet restore "$SOLUTION"
           dotnet ef migrations add InitialCreate --project src/Infrastructure/AT.Infrastructure.Auth --startup-project src/Infrastructure/AT.Infrastructure.Auth
           dotnet ef migrations add InitialCreate --project src/Infrastructure/AT.Infrastructure.Persistence --startup-project src/Infrastructure/AT.Infrastructure.Persistence
 

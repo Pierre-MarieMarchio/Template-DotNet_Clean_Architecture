@@ -69,6 +69,20 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # pnpm api asks dotnet cleanarch for the OpenAPI reference.
+      - name: Restore the local tools
+        run: dotnet tool restore
+
+      #if (templateMaintenance)
+      # Template repository only: its tool manifest pins no dotnet cleanarch, so the tool is packed from its sources and put on the PATH.
+      - name: Put dotnet cleanarch on the PATH from its sources
+        working-directory: .
+        run: |
+          dotnet pack launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release -p:Version=0.0.0-checkout --output "${{ runner.temp }}/cleanarch-package"
+          dotnet tool install CleanArch.Cli --version 0.0.0-checkout --add-source "${{ runner.temp }}/cleanarch-package" --tool-path "${{ runner.temp }}/cleanarch"
+          echo "${{ runner.temp }}/cleanarch" >> "$GITHUB_PATH"
+      #endif
+
       - name: The API client matches the API
         run: |
           pnpm api

@@ -91,7 +91,7 @@ internal static class ProjectScaffold
         {
             Directory.CreateDirectory(scratch);
             Install(shell, descriptor, scratch, shown);
-            RefuseWhatTheProjectLacks(Path.Combine(generated, descriptor.Name + ".csproj"), Path.Combine(folder, descriptor.Name + ".csproj"));
+            RefuseWhatTheProjectLacks(Path.Combine(generated, descriptor.Name + ".csproj"), Path.Combine(folder, descriptor.Name + ".csproj"), descriptor.Drop);
             ScaffoldFiles.NormaliseLineEndings(generated);
             Keep(descriptor, generated, folder);
         }
@@ -140,7 +140,7 @@ internal static class ProjectScaffold
         }
     }
 
-    private static void RefuseWhatTheProjectLacks(string generated, string own)
+    private static void RefuseWhatTheProjectLacks(string generated, string own, IReadOnlyList<string> dropped)
     {
         if (!File.Exists(generated))
         {
@@ -149,7 +149,7 @@ internal static class ProjectScaffold
 
         XDocument template = XDocument.Load(generated);
         XDocument project = XDocument.Load(own);
-        string[] lacking = [.. LackingPackages(template, project), .. LackingProperties(template, project)];
+        string[] lacking = [.. LackingPackages(template, project, dropped), .. LackingProperties(template, project)];
         if (lacking.Length > 0)
         {
             throw new InvalidOperationException(
@@ -159,9 +159,9 @@ internal static class ProjectScaffold
         }
     }
 
-    private static IEnumerable<string> LackingPackages(XDocument template, XDocument project)
+    private static IEnumerable<string> LackingPackages(XDocument template, XDocument project, IReadOnlyList<string> dropped)
     {
-        HashSet<string> own = [.. Packages(project)];
+        HashSet<string> own = [.. Packages(project), .. dropped];
         return Packages(template).Where(package => !own.Contains(package)).Select(package => $"the package {package}");
     }
 

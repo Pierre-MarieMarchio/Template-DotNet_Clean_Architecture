@@ -61,13 +61,23 @@ A feature uses another only through that feature's public application port or it
 never through its records, its EF configurations, its sets or its tables. The surface of a feature
 is two namespaces: `Ports` in the application project and `Model/Events` in the domain project.
 The feature that owns the data declares the port, to read or to change it; a request several
-features answer is a port declared once in `AppTemplate.Application.Core`, which each owner
-implements.
+features answer is a port declared once under `Common/Ports/` of `AppTemplate.Application.Core`,
+which names no feature, and each owner implements it while the caller takes every implementation.
+A port the caller declared would have the owner implement an interface from each caller's folder,
+depending on the features that depend on it, so removing a caller would edit the owner; a port per
+pair of features in a shared folder would make the shared code name features.
 
 The reason is extraction: each reference that reaches past a port is an edit the remaining feature
 would need before the other could leave. `FeatureIsolationTests` reads both the application and the
 persistence project, because a query can read another feature's rows without any signature showing
-it. [Reaching another feature](../guides/reaching-another-feature.md) gives the steps of each way in.
+it. `ModuleDependencyTests` keeps the `Common/` folders free of features, `PortConventionTests`
+refuses a port nobody calls, and `ContainerCompositionTests` a port with no registration.
+[Reaching another feature](../guides/reaching-another-feature.md) gives the steps of each way in.
+
+A write port ties two features to one commit in one context. The rule is revisited when two features
+always change together and every port between them mirrors the other's model, which makes them one
+feature, or when a feature must leave the business context, which turns its write ports into remote
+calls that no longer commit with the caller.
 <!--#if (reminders)-->
 
 `Reminders` needs to know that a to-do item exists, who owns it and whether it is done. It asks
@@ -124,6 +134,14 @@ the concept folders. The vocabulary is closed per project and checked in both di
 ([ADR 0035](../decisions/0035-folders-take-their-names-from-a-closed-vocabulary.md));
 [the project layout](../reference/project-layout.md) lists every word, the suffix each one takes, and
 the test that holds it.
+
+Free names drift, one feature's `Handlers/` beside another's `UseCases/` and a `Helpers/` that
+collects what found no home, and a convention page holds only until the first change that does not
+read it. A closed list lets a path say what a file is, and lets a generator know where to write.
+A new word is a change of the list: an entry in `LayoutConventionTests`, a row in the project layout,
+and a review that asks whether an existing word already says it. A file that fits no word is a design
+question asked in review, not a folder created on the way. The list is revisited when most new
+folders need a new word, or a feature needs a shape the four levels cannot express.
 
 Every module keeps the same partition, `Common/` plus `Features/<Feature>/`, whether it serves one
 feature or several, so the tree says which files leave with a feature.

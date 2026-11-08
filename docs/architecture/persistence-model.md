@@ -26,6 +26,14 @@ Every context reaches the database through the one connection string `Connection
 A feature's tables live in its own schema, so a feature is removed with its migration rather than by
 editing a shared model, and the tables no feature owns live in `platform`.
 
+A database per module would be several things to configure, back up and keep in step, for one
+process that deploys as a unit; one schema for every table would leave a feature's tables impossible
+to tell apart. No foreign key crosses two schemas and no query joins across them, so a feature that
+comes to need isolation a schema does not give, its own scaling, backup policy or compliance
+boundary, moves to a database of its own by changing where its context connects. The price is that
+a write spanning two contexts is two transactions. `PersistenceModelTests` checks that every
+configuration is applied by its context and declared in its module.
+
 | Schema | Tables | Context |
 |---|---|---|
 | <!--#if (todoLists)--> |
@@ -185,6 +193,13 @@ forgotten filter turns into a data leak, and retention is a question for an audi
 `NoPersistenceRecord_CarriesADeletedFlag` holds it, and
 [ADR 0038](../decisions/0038-deleting-removes-rows.md) says why.
 
+What must outlive a deletion is written elsewhere, to an audit trail or a history table the
+feature's reads never query; an undo or a restore is a feature with its own state. Temporal tables or
+triggers would keep history without a flag, tied to one provider and invisible to the code that
+reasons about it. A business state that hides a record, archived, cancelled or completed, is not a
+deletion: it is a state of the aggregate, named for what it means, and lists filter it as they
+filter any other state.
+
 ## Concurrency
 
 <!--#if (postgreSql)-->
@@ -197,7 +212,10 @@ stamps on every save, 1 on insert and the loaded value plus one on update, and p
 resource's `ETag`. The domain's version is a `uint` and this database has no row version of that
 size, so the save pipeline keeps the counter itself.
 <!--#endif-->
-A write puts the version it loaded in its `WHERE` clause, so a writer that loses a race between its load and its commit matches no row.
+Two callers that read the same row and then write it would overwrite each other, and a lock held
+between a read and a write cannot span two HTTP requests. The version reaches the client instead, so
+the client can say which state it decided against, and the database has the last word:
+a write puts the version it loaded in its `WHERE` clause, so a writer that loses a race between its load and its commit matches no row.
 `EfUnitOfWork` turns EF's conflict into `ConcurrencyConflictException`, and the API answers `409`
 `concurrency.conflict`. Nothing retries it: re-applying a decision made against a state that no
 longer exists is the lost update the version prevents.
@@ -208,7 +226,11 @@ taken) catches the violation first and answers its own code; the central transla
 
 When the caller sends `If-Match`, the use case compares it with the version it just loaded, and
 answers `412` when they differ. [HTTP API](http-api.md#etag-and-if-match)
-states the client's side.
+states the client's side. Lost updates are refused for every versioned feature whether or not the
+client sends the header. A feature opts into the chain when it is generated, and the rich shape
+always does, as [adding a feature](../guides/adding-a-feature.md#generate-it) says; a feature without
+it writes last-wins. A conflict is refused rather than merged, which stays right until a client needs
+changes merged, as when several people edit one document at once.
 <!--#if (accounts)-->
 
 Ownership is part of the read: a query names the owner in its predicate, so another user's row never
@@ -237,6 +259,17 @@ SQLite folds the case of ASCII letters only: a search for `é` does not find `É
 0.1 ms, coarser than a server database keeps.
 The file has one writer at a time: the journal is in WAL mode, a second writer waits for the
 connection's `Default Timeout`, and a save that still finds the file busy is retried.
+<!--#endif-->
+<!--#if (sqlite && files)-->
+`ILeaderLease` and the owner's quota lock are semaphores of the process: they exclude every caller
+of one process and nothing beyond it, which is all one file allows, so a second instance would run
+the same job pass and could accept a file past the quota. The refusal to start outside
+Development keeps a second instance out of reach.
+<!--#endif-->
+<!--#if (sqlite && !files)-->
+`ILeaderLease` is a semaphore of the process: it excludes every caller of one process and nothing
+beyond it, which is all one file allows, so a second instance would run the same job pass. The
+refusal to start outside Development keeps a second instance out of reach.
 <!--#endif-->
 
 ## Decisions

@@ -103,6 +103,10 @@ Routes, contracts and responses do not change, nor do `ETag`, `If-Match`, `Idemp
 owner scoping: none of them belonged to the aggregate. The migration is empty unless the new rule
 needs a column or an index.
 
+Two shapes stay right while promotion is rare and no feature needs a third: when several features
+want rules without an aggregate worth its mapper, or promotion becomes frequent enough that starting
+every feature rich costs less, the shapes are revisited.
+
 ## Decisions
 
 - [0002. Two feature shapes](../decisions/0002-two-feature-shapes.md)

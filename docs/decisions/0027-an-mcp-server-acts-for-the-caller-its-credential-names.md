@@ -25,42 +25,30 @@ as long as the user works, and refreshes nothing it was not told how to.
 
 - **Streamable HTTP, on the server, in process.** `<Project>.Mcp` is an ASP.NET Core host that
   composes the use cases in its own process
-  ([ADR 0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md))
-  and maps the endpoint of `ModelContextProtocol.AspNetCore` at `/mcp`. It runs stateless: each
-  request is answered in its own scope, with no session between requests, so any instance answers
-  any call, and the server sends the client no request of its own.
+  ([ADR 0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)),
+  stateless, so any instance answers any call and the server sends the client no request of its own.
 <!--#if (localAuth)-->
-- **The caller is the access key's owner.** A client sends an access key its user created through
-  the API, as a bearer credential ([ADR 0026](0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)).
-  The server resolves it through the Auth context's own use case to the owner and the scopes it
-  grants, on every request, so a key revoked or expired, or an account locked, stops at the next
-  call. A key that grants `read` reaches the tools that read, one that grants `write` the tools that
-  create; a tool its key does not reach is neither listed nor called. The API's access token is not
-  accepted here: it lasts fifteen minutes, and the client would not refresh it.
+- **The caller is the access key's owner.** A client sends, as a bearer credential, an access key its
+  user created through the API; the server resolves it to its owner and scopes on every request, and
+  a tool its key does not reach is neither listed nor called. The API's access token is not accepted
+  here: it lasts fifteen minutes, and the client would not refresh it.
 <!--#endif-->
 <!--#if (externalAuth)-->
-- **The caller is the token's subject.** The provider the API trusts issues the token. The server
-  validates it as the API does, against `Authentication:External`, but for its own audience,
-  `Mcp:Resource`, the address clients connect to: a token issued for the API is refused, and the
-  server passes no token on. The issuer and subject map to the owner id as
-  [ADR 0017](0017-external-subjects-map-to-internal-owners.md) has it, provisioned on the first
-  request, with roles from the same source.
+- **The caller is the token's subject.** The provider the API trusts issues the token, for the
+  server's own audience, `Mcp:Resource`; a token issued for the API is refused, and the server passes
+  no token on. The subject maps to the owner id as every host maps it
+  ([ADR 0017](0017-external-subjects-map-to-internal-owners.md)).
 <!--#endif-->
-- **Anonymous is refused.** The endpoint requires an authenticated caller.
-<!--#if (externalAuth)-->
-  A call without a valid token is a `401` whose `WWW-Authenticate` names the protected resource
-  metadata, and `/.well-known/oauth-protected-resource/mcp` names the provider.
-<!--#endif-->
+- **Anonymous is refused**, but for the health endpoints, as on the API.
+- **A tool is one use case, declared by hand**, under a name and a description written for the
+  agent; nothing is exposed because it exists, no tool deletes, and another caller's record answers
+  exactly as an absent one.
+
+[MCP server](../features/presentation.md#mcp-server) describes the tools, how a client calls them
+and their tests.
 <!--#if (localAuth)-->
-  A call without a valid key is a `401` with a bare `Bearer` challenge: no authorization server
-  issues access keys, so the server names none.
+[Access keys](../features/authentication.md#access-keys) describes the credential.
 <!--#endif-->
-  The health endpoints answer anyone, as the API's do.
-- **A tool is one use case, declared by hand.** Each tool sends one use case's message in its request's scope,
-  under a name and a description written for the agent, and says whether it only reads; nothing is
-  exposed because it exists, and no tool deletes. A failure is a tool result marked as an error,
-  carrying the error's `code` and detail, the codes the [API reference](../reference/api.md) lists,
-  so another caller's record answers exactly as an absent one.
 
 ## Alternatives considered
 
@@ -79,9 +67,19 @@ as long as the user works, and refreshes nothing it was not told how to.
 <!--#if (localAuth)-->
 - **The API's access token.** It expires within the quarter hour and a client cannot refresh it,
   and a token stolen from one host would open the other.
-- **This project as an authorization server.** The protocol's own flow would let a client obtain
-  and refresh tokens, at the price of an OAuth server of its own: client registration, consent and
-  token endpoints, all to be secured and kept.
+- **Longer-lived access tokens.** A JWT cannot be revoked before it expires, and lengthening every
+  token to serve a few clients weakens all of them.
+- **Refreshing in the client.** The clients in question take a static header; those that could
+  refresh would each carry rotation and replay handling this project cannot test.
+- **This project as an authorization server, with the device flow or the protocol's own flow.** The
+  standard answer, and the right one once third parties act for users, but a whole OAuth server of
+  its own, client registration, consent and token endpoints, all to be secured and kept, for what is
+  still the owner's own credential.
+- **Personal access tokens accepted by the API as well.** Every endpoint would gain a second
+  credential that skips the security stamp and the sessions, and a key leaked from a tool would
+  reach the account routes.
+- **Access keys in every project with local accounts.** Routes and a table that nothing accepts
+  until a host does; they come with the MCP server instead.
 <!--#endif-->
 - **Sessions bound to an instance.** Every call of a session would have to reach the instance that
   opened it, and the caller of a session's later calls would need a rule of its own.
@@ -96,24 +94,21 @@ as long as the user works, and refreshes nothing it was not told how to.
 <!--#if (localAuth)-->
 - A user creates a key in the API, once signed in, and pastes it into the client's configuration
   as an `Authorization` header; a client that only knows the protocol's OAuth flow cannot connect.
+- An owner gives a tool a credential and takes it back without touching the password; a password
+  change leaves keys alive, and revoking them is the owner's act.
 <!--#endif-->
 - A use case reached by a tool is composed by a second host: a setting it reads is set for this host
   too.
 - Without server-to-client requests, a tool cannot ask the user to confirm anything mid-call.
-- `HostCompositionTests` resolves every use case's handler and every tool type the server composes, and holds
-  the tools to the catalogue its tests read; `McpAuthorizationTests` holds the anonymous `401`,
-<!--#if (externalAuth)-->
-  its metadata, the refusal of a token issued for the API,
-<!--#endif-->
-<!--#if (localAuth)-->
-  the refusal of an unknown or revoked key, a read-only key that sees and calls no tool that writes,
-<!--#endif-->
-  and that another caller's record answers as an absent one.
-
-[Presentation project](../features/presentation.md) describes the tools and their settings.
+- `HostCompositionTests` and `McpAuthorizationTests` hold the composition, the catalogue and the
+  refusals.
 
 ## Revisit when
 
 A tool needs to ask its user something mid-call (elicitation), which needs sessions; an agent must
 work offline on the user's machine; or a client must connect that cannot send a credential it was
 given.
+<!--#if (localAuth)-->
+Third parties act on an owner's behalf and need consent and delegation, a key must carry finer
+permissions than `read` and `write`, or a second host must accept keys.
+<!--#endif-->

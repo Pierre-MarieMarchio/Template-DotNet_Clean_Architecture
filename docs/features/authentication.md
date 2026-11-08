@@ -60,6 +60,12 @@ The refresh token is an opaque 32-byte random value, of which only a SHA-256 has
 `POST /api/v1/auth/refresh` consumes it and returns a new pair. Presenting a token that was already
 consumed is treated as theft: every session of the account is revoked.
 
+A token carries no key id, and no JWKS document publishes the keys: validation tries `Jwt:Key`,
+then each of `Jwt:PreviousKeys`, all read from configuration, since every host that validates a
+token already holds the secret and trying one or two HS256 keys costs nothing. An asymmetric key
+and a published key set are the shape to take once a party that holds no secret must validate the
+tokens; [rotating the signing key](../guides/rotating-the-signing-key.md) gives the steps.
+
 ### Sessions
 
 One sign-in is one session: the family of refresh tokens that sign-in started. The access token
@@ -70,6 +76,25 @@ carries a `sid` claim naming it. `GET /api/v1/auth/sessions` lists the caller's 
 A credential change (password, second factor, passkey removal) ends every other session; a
 password reset through the mailed link ends them all
 ([ADR 0013](../decisions/0013-a-session-is-a-refresh-token-family.md)).
+
+Which sessions end depends on where the change came from. Made from a session, a password change,
+arming or dropping the second factor, or removing a passkey spares that session, which has just
+proved the new posture; a reset through a mailed link comes from no session and spares none, nor
+does an administrator's lock or role change, nor a token that names no session. The security stamp
+fails every access token at its next validation, but refresh tokens are this project's own and
+outlive a stamp rotation, so every rotation goes through `CredentialInvalidationPolicy`, which
+revokes the grants; Identity leaves the stamp alone on some changes that take access away, and the
+adapters rotate it themselves there. A new operation that rotates the stamp calls the policy.
+`logout-all` revokes every grant and rotates nothing, so the access token that asked lives out its
+few minutes.
+
+A session records its client's `User-Agent` at last use, so a holder can tell devices apart, and no
+address. Ending a session is two conditional statements, the family then its live grants, never a
+loop over grants, since the replay path is one an attacker can trigger at will.
+`SecurityStampRotationTests` and `RefreshTokenTests` replay the token in circulation after each
+change; `RefreshTokenRotationTests` proves on a real database that one of two simultaneous
+rotations wins. An access token that must end the instant its session does would need a check on
+every request, which this project does not make.
 
 ### Two-factor
 
@@ -88,6 +113,23 @@ WebAuthn on ASP.NET Core Identity. Registering takes two calls (`passkeys/regist
 so it never asks for the second factor. The ceremony state travels to the client sealed, lives
 five minutes and is spent once ([ADR 0015](../decisions/0015-passkeys-stand-on-their-own.md)).
 
+Identity keeps the state between the two calls in a cookie, and this API sets no cookie for sign-in
+and keeps no session between calls, so the client carries it: a time-limited data protector seals
+it under a purpose per ceremony kind and, for a registration, per account, for
+`Passkey:CeremonyLifetime`. It is spent on its first presentation, before anything is verified, by
+one insert keyed on its hash, so the database decides which of two presentations wins on any
+instance, and one captured state cannot sign in twice even with a synced passkey that keeps no
+signature counter. A rewritten, expired, wrong-kind or spent state is refused like a ceremony that
+does not verify.
+
+The ceremonies require user verification, which no setting relaxes, so possession and the user
+check happen together: the two factors a password and a code provide. Registering a passkey ends no
+session, and re-authenticating first keeps a stolen session from registering its thief's passkey;
+removing one counts as a password change, rotating the stamp and ending every other session.
+`PasskeyCeremonyStateTests` refuses tampered, foreign, wrong-kind and spent states with a verifier
+that accepts everything, so only the state can be what refuses; `CompletePasskeySignInTests` holds
+the sign-in rule.
+
 <!--#if (accessKeys)-->
 ### Access keys
 
@@ -104,6 +146,14 @@ This API never accepts an access key: its bearer scheme reads JWTs only. The MCP
 the key by sending `AuthenticateAccessKeyCommand` and acts as its owner. A malformed, unknown,
 revoked or expired key, and one whose account may not sign in, all answer `auth.accessKey.invalid`
 ([ADR 0026](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)).
+
+A key is a credential the owner can see and end without touching the password, whose theft costs
+less than the password's. Longer-lived access tokens would serve these clients but cannot be revoked
+before they expire, and lengthening every token for a few clients weakens all of them. Keys accepted
+by this API as well would give every endpoint a second credential that skips the security stamp and
+the sessions, and a key leaked from a tool would reach the account routes. An OAuth authorisation
+server with the device flow is the standard answer once third parties act for users, but a whole
+server and its consent screens for what is still the owner's own credential.
 
 <!--#endif-->
 ### Signing in with Google, Microsoft or Apple
@@ -124,6 +174,20 @@ cookie (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/v1/auth`) instead of
 The cookie is read only beside that header, which is the defence against cross-site requests;
 `refresh` and `logout` then take no body. Every local-accounts project answers the header, web app
 or not, and a client that never sends it works as above ([ADR 0016](../decisions/0016-browser-refresh-token-in-a-cookie.md)).
+
+A browser cannot keep a refresh token where script reads it: a cross-site scripting flaw reads
+`localStorage` too, and the token outlives the page by days, so a flaw in the page can use the
+access token while the page lives but never keep the session. The cookie is host-only and carries
+no `__Host-` prefix, which would force `Path=/` and send it with every request. `SameSite=Strict`
+stops other sites, but another port of the same host is the same site; what such a page cannot do
+is send a custom header with credentials, since the request is preflighted and the CORS policy
+never allows credentials. The use cases see a string: `BrowserSession`, in the API layer, alone
+knows the cookie. Any header value other than `cookie` is a `400`. A backend-for-frontend that keeps
+every token on a server would spare the browser the cookie, at the price of a server beside every
+single-page app, which nginx serves alone. The deployment's ingress sends HSTS, which keeps a plain-HTTP page from planting a cookie of
+that name. `BrowserSessionTests` and `RefreshTokenCookieTests` hold the cookie, the header and the
+refusals. A browser app served from another site than the API is refused by `SameSite=Strict`, and
+calls for revisiting this mode.
 
 <!--#if (anyWeb)-->
 The single-page web apps of this project use this mode through the `api-client` package: the access
@@ -147,6 +211,15 @@ off.
 The provider's subject never becomes an owner id. The first request of each (issuer, subject)
 creates a mapping to an internal `UserId`, exactly once even under concurrency, and every business
 row carries that id ([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)).
+Storing the subject on every row would spread the provider's identifier format through the schema,
+and changing provider would rewrite every table; with the mapping, it is the one place that knows a
+caller's subject. A mapping is written while the request is being authenticated, in a transaction
+of its own, and two first requests racing on the unique index over issuer and subject both end with
+the winner's owner id. Removing a mapping is final: a caller who signs in again is provisioned
+afresh, under a new owner id with none of the old one's data.
+`ExternalIdentityProvisioningTests`, `ExternalPrincipalMapperTests` and `TokenRoleMappingTests`
+hold provisioning and both role sources. Several providers resolving to one person would need
+account linking, which this mapping does not do.
 The mapping keeps the email and name the provider last sent, for notifications; an address the
 provider marks unverified is not kept. A token that does not validate, or names no issuer or
 subject, is `401` `auth.required`.

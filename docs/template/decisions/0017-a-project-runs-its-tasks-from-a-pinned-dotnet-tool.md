@@ -48,6 +48,21 @@ expose one by one.
   project root by this file and reads it where the task launcher read a `//#if`.
   `dotnet cleanarch adopt` writes it for a project generated before the tool, from the facts the
   launcher already infers from a project's files.
+- **The project's facts come from the project file.** A question about the project is answered from
+  it, never inferred from files a team edits; inference survives only in `adopt`. `add web-app`,
+  `add web-package` and `add presentation` run the item template at the version the project file
+  records, so an addition matches the project's template version whatever launcher a user runs.
+- **Two things from the template reach a project, and only these two:** its provenance, the project
+  file and one sentence of `docs/getting-started/overview.md` naming the package, the version and
+  the options of the day of generation; and the tool, pinned in `.config/dotnet-tools.json` and
+  moved to a later version only by the team's `dotnet tool update`. The tool's help and messages
+  speak of "this project", as the pages do, and it never carries a template-maintenance gate.
+- **Both tools ask from the templates' manifests.** Each visible option of `ide.host.json`, in its
+  order and under its label, with the choices of `template.json` and the long names of
+  `dotnetcli.host.json`, embedded from the commit the tool is packed from. A refusal is evaluated,
+  never restated: the tool evaluates its `isRequired` on the answers and asks again the options it
+  reads, and a question offers only what some answer to the rest can generate. The launcher and the
+  tool share that code in `launcher/CleanArch.Tooling`.
 - **The commands follow five rules:**
   1. Each command prints what it runs, so the printed line gives the same result without the tool.
   2. A command takes the names of the tool its users already know: `add` and `remove` as
@@ -121,6 +136,11 @@ expose one by one.
   generators. A local tool pins each project's own.
 - **Team plugins loaded as assemblies.** Loading a team's assemblies into the tool's process brings
   version and isolation problems that a file-based app, run in a process of its own, does not have.
+- **The additions left in the launcher.** Two tools would add to a project, `dnx` would run the
+  latest launcher against a project pinned to an older template, and the facts would keep being
+  inferred from files a team edits.
+- **The options, or the refusals, written into the tools.** They would drift from the templates at
+  the first option added, and a user could answer into a combination the engine refuses.
 - **One tool for creating and working**, the way `ng` does it. Every project would carry for ever
   the machinery that asks a new project's questions, which runs once, before the project exists.
 
@@ -134,6 +154,9 @@ expose one by one.
   workspace's schema through `pnpm api <reference>` where it holds the `api-client` package. A
   project with the API and no .NET client still gets its reference.
 - The launcher and the tool share their process, terminal and manifest code in one solution.
+- A refusal keeps its shape, a hidden parameter whose only choice is `refused` with a conditional
+  `isRequired`, and `refusedOptions` stays its union: the launcher's tests fail on every combination
+  where the two disagree.
 - The tool becomes a public interface. The project file's schema, the code templates and the
   contract of a local command are versioned with care, and breaking one of them takes a major
   version.
@@ -149,5 +172,6 @@ expose one by one.
 
 ## Revisit when
 
-The .NET SDK comes to offer project-scoped commands of its own, or teams come to eject most of the
-commands.
+The .NET SDK comes to offer project-scoped commands of its own, teams come to eject most of the
+commands, the template engine comes to run post-actions that edit a project's existing files, or it
+exposes a template's parameters and constraints through an API a tool can call.

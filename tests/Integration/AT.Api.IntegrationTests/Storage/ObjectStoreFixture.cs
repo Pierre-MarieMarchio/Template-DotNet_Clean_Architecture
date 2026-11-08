@@ -18,7 +18,7 @@ namespace AppTemplate.Api.IntegrationTests.Storage;
 public sealed class ObjectStoreFixture : IAsyncLifetime
 {
     private const string _storeImage =
-        "chrislusf/seaweedfs:4.50@sha256:c2658820e763294a9e9de7b36c81e59b879e3459148351aee4e31a126ca64860";
+        "chrislusf/seaweedfs:4.52@sha256:57877e32bb90073b37dc109b438ba66e84fd5ed9ced5f5c04f56444ef243ce59";
 
     private const ushort _s3Port = 9000;
 

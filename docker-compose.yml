@@ -334,7 +334,7 @@ services:
   #if (files)
   objectstore:
     # SeaweedFS stands in for S3 locally; in production point Files__Storage__S3__Endpoint at your provider.
-    image: chrislusf/seaweedfs:4.50@sha256:c2658820e763294a9e9de7b36c81e59b879e3459148351aee4e31a126ca64860
+    image: chrislusf/seaweedfs:4.52@sha256:57877e32bb90073b37dc109b438ba66e84fd5ed9ced5f5c04f56444ef243ce59
     command: >
       mini -dir=/data -s3.port=9000 -bucket=${STORAGE_BUCKET_NAME:-app-files}
       -s3.autoCreateBucket=false -master.telemetry=false

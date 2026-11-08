@@ -25,16 +25,16 @@
 # and any appsettings.Production.json a developer drops in locally.
 **/appsettings*.json
 #if (presentationMcp)
-!Src/Presentation/AT.PresentationAppMcp/appsettings.json
+!src/Presentation/AT.PresentationAppMcp/appsettings.json
 #endif
 #if (presentationBlazorServer)
-!Src/Presentation/AT.PresentationAppPortal/appsettings.json
+!src/Presentation/AT.PresentationAppPortal/appsettings.json
 #endif
 #if (api)
-!Src/Presentation/AT.Api/appsettings.json
+!src/Presentation/AT.Api/appsettings.json
 #endif
 #if (jobsWorker)
-!Src/Presentation/AT.Worker/appsettings.json
+!src/Presentation/AT.Worker/appsettings.json
 #endif
 
 **/*.pfx
@@ -82,7 +82,7 @@ ex.env
 # projects (and the Testcontainers fixtures they carry) are built in CI, not in
 # these images.
 # ---------------------------------------------------------------------------
-Tests/
+tests/
 
 # ---------------------------------------------------------------------------
 # Docs and repository furniture.
@@ -118,14 +118,14 @@ CHANGELOG.md
 
 #if (anyWeb)
 # ---------------------------------------------------------------------------
-# The web workspace: each web app builds from Src/Web with its own image.
+# The web workspace: each web app builds from src/Web with its own image.
 # ---------------------------------------------------------------------------
-Src/Web/
+src/Web/
 #if (webBlazorWasm)
 # The WebAssembly app builds from here, beside the solution's props and the .NET client.
-!Src/Web/apps/FrameworkSite/
-Src/Web/apps/FrameworkSite/bin/
-Src/Web/apps/FrameworkSite/obj/
+!src/Web/apps/FrameworkSite/
+src/Web/apps/FrameworkSite/bin/
+src/Web/apps/FrameworkSite/obj/
 #endif
 
 #endif

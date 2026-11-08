@@ -4,87 +4,87 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Folder Name="/Src/" />
+  <Folder Name="/src/" />
 <!--#if (aspire)-->
-  <Folder Name="/Src/AppHost/">
-    <Project Path="Src/AppHost/AT.AppHost/AppTemplate.AppHost.csproj" />
+  <Folder Name="/src/AppHost/">
+    <Project Path="src/AppHost/AT.AppHost/AppTemplate.AppHost.csproj" />
   </Folder>
 <!--#endif-->
-  <Folder Name="/Src/Application/">
+  <Folder Name="/src/Application/">
 <!--#if (localAuth)-->
-    <Project Path="Src/Application/AT.Application.Auth/AppTemplate.Application.Auth.csproj" />
+    <Project Path="src/Application/AT.Application.Auth/AppTemplate.Application.Auth.csproj" />
 <!--#endif-->
-    <Project Path="Src/Application/AT.Application.Core/AppTemplate.Application.Core.csproj" />
-    <Project Path="Src/Application/AT.Application/AppTemplate.Application.csproj" />
+    <Project Path="src/Application/AT.Application.Core/AppTemplate.Application.Core.csproj" />
+    <Project Path="src/Application/AT.Application/AppTemplate.Application.csproj" />
   </Folder>
-  <Folder Name="/Src/Domain/">
-    <Project Path="Src/Domain/AT.Domain.Core/AppTemplate.Domain.Core.csproj" />
-    <Project Path="Src/Domain/AT.Domain/AppTemplate.Domain.csproj" />
+  <Folder Name="/src/Domain/">
+    <Project Path="src/Domain/AT.Domain.Core/AppTemplate.Domain.Core.csproj" />
+    <Project Path="src/Domain/AT.Domain/AppTemplate.Domain.csproj" />
   </Folder>
-  <Folder Name="/Src/Infrastructure/">
+  <Folder Name="/src/Infrastructure/">
 <!--#if (localAuth)-->
-    <Project Path="Src/Infrastructure/AT.Infrastructure.Auth/AppTemplate.Infrastructure.Auth.csproj" />
+    <Project Path="src/Infrastructure/AT.Infrastructure.Auth/AppTemplate.Infrastructure.Auth.csproj" />
 <!--#endif-->
-    <Project Path="Src/Infrastructure/AT.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj" />
-    <Project Path="Src/Infrastructure/AT.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj" />
-    <Project Path="Src/Infrastructure/AT.Infrastructure.InMemory/AppTemplate.Infrastructure.InMemory.csproj" />
-    <Project Path="Src/Infrastructure/AT.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj" />
+    <Project Path="src/Infrastructure/AT.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj" />
+    <Project Path="src/Infrastructure/AT.Infrastructure.Email/AppTemplate.Infrastructure.Email.csproj" />
+    <Project Path="src/Infrastructure/AT.Infrastructure.InMemory/AppTemplate.Infrastructure.InMemory.csproj" />
+    <Project Path="src/Infrastructure/AT.Infrastructure.Persistence/AppTemplate.Infrastructure.Persistence.csproj" />
 <!--#if (files)-->
-    <Project Path="Src/Infrastructure/AT.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj" />
+    <Project Path="src/Infrastructure/AT.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj" />
 <!--#endif-->
   </Folder>
-  <Folder Name="/Src/Presentation/">
+  <Folder Name="/src/Presentation/">
 <!--#if (api)-->
-    <Project Path="Src/Presentation/AT.Api/AppTemplate.Api.csproj" />
+    <Project Path="src/Presentation/AT.Api/AppTemplate.Api.csproj" />
 <!--#endif-->
 <!--#if (dotnetClient)-->
-    <Project Path="Src/Presentation/AT.Presentation.Client/AppTemplate.Presentation.Client.csproj" />
+    <Project Path="src/Presentation/AT.Presentation.Client/AppTemplate.Presentation.Client.csproj" />
 <!--#endif-->
-    <Project Path="Src/Presentation/AT.Presentation.Core/AppTemplate.Presentation.Core.csproj" />
+    <Project Path="src/Presentation/AT.Presentation.Core/AppTemplate.Presentation.Core.csproj" />
   </Folder>
-  <Folder Name="/Tests/">
+  <Folder Name="/tests/">
 <!--#if (localAuth)-->
-    <Project Path="Tests/Application/AT.Application.Auth.UnitTests/AppTemplate.Application.Auth.UnitTests.csproj" />
+    <Project Path="tests/Application/AT.Application.Auth.UnitTests/AppTemplate.Application.Auth.UnitTests.csproj" />
 <!--#endif-->
-    <Project Path="Tests/Application/AT.Application.Core.UnitTests/AppTemplate.Application.Core.UnitTests.csproj" />
-    <Project Path="Tests/Application/AT.Application.UnitTests/AppTemplate.Application.UnitTests.csproj" />
-    <Project Path="Tests/Architecture/AT.Architecture.Tests/AppTemplate.Architecture.Tests.csproj" />
-    <Project Path="Tests/Domain/AT.Domain.Core.UnitTests/AppTemplate.Domain.Core.UnitTests.csproj" />
-    <Project Path="Tests/Domain/AT.Domain.UnitTests/AppTemplate.Domain.UnitTests.csproj" />
+    <Project Path="tests/Application/AT.Application.Core.UnitTests/AppTemplate.Application.Core.UnitTests.csproj" />
+    <Project Path="tests/Application/AT.Application.UnitTests/AppTemplate.Application.UnitTests.csproj" />
+    <Project Path="tests/Architecture/AT.Architecture.Tests/AppTemplate.Architecture.Tests.csproj" />
+    <Project Path="tests/Domain/AT.Domain.Core.UnitTests/AppTemplate.Domain.Core.UnitTests.csproj" />
+    <Project Path="tests/Domain/AT.Domain.UnitTests/AppTemplate.Domain.UnitTests.csproj" />
 <!--#if (api)-->
-    <Project Path="Tests/EndToEnd/AT.EndToEnd.Tests/AppTemplate.EndToEnd.Tests.csproj" />
+    <Project Path="tests/EndToEnd/AT.EndToEnd.Tests/AppTemplate.EndToEnd.Tests.csproj" />
 <!--#endif-->
 <!--#if (localAuth)-->
-    <Project Path="Tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/AppTemplate.Infrastructure.Auth.UnitTests.csproj" />
+    <Project Path="tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/AppTemplate.Infrastructure.Auth.UnitTests.csproj" />
 <!--#endif-->
-    <Project Path="Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/AppTemplate.Infrastructure.Core.UnitTests.csproj" />
-    <Project Path="Tests/Infrastructure/AT.Infrastructure.Email.UnitTests/AppTemplate.Infrastructure.Email.UnitTests.csproj" />
-    <Project Path="Tests/Infrastructure/AT.Infrastructure.InMemory.UnitTests/AppTemplate.Infrastructure.InMemory.UnitTests.csproj" />
-    <Project Path="Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/AppTemplate.Infrastructure.Persistence.UnitTests.csproj" />
+    <Project Path="tests/Infrastructure/AT.Infrastructure.Core.UnitTests/AppTemplate.Infrastructure.Core.UnitTests.csproj" />
+    <Project Path="tests/Infrastructure/AT.Infrastructure.Email.UnitTests/AppTemplate.Infrastructure.Email.UnitTests.csproj" />
+    <Project Path="tests/Infrastructure/AT.Infrastructure.InMemory.UnitTests/AppTemplate.Infrastructure.InMemory.UnitTests.csproj" />
+    <Project Path="tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/AppTemplate.Infrastructure.Persistence.UnitTests.csproj" />
 <!--#if (files)-->
-    <Project Path="Tests/Infrastructure/AT.Infrastructure.Storage.UnitTests/AppTemplate.Infrastructure.Storage.UnitTests.csproj" />
+    <Project Path="tests/Infrastructure/AT.Infrastructure.Storage.UnitTests/AppTemplate.Infrastructure.Storage.UnitTests.csproj" />
 <!--#endif-->
 <!--#if (api)-->
-    <Project Path="Tests/Integration/AT.Api.IntegrationTests/AppTemplate.Api.IntegrationTests.csproj" />
+    <Project Path="tests/Integration/AT.Api.IntegrationTests/AppTemplate.Api.IntegrationTests.csproj" />
 <!--#endif-->
   </Folder>
 <!--#if (aspire || localAuth)-->
-  <Folder Name="/Tests/Integration/">
+  <Folder Name="/tests/Integration/">
 <!--#if (aspire)-->
-    <Project Path="Tests/Integration/AT.AppHost.IntegrationTests/AppTemplate.AppHost.IntegrationTests.csproj" />
+    <Project Path="tests/Integration/AT.AppHost.IntegrationTests/AppTemplate.AppHost.IntegrationTests.csproj" />
 <!--#endif-->
 <!--#if (localAuth)-->
-    <Project Path="Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/AppTemplate.Infrastructure.Auth.IntegrationTests.csproj" />
+    <Project Path="tests/Integration/AT.Infrastructure.Auth.IntegrationTests/AppTemplate.Infrastructure.Auth.IntegrationTests.csproj" />
 <!--#endif-->
   </Folder>
 <!--#endif-->
-  <Folder Name="/Tests/Presentation/">
+  <Folder Name="/tests/Presentation/">
 <!--#if (api)-->
-    <Project Path="Tests/Presentation/AT.Api.UnitTests/AppTemplate.Api.UnitTests.csproj" />
+    <Project Path="tests/Presentation/AT.Api.UnitTests/AppTemplate.Api.UnitTests.csproj" />
 <!--#endif-->
 <!--#if (dotnetClient)-->
-    <Project Path="Tests/Presentation/AT.Presentation.Client.UnitTests/AppTemplate.Presentation.Client.UnitTests.csproj" />
+    <Project Path="tests/Presentation/AT.Presentation.Client.UnitTests/AppTemplate.Presentation.Client.UnitTests.csproj" />
 <!--#endif-->
-    <Project Path="Tests/Presentation/AT.Presentation.Core.UnitTests/AppTemplate.Presentation.Core.UnitTests.csproj" />
+    <Project Path="tests/Presentation/AT.Presentation.Core.UnitTests/AppTemplate.Presentation.Core.UnitTests.csproj" />
   </Folder>
 </Solution>

@@ -46,7 +46,7 @@ first option added, and a user would be asked questions the engine no longer acc
   authentication, example features, Files module, database, workflows, agent files, scope,
   workspace) are read from the project's files, and a refusal that reads an item's `-n` is checked
   on the name asked.
-- **It lives in `Launcher/`**, its own solution, excluded from generation and from the template
+- **It lives in `launcher/`**, its own solution, excluded from generation and from the template
   package.
 
 ## Consequences

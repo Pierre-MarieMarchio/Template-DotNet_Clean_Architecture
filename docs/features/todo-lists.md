@@ -105,14 +105,14 @@ The `ETag` precondition and the idempotency of a create read
 ## Tests
 
 The aggregate, its value objects and its events are tested in
-`Tests/Domain/AT.Domain.UnitTests/Features/TodoLists`, each use case, the collection policy and the
-account-deletion consumer in `Tests/Application/AT.Application.UnitTests/Features/TodoLists`, and the
+`tests/Domain/AT.Domain.UnitTests/Features/TodoLists`, each use case, the collection policy and the
+account-deletion consumer in `tests/Application/AT.Application.UnitTests/Features/TodoLists`, and the
 mapping between aggregate and rows, with the sort and search queries, in
-`Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/TodoLists`.
+`tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/TodoLists`.
 <!--#if (api)-->
-`Tests/Integration/AT.Api.IntegrationTests/TodoLists` runs the routes against a database: the rules
+`tests/Integration/AT.Api.IntegrationTests/TodoLists` runs the routes against a database: the rules
 of the aggregate, the version precondition, conditional reads, both paginations, auditing and the
-dispatch of the domain events. `Tests/Integration/AT.Api.IntegrationTests/Security/OwnershipIsolationTests.cs`
+dispatch of the domain events. `tests/Integration/AT.Api.IntegrationTests/Security/OwnershipIsolationTests.cs`
 holds the `404` for another caller's data.
 <!--#endif-->
 An MCP server's own tests for these tools are in its test project, under `Features/TodoLists/Tools`.

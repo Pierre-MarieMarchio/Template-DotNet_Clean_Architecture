@@ -103,20 +103,20 @@ jobs:
       # Template repository only: its tool manifest pins no dotnet cleanarch, so the tool is packed from its sources and put on the PATH.
       - name: Put dotnet cleanarch on the PATH from its sources
         run: |
-          dotnet pack Launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release -p:Version=0.0.0-checkout --output "${{ runner.temp }}/cleanarch-package"
+          dotnet pack launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release -p:Version=0.0.0-checkout --output "${{ runner.temp }}/cleanarch-package"
           dotnet tool install CleanArch.Cli --version 0.0.0-checkout --add-source "${{ runner.temp }}/cleanarch-package" --tool-path "${{ runner.temp }}/cleanarch"
           echo "${{ runner.temp }}/cleanarch" >> "$GITHUB_PATH"
 
       # Template repository only: it ships no migration, so each context's first one is created here, as bootstrap creates a project's.
       - name: Create the initial migrations
         run: |
-          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
-          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
+          dotnet ef migrations add InitialCreate --project src/Infrastructure/AT.Infrastructure.Auth --startup-project src/Infrastructure/AT.Infrastructure.Auth
+          dotnet ef migrations add InitialCreate --project src/Infrastructure/AT.Infrastructure.Persistence --startup-project src/Infrastructure/AT.Infrastructure.Persistence
 
       #endif
       # Generated is committed, so Kiota at the version the tool manifest pins writes it again from the OpenAPI reference and any difference fails.
       - name: The .NET client is what Kiota writes from the OpenAPI reference
-        if: hashFiles('Src/Presentation/*.Presentation.Client/*.csproj') != ''
+        if: hashFiles('src/Presentation/*.Presentation.Client/*.csproj') != ''
         run: dotnet cleanarch openapi --check
 
       # Using order, the BOM, line endings, IDE0003 and IDE0049, which the build's code-style analysis does not check; before the build, to fail fast.
@@ -148,9 +148,9 @@ jobs:
       - name: Assert test projects exist and are in the solution
         run: |
           set -euo pipefail
-          mapfile -t projects < <(find Tests -name '*.csproj' 2>/dev/null | sort)
+          mapfile -t projects < <(find tests -name '*.csproj' 2>/dev/null | sort)
           if [ "${#projects[@]}" -eq 0 ]; then
-            echo "::error title=No tests::No *.csproj found under Tests/. The test suite is mandatory."
+            echo "::error title=No tests::No *.csproj found under tests/. The test suite is mandatory."
             exit 1
           fi
           echo "Found ${#projects[@]} test project(s):"
@@ -166,7 +166,7 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "::error title=Test project not in solution::A project under Tests/ is missing from $SOLUTION, so \`dotnet test\` would skip it silently."
+            echo "::error title=Test project not in solution::A project under tests/ is missing from $SOLUTION, so \`dotnet test\` would skip it silently."
             exit 1
           fi
 
@@ -235,26 +235,26 @@ jobs:
           global-json-file: global.json
 
       - name: The doc-path gate can fail
-        run: dotnet run Tools/CheckDocPaths.cs --self-test
+        run: dotnet run tools/CheckDocPaths.cs --self-test
 
       - name: Every path cited in the docs exists
-        run: dotnet run Tools/CheckDocPaths.cs .
+        run: dotnet run tools/CheckDocPaths.cs .
 
       - name: The workflow gate can fail
-        run: dotnet run Tools/CheckWorkflows.cs --self-test
+        run: dotnet run tools/CheckWorkflows.cs --self-test
 
       - name: Workflows are structurally sound
-        run: dotnet run Tools/CheckWorkflows.cs .
+        run: dotnet run tools/CheckWorkflows.cs .
 
       - name: The comment gate can fail
-        run: dotnet run Tools/CheckComments.cs --self-test
+        run: dotnet run tools/CheckComments.cs --self-test
 
       - name: No comment outside the allowlist
-        run: dotnet run Tools/CheckComments.cs .
+        run: dotnet run tools/CheckComments.cs .
 
       # dotnet cleanarch from its sources, since this repository's tool manifest pins none.
       - name: The documentation indexes list their folders' pages
-        run: dotnet run --project Launcher/CleanArch.Cli -- docs-index --check
+        run: dotnet run --project launcher/CleanArch.Cli -- docs-index --check
 
   # Template repository only: dnx CleanArch.Create and the dotnet cleanarch tool, tested against this checkout's templates, generation included.
   launcher:
@@ -272,22 +272,22 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore Launcher/CleanArch.Create.slnx
+        run: dotnet restore launcher/CleanArch.Create.slnx
 
       # What the build's code-style analysis does not check, as dotnet cleanarch verify runs it.
       - name: Formatting the build does not check
-        run: dotnet format Launcher/CleanArch.Create.slnx --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore
+        run: dotnet format launcher/CleanArch.Create.slnx --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore
 
       - name: Build
-        run: dotnet build Launcher/CleanArch.Create.slnx --configuration "$CONFIGURATION" --no-restore
+        run: dotnet build launcher/CleanArch.Create.slnx --configuration "$CONFIGURATION" --no-restore
 
       - name: Test
-        run: dotnet test --solution Launcher/CleanArch.Create.slnx --configuration "$CONFIGURATION" --no-build
+        run: dotnet test --solution launcher/CleanArch.Create.slnx --configuration "$CONFIGURATION" --no-build
 
       # dnx keeps --yes and --help for itself: the command the launcher prints must reach it after --, without a terminal.
       - name: Generate through dnx as the printed command does
         run: |
-          dotnet pack Launcher/CleanArch.Create/CleanArch.Create.csproj --configuration "$CONFIGURATION" --no-build -p:Version=0.0.0-ci --output "${{ runner.temp }}/launcher"
+          dotnet pack launcher/CleanArch.Create/CleanArch.Create.csproj --configuration "$CONFIGURATION" --no-build -p:Version=0.0.0-ci --output "${{ runner.temp }}/launcher"
           dotnet dnx CleanArch.Create --add-source "${{ runner.temp }}/launcher" --version 0.0.0-ci --yes -- \
             new -n Acme.Shop -o "${{ runner.temp }}/dnx-project" --yes --template-source . --hive "${{ runner.temp }}/dnx-hive" < /dev/null
           test -f "${{ runner.temp }}/dnx-project/cleanarch.json"
@@ -363,7 +363,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          file: Src/Presentation/AT.Api/Dockerfile
+          file: src/Presentation/AT.Api/Dockerfile
           platforms: linux/amd64
           push: false
           load: true
@@ -410,8 +410,8 @@ jobs:
       - name: Create the initial migrations
         run: |
           dotnet tool restore
-          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
-          dotnet ef migrations add InitialCreate --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
+          dotnet ef migrations add InitialCreate --project src/Infrastructure/AT.Infrastructure.Auth --startup-project src/Infrastructure/AT.Infrastructure.Auth
+          dotnet ef migrations add InitialCreate --project src/Infrastructure/AT.Infrastructure.Persistence --startup-project src/Infrastructure/AT.Infrastructure.Persistence
 
       #endif
       - name: Start the stack
@@ -454,7 +454,7 @@ jobs:
           k6 version
 
       - name: Smoke
-        run: k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js
+        run: k6 run -e BASE_URL=http://localhost:8080 tests/Load/smoke.js
 
       - name: Stack logs on failure
         if: failure()
@@ -488,9 +488,9 @@ jobs:
         #endif
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          package_json_file: Src/Web/package.json
+          package_json_file: src/Web/package.json
           cache: true
-          cache_dependency_path: Src/Web/pnpm-lock.yaml
+          cache_dependency_path: src/Web/pnpm-lock.yaml
 
       - name: Set up Node.js (from .node-version)
         #if (templateMaintenance)
@@ -498,13 +498,13 @@ jobs:
         #endif
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: Src/Web/.node-version
+          node-version-file: src/Web/.node-version
 
       - name: Install the web workspace (frozen lockfile)
         #if (templateMaintenance)
         if: hashFiles('.template.config/template.json') == ''
         #endif
-        working-directory: Src/Web
+        working-directory: src/Web
         run: pnpm install --frozen-lockfile
 
       - name: Find the Playwright release
@@ -512,7 +512,7 @@ jobs:
         #if (templateMaintenance)
         if: hashFiles('.template.config/template.json') == ''
         #endif
-        working-directory: Src/Web
+        working-directory: src/Web
         run: echo "version=$(pnpm --filter '*browser-smoke' exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Chromium
@@ -529,7 +529,7 @@ jobs:
         #if (templateMaintenance)
         if: hashFiles('.template.config/template.json') == ''
         #endif
-        working-directory: Src/Web
+        working-directory: src/Web
         run: pnpm --filter '*browser-smoke' exec playwright install --only-shell --with-deps chromium
 
       #endif
@@ -568,7 +568,7 @@ jobs:
             exit 1
           fi
           #if (api)
-          if ! grep -q 'http://127.0.0.1:8080/health ' Src/Presentation/AT.Api/Dockerfile; then
+          if ! grep -q 'http://127.0.0.1:8080/health ' src/Presentation/AT.Api/Dockerfile; then
             echo "::error title=Dockerfile HEALTHCHECK::The image HEALTHCHECK must probe /health (liveness), not /health/ready."
             exit 1
           fi

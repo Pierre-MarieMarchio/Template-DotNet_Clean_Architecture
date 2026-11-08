@@ -30,7 +30,7 @@ feature's `Access/Queries/`. The feature that reads takes the port in its handle
 substitute it.
 <!--#if (reminders)-->
 `ITodoItemQueries` is the worked case: TodoLists declares it in
-`Src/Application/AT.Application/Features/TodoLists/Ports/TodoItemQueries/`, the persistence module
+`src/Application/AT.Application/Features/TodoLists/Ports/TodoItemQueries/`, the persistence module
 implements it as `TodoItemQueries`, and the Reminders handlers ask it whether an item exists for its
 owner and whether it is done, never reading the to-do rows themselves.
 <!--#endif-->
@@ -41,7 +41,7 @@ Feature `<A>` changes state that feature `<B>` owns, and the change belongs to `
 both commit, or neither does.
 
 1. Declare the port in `<B>`'s application folder,
-   `Src/Application/AT.Application/Features/<B>/Ports/<Capability>/I<Capability>.cs`, as
+   `src/Application/AT.Application/Features/<B>/Ports/<Capability>/I<Capability>.cs`, as
    [ADR 0034](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md) says: the port belongs to
    the feature that owns the state. It answers a `<Capability>Status` enum beside it that closes the
    ways the call can go, never a `Result`: the use case that calls it chooses the error code.
@@ -107,7 +107,7 @@ completed item, keeps the pending ones, and commits only when one is left to can
 ### Leave it unconsumed
 
 An event nobody reacts to yet is listed, with its reason, in `_deliberatelyUnconsumed` of
-`Tests/Architecture/AT.Architecture.Tests/Rules/DomainEventTests.cs`; `add event --unconsumed`
+`tests/Architecture/AT.Architecture.Tests/Rules/DomainEventTests.cs`; `add event --unconsumed`
 writes the entry. `DomainEventTests` fails on an event that is neither consumed nor listed, and on an
 event listed while something consumes it, so the first consumer of a listed event removes its entry.
 
@@ -140,7 +140,7 @@ The account-deletion sweep is the worked case, behind the consumers of `UserAcco
 
 ## Check
 
-`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes. `FeatureIsolationTests`
+`dotnet test --project tests/Architecture/AT.Architecture.Tests` passes. `FeatureIsolationTests`
 refuses a reach past a port or an event, in the application and in the persistence projects;
 `PortConventionTests` a port nobody calls; `ContainerCompositionTests` a port with no registration;
 `DomainEventTests` an event neither consumed nor listed.

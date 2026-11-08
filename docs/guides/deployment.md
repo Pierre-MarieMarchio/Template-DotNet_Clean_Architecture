@@ -67,7 +67,7 @@ each of their values trades safety for a start that needs nothing. A deployment 
 ## The image
 
 ```bash
-docker build -f Src/Presentation/AT.Api/Dockerfile -t app-template-api:local .
+docker build -f src/Presentation/AT.Api/Dockerfile -t app-template-api:local .
 ```
 
 The build context is the repository root, because restore needs `Directory.Build.props`,
@@ -75,7 +75,7 @@ The build context is the repository root, because restore needs `Directory.Build
 platform; the runtime is ASP.NET on alpine, both pinned by digest. The image runs as a non-root user
 (`USER $APP_UID`, which alpine does not set by itself), speaks HTTP on 8080 only, and carries a
 `HEALTHCHECK` on `/health` that needs alpine's `wget`. `.dockerignore` keeps
-`appsettings.Development.json`, `.git`, `Tests/` and keys out of the layers.
+`appsettings.Development.json`, `.git`, `tests/` and keys out of the layers.
 
 The `Dockerfile` copies each project file by name before restoring, so a project the API references
 needs its `COPY` line there too; the build passes locally without it, and only the image fails.
@@ -85,10 +85,10 @@ needs its `COPY` line there too; the build passes locally without it, and only t
 ## The image
 
 ```bash
-docker build -f Src/Presentation/<Initials>.Worker/Dockerfile -t app-template-worker:local .
+docker build -f src/Presentation/<Initials>.Worker/Dockerfile -t app-template-worker:local .
 ```
 
-Each host has a `Dockerfile` in its own folder under `Src/Presentation`, built the same way: the worker
+Each host has a `Dockerfile` in its own folder under `src/Presentation`, built the same way: the worker
 above, and a portal or an MCP server when the project holds one. The build context is the repository
 root, because restore needs `Directory.Build.props`, `Directory.Packages.props` and `global.json`. The
 SDK stage builds portable IL on the builder's platform; the runtime is ASP.NET on alpine, both pinned
@@ -96,7 +96,7 @@ by digest, and each image runs as a non-root user (`USER $APP_UID`, which alpine
 itself). The worker serves no port and carries no `HEALTHCHECK`: its log and its loops' `iterations`
 counter say it runs ([Background jobs](../features/background-jobs.md#several-instances)). A portal or
 an MCP server speaks HTTP on 8080 only and carries a `HEALTHCHECK` on `/health` that needs alpine's
-`wget`. `.dockerignore` keeps `appsettings.Development.json`, `.git`, `Tests/` and keys out of the
+`wget`. `.dockerignore` keeps `appsettings.Development.json`, `.git`, `tests/` and keys out of the
 layers.
 
 Each `Dockerfile` copies each project file by name before restoring, so a project a host references
@@ -104,13 +104,13 @@ needs its `COPY` line there too; the build passes locally without it, and only t
 
 <!--#endif-->
 <!--#if (anyWeb)-->
-Each web app has its own image, built from `Src/Web`: nginx serves a single-page app, and a
+Each web app has its own image, built from `src/Web`: nginx serves a single-page app, and a
 server-rendered app runs on its own Node server, as one instance; [the web front end](../features/web-frontend.md#images-and-headers)
 describes them.
 
 <!--#endif-->
 <!--#if (api && jobsWorker)-->
-The worker's image is built the same way, from `Src/Presentation/<Initials>.Worker/Dockerfile`, on the
+The worker's image is built the same way, from `src/Presentation/<Initials>.Worker/Dockerfile`, on the
 same runtime and user. It serves no port and carries no `HEALTHCHECK`: its log and its loops'
 `iterations` counter say it runs ([Background jobs](../features/background-jobs.md#several-instances)).
 Release both images together, so a pass and the route that shares its lease spell the lease's name

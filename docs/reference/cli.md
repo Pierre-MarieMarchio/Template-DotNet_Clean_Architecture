@@ -27,7 +27,7 @@ fails, and a `cleanarch.json` it cannot read is named with the reason.
 | `dotnet cleanarch --version` | the tool's version, which is the template's |
 | `dotnet cleanarch bootstrap` | sets the project up once, right after generation, as [below](#bootstrap) says |
 | `dotnet cleanarch adopt` | writes `cleanarch.json` for a project generated before the tool, as [below](#ejecting-a-command) says |
-| `dotnet cleanarch eject <command>` | copies a built-in command's source into `Tools/`, as [below](#ejecting-a-command) says |
+| `dotnet cleanarch eject <command>` | copies a built-in command's source into `tools/`, as [below](#ejecting-a-command) says |
 
 ## The rules every command keeps
 
@@ -181,8 +181,8 @@ says so.
 
 ## This project's own commands
 
-A file-based app `Tools/<name>.cs` runs as `dotnet cleanarch <name>`, through
-`dotnet run Tools/<name>.cs -- <arguments>`, which the tool prints and runs from the working
+A file-based app `tools/<name>.cs` runs as `dotnet cleanarch <name>`, through
+`dotnet run tools/<name>.cs -- <arguments>`, which the tool prints and runs from the working
 directory; the app receives every argument after its name and the tool forwards its exit code. A new
 name adds a command, and a built-in name replaces the built-in command, even one `cleanarch.json`
 refuses; `help` says which is which.
@@ -194,14 +194,14 @@ project's own.
 
 ## Ejecting a command
 
-`dotnet cleanarch eject <command>` copies a built-in command's source into `Tools/<command>.cs`, a
+`dotnet cleanarch eject <command>` copies a built-in command's source into `tools/<command>.cs`, a
 file-based app this project then owns and runs in place of the built-in one; that command stops
 following the tool's releases. `--dry-run` says what it would write and writes nothing.
 
 `help`, `eject`, `adopt`, `add` and `remove` stay the tool's: `help` says which commands are this
 project's own, `eject` makes them, `adopt` runs before the tool knows the project, and `add` and
 `remove` run on libraries a file-based app does not carry. A command `cleanarch.json` refuses has
-nothing to eject, and a `Tools/<command>.cs` already there is never overwritten.
+nothing to eject, and a `tools/<command>.cs` already there is never overwritten.
 
 `dotnet cleanarch adopt` writes `cleanarch.json` for a project generated before the tool, from its
 files, and is refused where one exists; `--dry-run` prints it, and `--template-version` gives the

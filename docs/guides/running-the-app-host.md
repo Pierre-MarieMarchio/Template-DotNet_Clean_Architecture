@@ -9,13 +9,13 @@ description: How to run the local stack from the Aspire app host, with every hos
 ## When
 
 You want the local stack from one command, with every host's logs, traces and metrics in one
-dashboard and a debugger able to attach to each host: `Src/AppHost/AT.AppHost`, an Aspire app host,
+dashboard and a debugger able to attach to each host: `src/AppHost/AT.AppHost`, an Aspire app host,
 starts what `docker compose up` starts. Compose stays the reference of the deployment and the app
 host follows it ([ADR 0032](../decisions/0032-the-app-host-follows-compose.md)): it reads each
 container's image from the Compose files when it starts, and `LocalStackParityTests` fails when a
 service or a host setting of the Compose files is missing from the app host, when the app host
 starts something Compose does not, or when a web app listens on another port than its
-`Src/Web/apps/<App>/compose.yml` publishes.
+`src/Web/apps/<App>/compose.yml` publishes.
 
 | Resource | Started as | Compose service |
 |---|---|---|
@@ -71,7 +71,7 @@ A generated value is kept in the app host's user secrets, so it survives a resta
 1. Start Docker, then run the app host:
 
    ```bash
-   dotnet run --project Src/AppHost/AT.AppHost
+   dotnet run --project src/AppHost/AT.AppHost
    ```
 
    Its first build fetches, through `dnx`, the Aspire CLI at the SDK's version, which `global.json`
@@ -81,8 +81,8 @@ A generated value is kept in the app host's user secrets, so it survives a resta
 3. Give the provider's parameters a value, in the dashboard when it asks, or once for all runs:
 
    ```bash
-   dotnet user-secrets set "Parameters:external-auth-authority" "<your issuer URL>" --project Src/AppHost/AT.AppHost
-   dotnet user-secrets set "Parameters:external-auth-audience" "<this API's identifier>" --project Src/AppHost/AT.AppHost
+   dotnet user-secrets set "Parameters:external-auth-authority" "<your issuer URL>" --project src/AppHost/AT.AppHost
+   dotnet user-secrets set "Parameters:external-auth-audience" "<this API's identifier>" --project src/AppHost/AT.AppHost
    ```
 <!--#endif-->
 
@@ -93,11 +93,11 @@ The dashboard lists every resource as running, healthy where it has a health che
 `curl http://localhost:8080/health` answers `200`.
 <!--#endif-->
 `LocalStackTests`, in
-`Tests/Integration/AT.AppHost.IntegrationTests`, proves the same against Docker on every run of the
+`tests/Integration/AT.AppHost.IntegrationTests`, proves the same against Docker on every run of the
 integration suites:
 
 ```bash
-dotnet test --project Tests/Integration/AT.AppHost.IntegrationTests
+dotnet test --project tests/Integration/AT.AppHost.IntegrationTests
 ```
 
 ## Undo
@@ -106,5 +106,5 @@ Stop the run with Ctrl+C: the hosts stop, and the containers and their network a
 forget the generated secrets as well:
 
 ```bash
-dotnet user-secrets clear --project Src/AppHost/AT.AppHost
+dotnet user-secrets clear --project src/AppHost/AT.AppHost
 ```

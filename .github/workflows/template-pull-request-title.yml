@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           pattern='^(feat|fix|perf|revert|docs|refactor|test|build|ci|chore|style)(\([a-z0-9][a-z0-9._/-]*\))?!?: [^[:space:]]'
           conventional() { [[ "$1" =~ $pattern ]]; }
-          for sound in 'feat: add a leg' 'fix(api)!: refuse a stale token' 'build(deps-dev): Bump eslint in /Src/Web' 'chore: release 2.0.0'; do
+          for sound in 'feat: add a leg' 'fix(api)!: refuse a stale token' 'build(deps-dev): Bump eslint in /src/Web' 'chore: release 2.0.0'; do
             conventional "$sound" || { echo "::error title=Title check::The pattern refuses '$sound', a title release-please reads."; exit 1; }
           done
           for faulted in 'Update the README' 'feature: add a leg' 'fix:missing space' 'fix(API): capital scope' 'Revert "feat: add a leg"' 'docs : spaced colon'; do

@@ -51,7 +51,7 @@ a convention written in a page, holds until the first change that does not read 
 - A path says what a file is and which feature it belongs to, so `Features/<Feature>/` is everything
   that leaves with a feature, and the generators write a feature's files where its words say.
 - A file that fits no word is a design question asked in review, not a folder created on the way.
-- A project added under `Src` fails the build until it has its vocabulary, as
+- A project added under `src` fails the build until it has its vocabulary, as
   [adding a project](../reference/project-layout.md#adding-a-project) says.
 - The list grows by deliberate edits: a word is cheap to add, and each one is a word every reader
   must learn.

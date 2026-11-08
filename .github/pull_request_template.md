@@ -14,8 +14,8 @@ Closes #<issue>
 
 ## What ran
 
-- [ ] `dotnet run --project Launcher/CleanArch.Cli -- verify`: <result>
-- [ ] `dotnet run --project Launcher/CleanArch.Cli -- coverage`: <result>
+- [ ] `dotnet run --project launcher/CleanArch.Cli -- verify`: <result>
+- [ ] `dotnet run --project launcher/CleanArch.Cli -- coverage`: <result>
 - Did not run, and why: <gate and reason, or none>
 
 ## What holds each guarantee

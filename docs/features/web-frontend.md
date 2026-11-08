@@ -10,16 +10,16 @@ How web apps run beside the API in this project, call it, and sign their users i
 
 ## What you get
 
-`Src/Web` is one pnpm workspace with one lockfile. Node comes from `Src/Web/.node-version`, pnpm
-from the `packageManager` field of `Src/Web/package.json`, which Corepack reads; run pnpm from
-`Src/Web`. Nothing in the .NET build needs Node.
+`src/Web` is one pnpm workspace with one lockfile. Node comes from `src/Web/.node-version`, pnpm
+from the `packageManager` field of `src/Web/package.json`, which Corepack reads; run pnpm from
+`src/Web`. Nothing in the .NET build needs Node.
 
 | Path | What it is |
 |---|---|
-| `Src/Web/apps/<Name>` | one app: its sources, `Dockerfile`, `nginx.conf`, `compose.yml` and `README.md` |
-| `Src/Web/packages/api-client` | the TypeScript client generated from the API's OpenAPI document |
-| `Src/Web/packages/tsconfig`, `Src/Web/packages/eslint-config` | the shared compiler and lint settings |
-| `Src/Web/packages/browser-smoke` | the Playwright smoke that drives every app in Chromium against the stack |
+| `src/Web/apps/<Name>` | one app: its sources, `Dockerfile`, `nginx.conf`, `compose.yml` and `README.md` |
+| `src/Web/packages/api-client` | the TypeScript client generated from the API's OpenAPI document |
+| `src/Web/packages/tsconfig`, `src/Web/packages/eslint-config` | the shared compiler and lint settings |
+| `src/Web/packages/browser-smoke` | the Playwright smoke that drives every app in Chromium against the stack |
 
 Each app is its own deployable. Its development server, and in Compose its nginx container or, for
 an app rendered on the server, its Node server, relays `/api/` and `/health` to the API, so the
@@ -67,7 +67,7 @@ keeps the template's pages, layout and `wwwroot`, beside the project file and th
 project owns, and adds the project to the solution: it builds, formats and is tested with the rest,
 under the same analyzers and central package versions.
 
-It calls the API through the .NET client of `Src/Presentation/AT.Presentation.Client`, generated from the same document
+It calls the API through the .NET client of `src/Presentation/AT.Presentation.Client`, generated from the same document
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)), at the page's own address, so
 the `/api` relay of its server keeps the API on the same origin.
 <!--#if (localAuth)-->
@@ -89,7 +89,7 @@ of the front end this project grows into.
 
 ## Running it
 
-With the API running on the host (`dotnet cleanarch run`), from `Src/Web`:
+With the API running on the host (`dotnet cleanarch run`), from `src/Web`:
 
 ```bash
 pnpm --filter <app> dev
@@ -98,13 +98,13 @@ pnpm --filter <app> dev
 `<app>` is the folder's kebab name. The development server relays to `API_UPSTREAM`, by default
 the API on the host. Under Compose, `docker compose up --build --wait` serves each app's build
 through nginx, or an app rendered on the server through its own Node server, on `127.0.0.1`, on the port its `WEB_<NAME>_HOST_PORT` sets in `.env`. `pnpm build`,
-`pnpm lint` and `pnpm test` in `Src/Web` run every app and package; `pnpm test` runs them one after
+`pnpm lint` and `pnpm test` in `src/Web` run every app and package; `pnpm test` runs them one after
 another, since Vitest keeps one module cache for the whole workspace and two runs clear it under
 each other once the installed lockfile changes.
 
 ## Driving the apps in a browser
 
-`Src/Web/packages/browser-smoke` opens each app `cleanarch.json` records in Chromium, at the port
+`src/Web/packages/browser-smoke` opens each app `cleanarch.json` records in Chromium, at the port
 `WEB_<APP>_HOST_PORT` gives it, and fails when the page does not load, when the browser reports a
 Content-Security-Policy violation, a console error or an uncaught exception, or when a call from the
 page through `/api/` does not reach the API. An app added later is driven without an edit. It needs
@@ -152,8 +152,8 @@ try {
 The generated schema types a problem's `code` as a required string; `unwrap` still checks the body at run
 time, because an answer from a proxy or a crash is not a problem document.
 
-After any change to the API's contract, run `pnpm api` in `Src/Web`, or `dotnet cleanarch openapi`: it builds the API,
-writes its OpenAPI reference and regenerates `Src/Web/packages/api-client/src/generated/schema.ts`, which is
+After any change to the API's contract, run `pnpm api` in `src/Web`, or `dotnet cleanarch openapi`: it builds the API,
+writes its OpenAPI reference and regenerates `src/Web/packages/api-client/src/generated/schema.ts`, which is
 committed so an app type-checks without the .NET SDK
 ([ADR 0019](../decisions/0019-one-generated-api-client.md)). `pnpm api --no-build` writes the
 reference from the API's last build instead. `add feature`, `add field` and `add use-case` run
@@ -327,7 +327,7 @@ dotnet new cleanarch-webapp -n BackOffice --framework angular --audience admin -
 
 `--framework` is `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular` or
 `placeholder`; `--scope` is the package scope of
-`Src/Web/package.json`; `--auth` repeats this project's value. The app's `README.md` lists the lines
+`src/Web/package.json`; `--auth` repeats this project's value. The app's `README.md` lists the lines
 it adds outside its folder: an `include:` entry in `docker-compose.yml` and `WEB_<NAME>_HOST_PORT` in
 `.env.example`. `dotnet cleanarch add web-app --name BackOffice --framework angular --audience admin`, run once the
 folder holds the app and adding `--rendering ssr` for an app rendered on the server, makes them,
@@ -359,7 +359,7 @@ Add a framework-agnostic package, one exported function and its test, the same w
 dotnet new cleanarch-webpackage -n tokens --scope app-template
 ```
 
-Record it with `dotnet cleanarch add web-package --name tokens`, run `pnpm install` in `Src/Web` and add
+Record it with `dotnet cleanarch add web-package --name tokens`, run `pnpm install` in `src/Web` and add
 `"@app-template/tokens": "workspace:*"` to each app that uses it. Internal packages are private and export their TypeScript sources, which each app's bundler
 compiles. An app never imports another app. A package for one framework is the project's to write.
 
@@ -367,19 +367,19 @@ Removing an app is deleting its folder, its `include:` line and its port line, t
 `pnpm install`.
 
 A project generated without a web app adds its first one with the same command plus
-`--workspace`, `--project-name <Project>` and `--scope`, which also creates `Src/Web` and
+`--workspace`, `--project-name <Project>` and `--scope`, which also creates `src/Web` and
 `.github/workflows/web.yml`; the API side is in every project already. `add web-app` then makes the
-lines `Src/Web/README.md` lists for the workspace before the app's, and records both; create the
+lines `src/Web/README.md` lists for the workspace before the app's, and records both; create the
 app as above.
 
 ## Images and headers
 
-Each app is its own image, built from `Src/Web` with the workspace lockfile; a single-page app's is
+Each app is its own image, built from `src/Web` with the workspace lockfile; a single-page app's is
 served by `nginx-unprivileged` (uid 101, port 8080). `API_UPSTREAM` names the API, resolved per
 request. Build one alone from the project root:
 
 ```bash
-docker build -f Src/Web/apps/<Name>/Dockerfile Src/Web
+docker build -f src/Web/apps/<Name>/Dockerfile src/Web
 ```
 
 A single-page app's `nginx.conf` sets the page headers on the files it serves: a strict Content-Security-Policy,
@@ -415,7 +415,7 @@ with nothing to edit by hand.
 
 An app rendered on the server (`--web-rendering ssr`, or `--rendering ssr` of `cleanarch-webapp`;
 Angular's and React Router's) has no `nginx.conf`: its image runs the built server on Node, as the
-unprivileged `node` user on port 8080, and its server, Angular's `src/server.ts` or React Router's
+unprivileged `node` user on port 8080, and its server, Angular's `server.ts` or React Router's
 `server/app.ts`, does what nginx does for the others, through the relay of
 `@app-template/api-client/server`. Each page is rendered for its request with a fresh nonce, which
 its Content-Security-Policy names in `script-src` and the framework writes on every script it adds:
@@ -444,7 +444,7 @@ It keeps no session, and runs as one instance.
 
 The web job installs with the frozen lockfile, lints, tests and builds every app and package, runs
 `pnpm api` and fails when the generated client differs from the committed one. An image job builds
-each app under `Src/Web/apps` holding a `Dockerfile` and a `package.json`, and checks that it runs as
+each app under `src/Web/apps` holding a `Dockerfile` and a `package.json`, and checks that it runs as
 a user other than root and exposes only 8080. Details are in
 [Build and CI](../guides/build-and-ci.md).
 

@@ -71,7 +71,7 @@ Where the project holds no `Add<Features>` in its `ApplicationModule`, follow th
 `<Section>` is the section's name, `<Features>` the feature's folder.
 
 1. Write `<Section>Options` in
-   `Src/Application/AT.Application/Features/<Features>/Configuration/Options/`, with
+   `src/Application/AT.Application/Features/<Features>/Configuration/Options/`, with
    `public const string SectionName = "<Section>";` and one `{ get; set; }` property per key, its
    default the value a deployment gets. `ExternalKeyTests` refuses a section name that is not the
    type name without `Options`; if `LayoutConventionTests` refuses the folder, add
@@ -102,7 +102,7 @@ Where the project holds no `Add<Features>` in its `ApplicationModule`, follow th
    what the key changes. `ConfigurationSurfaceTests` fails until every bound key has its row, and
    while a row names a key no options class binds.
 <!--#if (api)-->
-6. Give the key its deployment value in `Src/Presentation/AT.Api/appsettings.json` when an
+6. Give the key its deployment value in `src/Presentation/AT.Api/appsettings.json` when an
    operator is expected to change it. For the Compose stack, map `<Section>__<Key>` to a variable in
    the API's `environment` in `docker-compose.yml`, and add that variable to `.env.example` under one
    `#` line saying what it governs. `ConfigurationSurfaceTests` also fails while a key shipped in an
@@ -122,7 +122,7 @@ Where the project holds no `Add<Features>` in its `ApplicationModule`, follow th
 ## Check
 
 <!--#if (api)-->
-`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes, and so does the test of
+`dotnet test --project tests/Architecture/AT.Architecture.Tests` passes, and so does the test of
 step 7, which calls `IStartupValidator.Validate()` without a database. A started API proves the same
 only with the Compose stack's database running: in Development it migrates before it validates the
 options, so without a database the migration stops it, whatever the key holds. With the database
@@ -130,7 +130,7 @@ running, `<Section>__<Key>=0 dotnet cleanarch run` stops before serving and name
 `<Section>:<Key>`.
 <!--#endif-->
 <!--#if (!api)-->
-`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes, and so does the test of
+`dotnet test --project tests/Architecture/AT.Architecture.Tests` passes, and so does the test of
 step 7, which calls `IStartupValidator.Validate()` without a database. A host started with the key
 out of range, `<Section>__<Key>=0` set in its environment and the Compose stack's services it needs
 running, stops before serving and names `<Section>:<Key>`.

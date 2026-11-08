@@ -84,64 +84,64 @@ dotnet_naming_style.underscore_camel.capitalization = camel_case
 
 #### Suppressions: each one has its row and its reason in docs/guides/build-and-ci.md ####
 
-[Src/Application/AT.Application.Core/Common/Results/Error.cs]
+[src/Application/AT.Application.Core/Common/Results/Error.cs]
 dotnet_diagnostic.CA1716.severity = none
 
-[Src/Application/AT.Application.Core/Common/Results/Result.cs]
+[src/Application/AT.Application.Core/Common/Results/Result.cs]
 dotnet_diagnostic.CA1000.severity = none
 dotnet_diagnostic.S4136.severity = none
 
 #if (reminders)
-[Src/Application/AT.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueReminders.cs]
+[src/Application/AT.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueReminders.cs]
 dotnet_diagnostic.S107.severity = none
 
 #endif
-[Src/Domain/AT.Domain.Core/Common/Primitives/Entity.cs]
+[src/Domain/AT.Domain.Core/Common/Primitives/Entity.cs]
 dotnet_diagnostic.S4035.severity = none
 
 #if (files)
-[Src/Domain/AT.Domain/Features/Files/Model/ValueObjects/Sha256Checksum.cs]
+[src/Domain/AT.Domain/Features/Files/Model/ValueObjects/Sha256Checksum.cs]
 dotnet_diagnostic.S3267.severity = none
 
-[Src/Domain/AT.Domain/Features/Files/Model/ValueObjects/StoredFileName.cs]
+[src/Domain/AT.Domain/Features/Files/Model/ValueObjects/StoredFileName.cs]
 dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (localAuth)
-[Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/EmailChangeTokenProvider.cs]
+[src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/EmailChangeTokenProvider.cs]
 dotnet_diagnostic.S6672.severity = none
 
-[Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/PasswordResetTokenProvider.cs]
+[src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/PasswordResetTokenProvider.cs]
 dotnet_diagnostic.S6672.severity = none
 
 #endif
-[Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs]
+[src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs]
 dotnet_diagnostic.S2068.severity = none
 
-[Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/IContextUnitOfWork.cs]
+[src/Infrastructure/AT.Infrastructure.Core/Common/Saving/IContextUnitOfWork.cs]
 dotnet_diagnostic.S2326.severity = none
 
-[Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Tracking/AggregateTracker.cs]
+[src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Tracking/AggregateTracker.cs]
 dotnet_diagnostic.S3267.severity = none
 
 #if (files)
-[Src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Rows/Mapping/StoredFileMapper.cs]
+[src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Rows/Mapping/StoredFileMapper.cs]
 dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (todoLists)
-[Src/Infrastructure/AT.Infrastructure.Persistence/Features/TodoLists/Rows/Mapping/TodoListMapper.cs]
+[src/Infrastructure/AT.Infrastructure.Persistence/Features/TodoLists/Rows/Mapping/TodoListMapper.cs]
 dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (api)
-[Src/Presentation/AT.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs]
+[src/Presentation/AT.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs]
 dotnet_diagnostic.S2139.severity = none
 
-[Src/Presentation/AT.Api/Common/Controllers/ApiControllerBase.cs]
+[src/Presentation/AT.Api/Common/Controllers/ApiControllerBase.cs]
 dotnet_diagnostic.S4136.severity = none
 
-[Src/Presentation/AT.Api/Common/Errors/ProblemTypes.cs]
+[src/Presentation/AT.Api/Common/Errors/ProblemTypes.cs]
 dotnet_diagnostic.S1075.severity = none
 
 #endif
@@ -152,5 +152,5 @@ dotnet_diagnostic.IDE0005.severity = none
 [**/Generated/**.cs]
 generated_code = true
 
-[Tests/**/*.cs]
+[tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none

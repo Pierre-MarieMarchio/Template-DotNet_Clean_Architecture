@@ -31,7 +31,7 @@ a build order and stale output.
   returns the body or throws an `ApiError` carrying the problem's `code` and field errors; an answer
   that is no problem document becomes `response.unreadable`, so a caller branches on codes alone.
   Credentials enter through an `accessToken` provider and the `middleware` list.
-- **Internal packages export their sources.** A package's `exports` names its `src/index.ts`, and
+- **Internal packages export their sources.** A package's `exports` names the `index.ts` of its sources, and
   each app's bundler compiles it. A package's `build` is a type check.
 
 ## Consequences

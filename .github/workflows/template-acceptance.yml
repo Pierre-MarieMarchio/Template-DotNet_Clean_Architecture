@@ -55,7 +55,7 @@ jobs:
 
       # The generated tool manifest pins dotnet cleanarch at the template's version, which nuget.org holds only once released.
       - name: Pack the project's tool
-        run: dotnet pack Launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release --output "${{ runner.temp }}/tools"
+        run: dotnet pack launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release --output "${{ runner.temp }}/tools"
 
       - name: Upload the project's tool
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -238,15 +238,15 @@ jobs:
         run: |
           set -euo pipefail
           problems=()
-          [ ! -e Src/Web ] || problems+=("Src/Web exists.")
+          [ ! -e src/Web ] || problems+=("src/Web exists.")
           [ ! -e .github/workflows/web.yml ] || problems+=(".github/workflows/web.yml exists.")
-          workflows=$(grep -rIl -e 'pnpm' -e 'Src/Web' -e 'web-' .github/workflows || true)
+          workflows=$(grep -rIl -e 'pnpm' -e 'src/Web' -e 'web-' .github/workflows || true)
           [ -z "$workflows" ] || problems+=("A workflow runs pnpm or a web job: $workflows")
-          ! grep -qE '^include:|^  web-|Src/Web' docker-compose.yml || problems+=("docker-compose.yml includes or declares a web service.")
-          ! grep -qE 'package-ecosystem: npm|Src/Web' .github/dependabot.yml || problems+=(".github/dependabot.yml watches the web workspace.")
+          ! grep -qE '^include:|^  web-|src/Web' docker-compose.yml || problems+=("docker-compose.yml includes or declares a web service.")
+          ! grep -qE 'package-ecosystem: npm|src/Web' .github/dependabot.yml || problems+=(".github/dependabot.yml watches the web workspace.")
           ! grep -qE '^WEB_[A-Z0-9_]+_HOST_PORT=' .env.example || problems+=(".env.example names a web app's port.")
-          ignored=$(grep -l 'Src/Web' .dockerignore .gitignore || true)
-          [ -z "$ignored" ] || problems+=("An ignore file names Src/Web: $ignored")
+          ignored=$(grep -l 'src/Web' .dockerignore .gitignore || true)
+          [ -z "$ignored" ] || problems+=("An ignore file names src/Web: $ignored")
           if [ "${#problems[@]}" -gt 0 ]; then
             echo "::error title=Web trace::A project generated without --web holds or wires a web workspace."
             printf '%s\n' "${problems[@]}"
@@ -258,15 +258,15 @@ jobs:
         if: matrix.web == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          package_json_file: Src/Web/package.json
+          package_json_file: src/Web/package.json
           cache: true
-          cache_dependency_path: Src/Web/pnpm-lock.yaml
+          cache_dependency_path: src/Web/pnpm-lock.yaml
 
       - name: Set up Node.js (web legs)
         if: matrix.web == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: Src/Web/.node-version
+          node-version-file: src/Web/.node-version
 
       # A project generated without a web app takes its first one, and the workspace around it, from the item template; dotnet cleanarch add completes it below.
       - name: Add the first app with cleanarch-webapp --workspace
@@ -278,7 +278,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-webapp -n Site $FIRST_APP
-          leaked=$(grep -rIl -e AppTemplate -e app-template -e PlaceholderSite -e placeholder-site -e FrameworkSite -e framework-site Src/Web .github docs || true)
+          leaked=$(grep -rIl -e AppTemplate -e app-template -e PlaceholderSite -e placeholder-site -e FrameworkSite -e framework-site src/Web .github docs || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
@@ -294,7 +294,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-presentation -n Portal --project-name Sample.Generated.Project $FIRST_PRESENTATION
-          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP Src/Presentation Tests/Presentation docs || true)
+          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP src/Presentation tests/Presentation docs || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
@@ -310,7 +310,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-webapp -n WasmSite --framework blazor-wasm --port 8089 --project-name Sample.Generated.Project $WASM_APP
-          leaked=$( (grep -rIl -e AppTemplate -e apptemplate Src/Web/apps/WasmSite Src/Presentation/SGP.Presentation.Client Tests/Presentation/SGP.Presentation.Client.UnitTests docs; grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE Src/Web/apps/WasmSite) || true)
+          leaked=$( (grep -rIl -e AppTemplate -e apptemplate src/Web/apps/WasmSite src/Presentation/SGP.Presentation.Client tests/Presentation/SGP.Presentation.Client.UnitTests docs; grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE src/Web/apps/WasmSite) || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
@@ -354,7 +354,7 @@ jobs:
               echo "$again"
               exit 1
             fi
-            if ! grep -q 'Src/Web/apps/WasmSite is joined and created already' <<< "$again"; then
+            if ! grep -q 'src/Web/apps/WasmSite is joined and created already' <<< "$again"; then
               echo "::error title=Not idempotent::A second add of a complete app failed without saying it is complete."
               echo "$again"
               exit 1
@@ -368,7 +368,7 @@ jobs:
           AUTH_CONTEXT: ${{ matrix.auth_context }}
         run: |
           set -euo pipefail
-          if [ -n "$(find Src/Infrastructure -path '*/Migrations/*' -name '*.cs')" ]; then
+          if [ -n "$(find src/Infrastructure -path '*/Migrations/*' -name '*.cs')" ]; then
             echo "::error title=Migrations shipped::The generated project carries a migration; bootstrap creates the first one."
             exit 1
           fi
@@ -386,10 +386,10 @@ jobs:
             contexts+=(Auth)
           fi
           for context in "${contexts[@]}"; do
-            snapshots=$(find Src/Infrastructure -path "*.Infrastructure.$context/Migrations/*ModelSnapshot.cs" | wc -l)
+            snapshots=$(find src/Infrastructure -path "*.Infrastructure.$context/Migrations/*ModelSnapshot.cs" | wc -l)
             [ "$snapshots" -eq 1 ] || { echo "::error title=No initial migration::$context has $snapshots model snapshots."; exit 1; }
           done
-          if [ -n "$(find Src/Presentation Src/Web/apps -name scaffold.json 2>/dev/null)" ]; then
+          if [ -n "$(find src/Presentation src/Web/apps -name scaffold.json 2>/dev/null)" ]; then
             echo "::error title=Part not created::A part still holds its scaffold.json after bootstrap."
             exit 1
           fi
@@ -470,7 +470,7 @@ jobs:
           set -euo pipefail
           log="${{ runner.temp }}/docker-free-tests.log"
           dotnet cleanarch test --no-integration --configuration Release 2>&1 | tee "$log"
-          windows_only=$(grep -rlE --include='*.csproj' '<TargetFramework>net[0-9.]+-windows' Tests || true)
+          windows_only=$(grep -rlE --include='*.csproj' '<TargetFramework>net[0-9.]+-windows' tests || true)
           if [[ "$OPTIONS $FIRST_PRESENTATION" == *wpf* && -z "$windows_only" ]]; then
             echo "::error title=No Windows-only tests::A project with the WPF app holds no test project on a Windows target framework."
             exit 1
@@ -493,7 +493,7 @@ jobs:
           DATABASE: ${{ matrix.database || 'postgresql' }}
         run: |
           set -euo pipefail
-          mapfile -t projects < <(grep -r --include='*.csproj' -l 'Testcontainers' Tests | sort)
+          mapfile -t projects < <(grep -r --include='*.csproj' -l 'Testcontainers' tests | sort)
           # A SQLite project without files starts no container: its integration suites ran with the Docker-free tests.
           if [ "${#projects[@]}" -eq 0 ] && [ "$DATABASE" = "sqlite" ]; then
             exit 0
@@ -514,7 +514,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          mapfile -t projects < <(grep -r --include='*.csproj' -l 'Aspire.Hosting.Testing' Tests | sort)
+          mapfile -t projects < <(grep -r --include='*.csproj' -l 'Aspire.Hosting.Testing' tests | sort)
           if [ "${#projects[@]}" -ne 1 ]; then
             echo "::error title=No app host test::The generated project holds ${#projects[@]} test projects that reference Aspire.Hosting.Testing, where --aspire true writes one."
             exit 1
@@ -544,7 +544,7 @@ jobs:
             contexts+=(Auth)
           fi
           for context in "${contexts[@]}"; do
-            project=$(find Src/Infrastructure -maxdepth 1 -type d -name "*.Infrastructure.$context")
+            project=$(find src/Infrastructure -maxdepth 1 -type d -name "*.Infrastructure.$context")
             if [ -z "$project" ]; then
               echo "::error title=Missing project::No Infrastructure.$context project was generated."
               exit 1
@@ -577,8 +577,8 @@ jobs:
             "Invoices Invoice --access owner --deletion anonymise --model aggregate --concurrency etag --fields=Title:string(120),Nickname:string(40)?,Notes:text?,Summary:text(500),Count:int>=0<=1000,Total:long?>-5,Budget:decimal(12,2)>=0,Ratio:decimal(5,4)?,Paid:bool,Due:DateOnly,StartsAt:DateTimeOffset,Reference:Guid?"
             "Receipts Receipt --access owner --deletion delete --model aggregate --concurrency etag --operations get,list,create"
           )
-          mapfile -t docker_free < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L -e 'Testcontainers' -e 'Aspire.Hosting.Testing' | sort)
-          mapfile -t architecture < <(find Tests/Architecture -name '*.csproj')
+          mapfile -t docker_free < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' tests | xargs -r grep -L -e 'Testcontainers' -e 'Aspire.Hosting.Testing' | sort)
+          mapfile -t architecture < <(find tests/Architecture -name '*.csproj')
           write() {
             local log="${{ runner.temp }}/add-feature-${1%% *}.log"
             local -
@@ -588,7 +588,7 @@ jobs:
             grep -q 'Feature page: docs/features/' "$log" || fail "add feature $1 named no feature page."
             [ -f ".feature-manifest/${1%% *}.json" ] || fail "add feature $1 left no manifest."
             jq -e '.edits | length > 0' ".feature-manifest/${1%% *}.json" > /dev/null || fail "add feature $1 recorded no edit in its manifest."
-            compgen -G "Src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_Add${1%% *}.cs" > /dev/null || fail "add feature $1 added no migration."
+            compgen -G "src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_Add${1%% *}.cs" > /dev/null || fail "add feature $1 added no migration."
           }
           extend() {
             local feature type
@@ -614,7 +614,7 @@ jobs:
             dotnet cleanarch add field "$feature" "Code:string(20)='none', Rank:int>=1=1, Weight:decimal(8,3)?" > "$log" 2>&1 || { cat "$log"; fail "add field $feature failed."; }
             grep -q 'Breaking change: Code is required' "$log" || fail "add field $feature did not say that a required field breaks the clients."
             jq -e '.addedFields | length == 1' ".feature-manifest/$feature.json" > /dev/null || fail "add field $feature recorded no addition in its manifest."
-            migration=$(compgen -G "Src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_AddCodeAnd2MoreFieldsTo$feature.cs") || fail "add field $feature added no migration."
+            migration=$(compgen -G "src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_AddCodeAnd2MoreFieldsTo$feature.cs") || fail "add field $feature added no migration."
             grep -q 'defaultValue: "none"' "$migration" && grep -q 'defaultValue: 1)' "$migration" || fail "add field $feature did not give the stored rows each default."
           }
           prove() {
@@ -628,7 +628,7 @@ jobs:
                 dotnet test --project "$home" --configuration Release --no-build --output Detailed --filter-namespace "*.Features.$feature.*"
               done
             done
-            persistence=$(find Src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
+            persistence=$(find src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
             dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the migrations add feature added for $* do not hold its model."
           }
           # add setting writes a section with a default, so no secret, and add event an event nothing consumes: both record their files and edits in the manifest of Invoices, which remove feature then undoes with the feature.
@@ -664,7 +664,7 @@ jobs:
             [ "$(git diff --name-only "$start" HEAD | wc -l)" -eq $((4 * $# + 2 * widened)) ] || fail "remove feature $* did not add a Remove migration beside each Add one and leave each add field migration, each with its designer file."
           }
           start=$(git rev-parse HEAD)
-          persistence=$(find Src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
+          persistence=$(find src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
           # Each case is proved alone, then the next starts from the commit generation made; the four are removed together below, which takes each shape out, the last owner feature with the account-deletion files among them.
           for one in "${cases[@]}"; do
             echo "::group::$one"
@@ -688,7 +688,7 @@ jobs:
           settle
           prove "${written[@]}"
           if [ "$INTEGRATION" = "true" ]; then
-            integration=$(find Tests/Integration -name '*.Api.IntegrationTests.csproj')
+            integration=$(find tests/Integration -name '*.Api.IntegrationTests.csproj')
             dotnet test --project "$integration" --configuration Release --no-build --output Detailed --filter-namespace "*.IntegrationTests.Features.*" || fail "the integration tests add feature --fields wrote fail against the database."
           fi
           dotnet cleanarch docs-index --check
@@ -701,7 +701,7 @@ jobs:
       # A generated project holds one app, so it receives that shape's lockfile, not this checkout's union one.
       - name: Assert each generated web shape's lockfile is current
         if: matrix.web == 'true'
-        run: dotnet run Tools/WebLockfiles.cs --check
+        run: dotnet run tools/WebLockfiles.cs --check
 
       # The added app joins the stack by the lines its README lists, then is created, both by dotnet cleanarch add; the options stay unquoted, being several arguments.
       - name: Add a second app with cleanarch-webapp
@@ -713,7 +713,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-webapp -n BackOffice --port 8082 $SECOND_APP
-          leaked=$(grep -rIl -e PlaceholderSite -e placeholder-site -e PLACEHOLDER_SITE -e FrameworkSite -e framework-site -e FRAMEWORK_SITE Src/Web/apps/BackOffice || true)
+          leaked=$(grep -rIl -e PlaceholderSite -e placeholder-site -e PLACEHOLDER_SITE -e FrameworkSite -e framework-site -e FRAMEWORK_SITE src/Web/apps/BackOffice || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
@@ -735,7 +735,7 @@ jobs:
           for app in $MORE_APPS; do
             IFS=: read -r name port framework rendering <<< "$app"
             dotnet new cleanarch-webapp -n "$name" --framework "$framework" --rendering "${rendering:-spa}" --port "$port" --scope sample-generated-project
-            leaked=$(grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE "Src/Web/apps/$name" || true)
+            leaked=$(grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE "src/Web/apps/$name" || true)
             if [ -n "$leaked" ]; then
               echo "::error title=Item template token leaked::$leaked"
               exit 1
@@ -751,14 +751,14 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          if [ -n "$(find Src/Web/apps -name scaffold.json -o -name overlay -type d)" ]; then
+          if [ -n "$(find src/Web/apps -name scaffold.json -o -name overlay -type d)" ]; then
             echo "::error title=App not created::An app still holds its scaffold.json or overlay/."
             exit 1
           fi
 
       - name: Install, lint, test and build the web workspace
         if: matrix.web == 'true'
-        working-directory: ${{ runner.temp }}/generated/Src/Web
+        working-directory: ${{ runner.temp }}/generated/src/Web
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile
@@ -774,7 +774,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import json, pathlib, sys
-          missing = [manifest.parent for manifest in sorted(pathlib.Path("Src/Web/apps").glob("*/package.json"))
+          missing = [manifest.parent for manifest in sorted(pathlib.Path("src/Web/apps").glob("*/package.json"))
                      if "build" in json.loads(manifest.read_text(encoding="utf-8")).get("scripts", {})
                      and not any((manifest.parent / "dist" / built).is_file() for built in ("index.html", "client/index.html", "server/server.mjs"))]
           for app in missing:
@@ -789,13 +789,13 @@ jobs:
         run: |
           set -euo pipefail
           dotnet new cleanarch-webpackage -n tokens --scope sample-generated-project
-          leaked=$(grep -rIl -e app-template -e placeholder-package Src/Web/packages/tokens || true)
+          leaked=$(grep -rIl -e app-template -e placeholder-package src/Web/packages/tokens || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
           fi
           dotnet cleanarch add web-package --name tokens --yes
-          cd Src/Web
+          cd src/Web
           pnpm install --no-frozen-lockfile
           pnpm lint
           pnpm test
@@ -805,7 +805,7 @@ jobs:
       - name: Assert cleanarch.json records every part added
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet test --project Tests/Architecture/SGP.Architecture.Tests --configuration Release --no-build -- --filter-class '*ProjectFileTests'
+        run: dotnet test --project tests/Architecture/SGP.Architecture.Tests --configuration Release --no-build -- --filter-class '*ProjectFileTests'
 
       # A bootstrap once every part is added creates nothing and changes nothing: the client is reproducible and created apps are left alone.
       - name: Assert bootstrap leaves the added apps alone
@@ -826,7 +826,7 @@ jobs:
 
       # After the web steps, so a web leg's lockfile exists and git's ignore rules hide node_modules; the tool stays in this checkout.
       - name: Assert every path the generated pages cite exists
-        run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
+        run: dotnet run tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
 
       - name: Build the images and start the stack
         if: matrix.web == 'true' || matrix.worker == 'true' || matrix.mcp == 'true'
@@ -943,7 +943,7 @@ jobs:
       - name: Find the Playwright release (web legs)
         id: playwright
         if: matrix.web == 'true'
-        working-directory: ${{ runner.temp }}/generated/Src/Web
+        working-directory: ${{ runner.temp }}/generated/src/Web
         run: echo "version=$(pnpm --filter '*browser-smoke' exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Chromium (web legs)
@@ -955,13 +955,13 @@ jobs:
 
       - name: Install Chromium (web legs)
         if: matrix.web == 'true'
-        working-directory: ${{ runner.temp }}/generated/Src/Web
+        working-directory: ${{ runner.temp }}/generated/src/Web
         run: pnpm --filter '*browser-smoke' exec playwright install --only-shell --with-deps chromium
 
       # Every app cleanarch.json records, on the port .env gives it: its page loads, the browser reports no Content-Security-Policy violation, console error or uncaught exception, and a call through its /api/ relay reaches the API.
       - name: Drive every web app in Chromium (web legs)
         if: matrix.web == 'true'
-        working-directory: ${{ runner.temp }}/generated/Src/Web
+        working-directory: ${{ runner.temp }}/generated/src/Web
         run: pnpm --filter '*browser-smoke' smoke
 
       # The worker runs its first maintenance pass as it starts; the API, which leaves the jobs to it, starts none. Each verdict greps logs captured whole: grep -q closing a pipe early fails the pipeline under pipefail, so a logged pass would read as none.
@@ -1075,12 +1075,12 @@ jobs:
         shell: pwsh
 
     steps:
-      # The root files, Tools and the acceptance checks alone: the package brings the template, and a starter's deepest test path is longer than Windows' 260 characters.
+      # The root files, tools and the acceptance checks alone: the package brings the template, and a starter's deepest test path is longer than Windows' 260 characters.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: |
-            Tools
+            tools
             .template.config/acceptance
 
       - name: Set up .NET SDK (from global.json)
@@ -1158,7 +1158,7 @@ jobs:
         run: dotnet cleanarch docs-index --check
 
       - name: Assert every path the generated pages cite exists
-        run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
+        run: dotnet run tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
 
   # Each leg the change cannot affect reports green under its own name, which the develop ruleset requires.
   skipped:

@@ -24,8 +24,8 @@ Run every command from the repository root.
 | .NET SDK | 10.0.100 or any later .NET 10 SDK, as `global.json` allows | building, running, every command |
 | Docker with Compose v2 | any recent | the local stack and the integration tests |
 | <!--#if (anyWeb)--> |
-| Node.js | the version in `Src/Web/.node-version` | the web workspace |
-| pnpm | the version `Src/Web/package.json` pins, run by Corepack | the web workspace |
+| Node.js | the version in `src/Web/.node-version` | the web workspace |
+| pnpm | the version `src/Web/package.json` pins, run by Corepack | the web workspace |
 <!--#endif-->
 
 ```bash
@@ -75,7 +75,7 @@ It adds the desktop app and its tests to the solution
 .NET client from the OpenAPI reference.
 <!--#endif-->
 <!--#if (jobsWorker)-->
-It also adds the worker's project in `Src/Presentation`, written in the shape of `dotnet new worker`,
+It also adds the worker's project in `src/Presentation`, written in the shape of `dotnet new worker`,
 to the solution with its tests.
 <!--#endif-->
 <!--#if (api)-->
@@ -240,7 +240,7 @@ The Aspire app host starts the same stack from one command, the hosts as process
 attaches to, and shows their logs, traces and metrics in its dashboard:
 
 ```bash
-dotnet run --project Src/AppHost/AT.AppHost
+dotnet run --project src/AppHost/AT.AppHost
 ```
 
 It binds the ports Compose binds, so stop the Compose stack first with `docker compose down`.
@@ -328,12 +328,12 @@ This project has no API, which is the host that applies the migrations at start 
 no other host migrates. Once the database is up, apply each context's migrations from the host:
 
 ```bash
-dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
+dotnet ef database update --project src/Infrastructure/AT.Infrastructure.Persistence --startup-project src/Infrastructure/AT.Infrastructure.Persistence
 ```
 
 <!--#if (localAuth)-->
 ```bash
-dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
+dotnet ef database update --project src/Infrastructure/AT.Infrastructure.Auth --startup-project src/Infrastructure/AT.Infrastructure.Auth
 ```
 
 <!--#endif-->
@@ -444,7 +444,7 @@ builds and adds the `AddWidgets` migration for the new tables. Apply it as the f
 run the tests:
 
 ```bash
-dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
+dotnet ef database update --project src/Infrastructure/AT.Infrastructure.Persistence --startup-project src/Infrastructure/AT.Infrastructure.Persistence
 dotnet cleanarch test --no-integration
 ```
 

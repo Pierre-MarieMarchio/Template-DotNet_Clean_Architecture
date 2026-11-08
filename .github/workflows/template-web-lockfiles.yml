@@ -1,6 +1,6 @@
 name: Template web lockfiles
 
-# Template repository only: each generated web shape carries a lockfile of its own, which a change to the union Src/Web/pnpm-lock.yaml, Dependabot's included, leaves stale until web-lockfiles writes it again.
+# Template repository only: each generated web shape carries a lockfile of its own, which a change to the union src/Web/pnpm-lock.yaml, Dependabot's included, leaves stale until web-lockfiles writes it again.
 on:
   pull_request:
     branches: [main, develop]
@@ -30,18 +30,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The version and its hash come from packageManager in Src/Web/package.json, which writes every lockfile.
+      # The version and its hash come from packageManager in src/Web/package.json, which writes every lockfile.
       - name: Set up pnpm (from package.json)
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          package_json_file: Src/Web/package.json
+          package_json_file: src/Web/package.json
           cache: true
-          cache_dependency_path: Src/Web/pnpm-lock.yaml
+          cache_dependency_path: src/Web/pnpm-lock.yaml
 
       - name: Set up Node.js (from .node-version)
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: Src/Web/.node-version
+          node-version-file: src/Web/.node-version
 
       - name: Set up .NET SDK (from global.json)
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -50,7 +50,7 @@ jobs:
 
       # Written rather than checked, so the lockfiles a stale shape needs exist to be uploaded.
       - name: Write each generated web shape's lockfile
-        run: dotnet run Tools/WebLockfiles.cs
+        run: dotnet run tools/WebLockfiles.cs
 
       - name: Collect the lockfiles the script changed
         id: changed
@@ -84,5 +84,5 @@ jobs:
       - name: Fail on a stale lockfile
         if: steps.changed.outputs.stale == 'true'
         run: |
-          echo "::error title=Stale web lockfile::A generated web shape's lockfile differs from what the pinned pnpm writes for it. Run dotnet run Tools/WebLockfiles.cs and commit what it writes; on a Dependabot pull request, template-web-lockfiles-commit.yml commits it."
+          echo "::error title=Stale web lockfile::A generated web shape's lockfile differs from what the pinned pnpm writes for it. Run dotnet run tools/WebLockfiles.cs and commit what it writes; on a Dependabot pull request, template-web-lockfiles-commit.yml commits it."
           exit 1

@@ -14,7 +14,7 @@ Status: Accepted
 Every generated project received a task launcher script and what it ran: the generators
 (`new-feature` and `new-field`, one more use case, a setting, an event and the removal of a
 feature), the upgrade report, the coverage gate and the test summary, each a file-based program
-under `Tools/`. That is about 31,800 lines in a project of the
+under `tools/`. That is about 31,800 lines in a project of the
 default options, which the engine conditions per option through `//#if` blocks. A fix to a
 generator reaches only the projects generated after it: an older project keeps its copy, and its
 team keeps that copy in step by hand, if it does at all. The copy is also what lets a team change a task, add one, or reshape the code a
@@ -82,20 +82,20 @@ expose one by one.
      records the hash of each copy's source, so the tool warns when a later version changes a
      template the project overrides, as `.feature-manifest/` does for a feature. The edits a
      generator makes to existing files are the tool's code, outside this depth.
-  3. **Local commands.** A file-based app `Tools/<name>.cs` runs as `dotnet cleanarch <name>`. A new
+  3. **Local commands.** A file-based app `tools/<name>.cs` runs as `dotnet cleanarch <name>`. A new
      name adds a command, a built-in name is replaced by it, and `help` says which is which. Only a
      name of lower-case words joined by hyphens is a command, so the scripts named in PascalCase
      stay scripts, and `help` stays the tool's, since it says which
      commands are the project's own.
-  4. **Ejection.** `dotnet cleanarch eject <command>` copies a command's source into `Tools/`,
+  4. **Ejection.** `dotnet cleanarch eject <command>` copies a command's source into `tools/`,
      where the third depth takes it over. That one command stops following the tool's releases.
      `help`, `eject` and `adopt` are not ejected, since they say what the project's own commands
      are, make them, and run before the tool knows the project. Nor are `add` and `remove`: they
      run on CleanArch.Tooling, the library they share with the launcher, on Spectre.Console and on
      Roslyn, none of which a file-based app carries, and the code a generator writes changes
      through its code templates instead.
-- **The template's own tasks and gates stay here.** `Tools/CheckComments.cs`,
-  `Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs` and the web lockfiles' task audit this
+- **The template's own tasks and gates stay here.** `tools/CheckComments.cs`,
+  `tools/CheckDocPaths.cs`, `tools/CheckWorkflows.cs` and the web lockfiles' task audit this
   repository and the generated trees, and the tool never carries them. This repository runs the tool
   from its source, and the acceptance matrix packs it into a local feed that each generated project
   restores from with `dotnet tool restore --add-source`.
@@ -126,7 +126,7 @@ expose one by one.
 
 ## Consequences
 
-- A generated tree loses about 31,800 lines, and `Tools/` holds only what the team writes or ejects.
+- A generated tree loses about 31,800 lines, and `tools/` holds only what the team writes or ejects.
 - About 25 commands replace the 33 tasks: the joins, the scaffolds, the initial migrations, the
   migration check, the restore and the repository checks stop being commands of their own, `format`
   and `format-fix` become `format` and its `--check`, and `openapi` writes the clients after the

@@ -39,16 +39,16 @@
     <TemplateExclude Include="$(TemplateRoot).claude/**;$(TemplateRoot).vs/**;$(TemplateRoot).idea/**;$(TemplateRoot).vscode/**" />
     <TemplateExclude Include="$(TemplateRoot)**/bin/**;$(TemplateRoot)**/obj/**;$(TemplateRoot)**/node_modules/**;$(TemplateRoot)**/TestResults/**" />
     <TemplateExclude Include="$(TemplateRoot)artifacts/**;$(TemplateRoot).env;$(TemplateRoot).config/dotnet-tools.json" />
-    <TemplateExclude Include="$(TemplateRoot)Launcher/**" />
+    <TemplateExclude Include="$(TemplateRoot)launcher/**" />
     <TemplateExclude Include="$(TemplateRoot).template.config/TemplatePackage.csproj;$(TemplateRoot).template.config/package/**;$(TemplateRoot).template.config/icon.png" />
     <TemplateExclude Include="$(TemplateRoot)README.md;$(TemplateRoot)CHANGELOG.md;$(TemplateRoot)LICENSE" />
     <TemplateExclude Include="$(TemplateRoot)docs/template/**;$(TemplateRoot)docs/plans/**;$(TemplateRoot)docs/guide_architecture_pour_agent.md;$(TemplateRoot)docs/index.md;$(TemplateRoot)docs/**/index.md" />
     <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml;$(TemplateRoot).github/workflows/template-published-package.yml;$(TemplateRoot).github/workflows/template-pull-request-title.yml;$(TemplateRoot).github/workflows/template-web-lockfiles.yml;$(TemplateRoot).github/workflows/template-web-lockfiles-commit.yml;$(TemplateRoot).github/release-please/**;$(TemplateRoot).github/ISSUE_TEMPLATE/**;$(TemplateRoot).github/FUNDING.yml;$(TemplateRoot)CODE_OF_CONDUCT.md;$(TemplateRoot)SUPPORT.md" />
     <TemplateExclude Include="$(TemplateRoot)docs/decisions/0003-use-cases-and-ports-are-explicit.md;$(TemplateRoot)docs/decisions/0004-features-meet-through-ports-and-events.md" />
-    <TemplateExclude Include="$(TemplateRoot)Tools/CheckDocPaths.cs;$(TemplateRoot)Tools/CheckWorkflows.cs;$(TemplateRoot)Tools/CheckComments.cs;$(TemplateRoot)Tools/WebLockfiles.cs" />
-    <TemplateExclude Include="$(TemplateRoot)Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs;$(TemplateRoot)Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs;$(TemplateRoot)Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs;$(TemplateRoot)Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedMarkdownTests.cs;$(TemplateRoot)Tests/Architecture/AT.Architecture.Tests/Fixtures/TemplateForms.cs;$(TemplateRoot)Tests/Integration/AT.Api.IntegrationTests/OpenApi/v1.json" />
-    <TemplateExclude Include="$(TemplateRoot)Src/Infrastructure/AT.Infrastructure.Persistence/Migrations/**;$(TemplateRoot)Src/Infrastructure/AT.Infrastructure.Auth/Migrations/**" />
-    <TemplateExclude Include="$(TemplateRoot)Src/Web/**/dist/**;$(TemplateRoot)Src/Web/**/coverage/**;$(TemplateRoot)Src/Web/pnpm-lock.yaml" />
+    <TemplateExclude Include="$(TemplateRoot)tools/CheckDocPaths.cs;$(TemplateRoot)tools/CheckWorkflows.cs;$(TemplateRoot)tools/CheckComments.cs;$(TemplateRoot)tools/WebLockfiles.cs" />
+    <TemplateExclude Include="$(TemplateRoot)tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs;$(TemplateRoot)tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs;$(TemplateRoot)tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs;$(TemplateRoot)tests/Architecture/AT.Architecture.Tests/Rules/ConditionedMarkdownTests.cs;$(TemplateRoot)tests/Architecture/AT.Architecture.Tests/Fixtures/TemplateForms.cs;$(TemplateRoot)tests/Integration/AT.Api.IntegrationTests/OpenApi/v1.json" />
+    <TemplateExclude Include="$(TemplateRoot)src/Infrastructure/AT.Infrastructure.Persistence/Migrations/**;$(TemplateRoot)src/Infrastructure/AT.Infrastructure.Auth/Migrations/**" />
+    <TemplateExclude Include="$(TemplateRoot)src/Web/**/dist/**;$(TemplateRoot)src/Web/**/coverage/**;$(TemplateRoot)src/Web/pnpm-lock.yaml" />
   </ItemGroup>
 
   <ItemGroup>

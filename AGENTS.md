@@ -23,7 +23,7 @@ This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, 
 Your request comes first, then the `AGENTS.md` nearest the file you change, then this one. A folder
 holding its own `AGENTS.md` adds what that folder needs: read it before changing a file there.
 <!--#if (anyWeb)-->
-`Src/Web/AGENTS.md` is the one for the web workspace.
+`src/Web/AGENTS.md` is the one for the web workspace.
 <!--#endif-->
 Read [the overview](docs/getting-started/overview.md) and [the architecture](docs/architecture/README.md)
 once before a change that adds a type; [the documentation index](docs/README.md) leads to every page.
@@ -60,7 +60,7 @@ It then writes the .NET client from the OpenAPI reference.
 | Once, right after generating | `dotnet tool restore`, then `dotnet cleanarch bootstrap` | the network |
 | While you work | `dotnet cleanarch check` (what you touched: format, build, architecture and unit tests) | nothing |
 | Over the whole tree, without Docker | `dotnet cleanarch test --no-integration` | nothing |
-| The structural rules alone | `dotnet test --project Tests/Architecture/AT.Architecture.Tests` | nothing |
+| The structural rules alone | `dotnet test --project tests/Architecture/AT.Architecture.Tests` | nothing |
 | After creating or moving a file | `dotnet cleanarch format` (commit apart what it rewrites in files you did not touch; it names each name it cannot fix) | nothing |
 | After adding, removing or renaming a page under `docs/`, or changing its frontmatter | `dotnet cleanarch docs-index` | nothing |
 | After changing the model | `dotnet cleanarch migrations add <Name>` | the initial migration bootstrap creates |
@@ -86,7 +86,7 @@ It then writes the .NET client from the OpenAPI reference.
 | After changing the stack, a mail or a relay | `dotnet cleanarch end-to-end` | Docker |
 | <!--#endif--> |
 | <!--#if (aspire)--> |
-| The stack from one command, with the Aspire dashboard | `dotnet run --project Src/AppHost/AT.AppHost`; a Compose service or host setting you add goes into the app host too, as `LocalStackParityTests` demands | Docker, the network on its first build |
+| The stack from one command, with the Aspire dashboard | `dotnet run --project src/AppHost/AT.AppHost`; a Compose service or host setting you add goes into the app host too, as `LocalStackParityTests` demands | Docker, the network on its first build |
 | <!--#endif--> |
 | Before taking a newer version of the package that generated the project | `dotnet cleanarch upgrade-report --keep <folder>` ([upgrading](docs/guides/upgrading.md)); it writes nothing in the project | the NuGet sources, or `--source` |
 
@@ -131,7 +131,7 @@ It then writes the .NET client from the OpenAPI reference.
 - Another caller's record answers `404`, never `403`: the owner is in the query
   ([ADR 0009](docs/decisions/0009-ownership-is-in-the-query.md)).
 <!--#endif-->
-- A rule checked by hand becomes a test in `Tests/Architecture`; a decision is an ADR and the test
+- A rule checked by hand becomes a test in `tests/Architecture`; a decision is an ADR and the test
   that holds it, changed together.
 
 ## Files not edited by hand
@@ -250,7 +250,7 @@ shape. [Removing features](docs/guides/removing-features.md) gives the reverse.
 
 When two sources disagree, the first wins, and the disagreement is a defect to fix in the same change:
 
-1. The tests and the code. `Tests/Architecture` holds the structural rules.
+1. The tests and the code. `tests/Architecture` holds the structural rules.
 2. The ADRs in `docs/decisions/`: why a choice was made.
 3. The pages under `docs/`: how it works and how to use it.
 4. The reference tables in `docs/reference/`: settings, routes, codes, folders.
@@ -261,12 +261,12 @@ When two sources disagree, the first wins, and the disagreement is a defect to f
 This repository is also the `dotnet new` template the project pages describe; pages under
 `docs/template/` are about the template and never reach a generated project.
 
-- `verify` also runs the template's gates: `Tools/CheckDocPaths.cs`, `Tools/CheckComments.cs`,
-  `Tools/CheckWorkflows.cs` and `dotnet run Tools/WebLockfiles.cs --check`. Each runs alone
+- `verify` also runs the template's gates: `tools/CheckDocPaths.cs`, `tools/CheckComments.cs`,
+  `tools/CheckWorkflows.cs` and `dotnet run tools/WebLockfiles.cs --check`. Each runs alone
   with `dotnet run`; a generated project keeps none of them, and `DocumentationCitationTests` holds
   its citations.
 - This repository runs the tool from its source: where a page says `dotnet cleanarch <command>`, run
-  `dotnet run --project Launcher/CleanArch.Cli -- <command>` here.
+  `dotnet run --project launcher/CleanArch.Cli -- <command>` here.
 - A shared file conditions a sentence on an option only where the option changes what is true, a
   whole sentence per branch; read it in the default form and in
   `--auth none --examples none --files false`.

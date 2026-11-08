@@ -113,18 +113,18 @@ updates:
     #endif
     directories:
       #if (api)
-      - /Src/Presentation/AT.Api
+      - /src/Presentation/AT.Api
       #endif
       #if (jobsWorker)
-      - /Src/Presentation/AT.Worker
+      - /src/Presentation/AT.Worker
       #endif
       #if (sonar)
-      # The analysis image, Tools/sonar-scanner.Dockerfile, on the same SDK as the API's.
+      # The analysis image, tools/sonar-scanner.Dockerfile, on the same SDK as the API's.
       - /Tools
       #endif
       #if (anyWeb)
       # Every web app's image, nginx or Node, by directory glob.
-      - /Src/Web/apps/*
+      - /src/Web/apps/*
       #endif
     schedule:
       interval: weekly
@@ -144,9 +144,9 @@ updates:
           - "*"
 
   #if (anyWeb)
-  # The web workspace: the npm ecosystem reads Src/Web/pnpm-lock.yaml for every app and package.
+  # The web workspace: the npm ecosystem reads src/Web/pnpm-lock.yaml for every app and package.
   - package-ecosystem: npm
-    directory: /Src/Web
+    directory: /src/Web
     schedule:
       interval: weekly
       day: monday

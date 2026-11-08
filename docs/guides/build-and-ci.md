@@ -19,7 +19,7 @@ shows one.
 `build`, `test`, `check`, `coverage`, `migrations bundle` and `verify` build in Debug unless
 `--configuration Release` asks otherwise.
 
-A file-based C# app under `Tools/` is a command of this project's own, as
+A file-based C# app under `tools/` is a command of this project's own, as
 [the project tool](../reference/cli.md#this-projects-own-commands) says: the SDK `global.json`
 requires is all it needs. The first run of a file compiles it, which takes a moment, under the same
 `Directory.Build.props` and `.editorconfig` as the solution.
@@ -61,7 +61,7 @@ A test project whose own project file sets a Windows target framework, such as
 filter written under the ignored artifacts folder, and name it before the run and again after it:
 
 ```text
-Skipped Tests/Presentation/<Folder>: it targets net10.0-windows and runs on Windows alone.
+Skipped tests/Presentation/<Folder>: it targets net10.0-windows and runs on Windows alone.
 ```
 
 The run then passes or fails on the other projects; on Windows nothing is left out. The commands read
@@ -89,7 +89,7 @@ When the project holds the .NET client, it runs `openapi --check` after `verify`
 change without its regenerated client fails.
 <!--#if (anyWeb)-->
 With a web workspace it then runs `pnpm install --frozen-lockfile` and compares
-`Src/Web/packages/api-client/src/generated/schema.ts` with what `openapi-typescript` writes from the
+`src/Web/packages/api-client/src/generated/schema.ts` with what `openapi-typescript` writes from the
 OpenAPI reference, so a contract change without `pnpm api` fails and the message names that command,
 then `pnpm audit`, and, once `cleanarch.json` records the workspace, `pnpm lint`, `pnpm test` and
 `pnpm build` as the web workflow does. Those steps need Node.js and pnpm: without pnpm, `verify`
@@ -127,44 +127,44 @@ tool's and keeps the directives the tool writes.
 | <!--#endif--> |
 | `CA1848` | `.editorconfig` `*.cs` | A log call stays one sentence at the line it describes; the `[LoggerMessage]` generator would declare each one apart, as a partial method, to save an allocation no path here has measured as worth it. |
 | <!--#if (api)--> |
-| `AV0029`, `AV0030` | `Src/Presentation/AT.Api/AppTemplate.Api.csproj` | Both ask for `Asp.Versioning.OpenApi`, whose transformer renders a `<see cref>` in a schema description as an empty string and titles the document after the entry assembly; `OpenApiDocumentTests` asserts on both. Project-wide, since AV0029 also fires in the source the OpenAPI generator writes into the build. |
+| `AV0029`, `AV0030` | `src/Presentation/AT.Api/AppTemplate.Api.csproj` | Both ask for `Asp.Versioning.OpenApi`, whose transformer renders a `<see cref>` in a schema description as an empty string and titles the document after the entry assembly; `OpenApiDocumentTests` asserts on both. Project-wide, since AV0029 also fires in the source the OpenAPI generator writes into the build. |
 | <!--#endif--> |
-| `CA1716` | `.editorconfig` `Src/Application/AT.Application.Core/Common/Results/Error.cs` | A C#-only API, and `Error` is the Result pattern's name for the concept; the rule guards a Visual Basic keyword. |
-| `CA1000` | `.editorconfig` `Src/Application/AT.Application.Core/Common/Results/Result.cs` | `Result<TValue>.Failure` implements the static abstract `IFailable<TSelf>.Failure` the pipeline behaviours call, and the type-inferring `Result.Success` and `Result.Failure` serve every other caller. |
-| `S4136` | `.editorconfig` `Src/Application/AT.Application.Core/Common/Results/Result.cs` | The non-generic and generic overloads are paired, each beside its counterpart. |
+| `CA1716` | `.editorconfig` `src/Application/AT.Application.Core/Common/Results/Error.cs` | A C#-only API, and `Error` is the Result pattern's name for the concept; the rule guards a Visual Basic keyword. |
+| `CA1000` | `.editorconfig` `src/Application/AT.Application.Core/Common/Results/Result.cs` | `Result<TValue>.Failure` implements the static abstract `IFailable<TSelf>.Failure` the pipeline behaviours call, and the type-inferring `Result.Success` and `Result.Failure` serve every other caller. |
+| `S4136` | `.editorconfig` `src/Application/AT.Application.Core/Common/Results/Result.cs` | The non-generic and generic overloads are paired, each beside its counterpart. |
 | <!--#if (reminders)--> |
-| `S107` | `.editorconfig` `Src/Application/AT.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueReminders.cs` | Nine distinct collaborators, each needed once; a parameter object would only rename the constructor. |
+| `S107` | `.editorconfig` `src/Application/AT.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueReminders.cs` | Nine distinct collaborators, each needed once; a parameter object would only rename the constructor. |
 | <!--#endif--> |
-| `S4035` | `.editorconfig` `Src/Domain/AT.Domain.Core/Common/Primitives/Entity.cs` | The abstract base of every aggregate, whose `Equals` compares the runtime type first. |
+| `S4035` | `.editorconfig` `src/Domain/AT.Domain.Core/Common/Primitives/Entity.cs` | The abstract base of every aggregate, whose `Equals` compares the runtime type first. |
 | <!--#if (files)--> |
-| `S3267` | `.editorconfig` `Src/Domain/AT.Domain/Features/Files/Model/ValueObjects/Sha256Checksum.cs` | The loop refuses on the first bad character; a `Where` would collect them all first. |
-| `S3267` | `.editorconfig` `Src/Domain/AT.Domain/Features/Files/Model/ValueObjects/StoredFileName.cs` | The loop refuses on the first control character; a `Where` would collect them all first. |
+| `S3267` | `.editorconfig` `src/Domain/AT.Domain/Features/Files/Model/ValueObjects/Sha256Checksum.cs` | The loop refuses on the first bad character; a `Where` would collect them all first. |
+| `S3267` | `.editorconfig` `src/Domain/AT.Domain/Features/Files/Model/ValueObjects/StoredFileName.cs` | The loop refuses on the first control character; a `Where` would collect them all first. |
 | <!--#endif--> |
 | <!--#if (localAuth)--> |
-| `S6672` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/EmailChangeTokenProvider.cs` | The logger's type argument is fixed by `DataProtectorTokenProvider<AppUser>`, the base class. |
-| `S6672` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/PasswordResetTokenProvider.cs` | The logger's type argument is fixed by `DataProtectorTokenProvider<AppUser>`, the base class. |
+| `S6672` | `.editorconfig` `src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/EmailChangeTokenProvider.cs` | The logger's type argument is fixed by `DataProtectorTokenProvider<AppUser>`, the base class. |
+| `S6672` | `.editorconfig` `src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/PasswordResetTokenProvider.cs` | The logger's type argument is fixed by `DataProtectorTokenProvider<AppUser>`, the base class. |
 | <!--#endif--> |
-| `S2068` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs` | The local Compose database's design-time fallback, not a secret. |
-| `S2326` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/IContextUnitOfWork.cs` | `TContext` is a marker that makes one closed generic per context. |
-| `S3267` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Tracking/AggregateTracker.cs` | The loop drains and clears each aggregate's events; a projection would do neither. |
+| `S2068` | `.editorconfig` `src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs` | The local Compose database's design-time fallback, not a secret. |
+| `S2326` | `.editorconfig` `src/Infrastructure/AT.Infrastructure.Core/Common/Saving/IContextUnitOfWork.cs` | `TContext` is a marker that makes one closed generic per context. |
+| `S3267` | `.editorconfig` `src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Tracking/AggregateTracker.cs` | The loop drains and clears each aggregate's events; a projection would do neither. |
 | <!--#if (files)--> |
-| `S3267` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Rows/Mapping/StoredFileMapper.cs` | A reconciliation with two side effects, not a filter. |
+| `S3267` | `.editorconfig` `src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Rows/Mapping/StoredFileMapper.cs` | A reconciliation with two side effects, not a filter. |
 | <!--#endif--> |
 | <!--#if (todoLists)--> |
-| `S3267` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Persistence/Features/TodoLists/Rows/Mapping/TodoListMapper.cs` | A reconciliation with two side effects, not a filter. |
+| `S3267` | `.editorconfig` `src/Infrastructure/AT.Infrastructure.Persistence/Features/TodoLists/Rows/Mapping/TodoListMapper.cs` | A reconciliation with two side effects, not a filter. |
 | <!--#endif--> |
 | <!--#if (api)--> |
-| `S2139` | `.editorconfig` `Src/Presentation/AT.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs` | The development database bootstrap logs critically once, then fails the start. |
-| `S4136` | `.editorconfig` `Src/Presentation/AT.Api/Common/Controllers/ApiControllerBase.cs` | The private helper sits under its only caller, between the overloads. |
-| `S1075` | `.editorconfig` `Src/Presentation/AT.Api/Common/Errors/ProblemTypes.cs` | The default problem-type base, on the reserved `.example` domain; `ProblemTypeOptions.BaseUri` replaces it. |
+| `S2139` | `.editorconfig` `src/Presentation/AT.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs` | The development database bootstrap logs critically once, then fails the start. |
+| `S4136` | `.editorconfig` `src/Presentation/AT.Api/Common/Controllers/ApiControllerBase.cs` | The private helper sits under its only caller, between the overloads. |
+| `S1075` | `.editorconfig` `src/Presentation/AT.Api/Common/Errors/ProblemTypes.cs` | The default problem-type base, on the reserved `.example` domain; `ProblemTypeOptions.BaseUri` replaces it. |
 | <!--#endif--> |
 | `generated_code`, `IDE0005` | `.editorconfig` `**/Migrations/*.cs` | `dotnet ef` writes the migrations, and one a database has applied is never rewritten. |
 | `generated_code` | `.editorconfig` `**/Generated/**.cs` | Kiota writes the .NET client's `Generated/` folder, and `openapi` rewrites it whole. |
-| `CA1707` | `.editorconfig` `Tests/**/*.cs` | A test's name reads as its claim, its parts separated by underscores. |
+| `CA1707` | `.editorconfig` `tests/**/*.cs` | A test's name reads as its claim, its parts separated by underscores. |
 | <!--#if (templateMaintenance)--> |
-| `CA1707` | `Launcher/.editorconfig` `CleanArch.Create.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
-| `CA1707` | `Launcher/.editorconfig` `CleanArch.Tooling.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
-| `CA1707` | `Launcher/.editorconfig` `CleanArch.Cli.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
+| `CA1707` | `launcher/.editorconfig` `CleanArch.Create.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
+| `CA1707` | `launcher/.editorconfig` `CleanArch.Tooling.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
+| `CA1707` | `launcher/.editorconfig` `CleanArch.Cli.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
 <!--#endif-->
 
 The build holds the code style: `EnforceCodeStyleInBuild` runs the `.editorconfig` rules during
@@ -201,10 +201,10 @@ CR, and `format` removes both.
 | `.github/workflows/codeql.yml` | push and pull request to `main` or `develop`, and weekly | CodeQL code scanning of the C# sources, read without a build; alerts land in the repository's Security tab |
 | <!--#endif--> |
 | <!--#if (ci && anyWeb)--> |
-| `.github/workflows/codeql.yml` | push and pull request to `main` or `develop`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
+| `.github/workflows/codeql.yml` | push and pull request to `main` or `develop`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `src/Web`; alerts land in the repository's Security tab |
 | <!--#endif--> |
 | <!--#if (ci && anyWeb)--> |
-| `.github/workflows/web.yml` | push to `main`, pull request to `main` or `develop`, and a manual run | in `Src/Web`: frozen install, lint, test, build, and a failure when the API client differs from the API's document; one image per app |
+| `.github/workflows/web.yml` | push to `main`, pull request to `main` or `develop`, and a manual run | in `src/Web`: frozen install, lint, test, build, and a failure when the API client differs from the API's document; one image per app |
 <!--#endif-->
 <!--#if (ci)-->
 
@@ -216,7 +216,7 @@ the migrations are.
 <!--#if (ci && api)-->
 The load smoke never gates: its thresholds describe a broken system, and a `429` counts as a pass,
 because a hosted runner's timings say nothing about this code. Run it against your own stack with
-`k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js`.
+`k6 run -e BASE_URL=http://localhost:8080 tests/Load/smoke.js`.
 
 <!--#endif-->
 <!--#if (ci)-->
@@ -257,7 +257,7 @@ docker compose --profile sonar up -d --wait sonarqube   # http://localhost:9111,
 dotnet cleanarch sonar                         # after setting SONAR_TOKEN in .env
 ```
 
-The scanner needs a JRE, which `Tools/sonar-scanner.Dockerfile` supplies, so your machine needs none.
+The scanner needs a JRE, which `tools/sonar-scanner.Dockerfile` supplies, so your machine needs none.
 It builds into `artifacts/sonar`, leaving your `bin/` and `obj/` alone. It runs the Docker-free tests
 only, so it reports less coverage than CI, and, the scanner running on Linux, names and leaves out
 [the ones that run on Windows alone](#tests-that-run-on-windows-alone).
@@ -297,7 +297,7 @@ builds with.
 | The .NET tools | `.config/dotnet-tools.json` |
 | Container images and actions | their digest or commit SHA, beside the tag |
 | <!--#if (anyWeb)--> |
-| Node, pnpm and the web packages | `Src/Web/.node-version`, `Src/Web/package.json`, `Src/Web/pnpm-lock.yaml` |
+| Node, pnpm and the web packages | `src/Web/.node-version`, `src/Web/package.json`, `src/Web/pnpm-lock.yaml` |
 <!--#endif-->
 
 ### An advisory fails the build
@@ -325,8 +325,8 @@ zero whatever it finds, so `verify` and CI read what it prints.
 
 `pnpm audit` holds the web packages to the same rule: `verify` and the web workflow run it, and any
 advisory fails, whatever its severity. The answer is the same too: raise the dependency, or pin a
-patched release under `overrides` in `Src/Web/pnpm-workspace.yaml` with a comment saying when it can go;
-a package that cannot take the pinned release as it is gets a pnpm patch in `Src/Web/patches/`.
+patched release under `overrides` in `src/Web/pnpm-workspace.yaml` with a comment saying when it can go;
+a package that cannot take the pinned release as it is gets a pnpm patch in `src/Web/patches/`.
 <!--#endif-->
 
 <!--#if (templateMaintenance)-->

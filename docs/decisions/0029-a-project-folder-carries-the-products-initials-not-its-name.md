@@ -11,7 +11,7 @@ Status: Accepted
 
 ## Context
 
-A .NET project's folder is usually its name, so every path under `Src` and `Tests` repeats the
+A .NET project's folder is usually its name, so every path under `src` and `tests` repeats the
 product's name, and a deep feature file repeats it twice: in the project's folder and, for a test,
 in its test project's folder. A longer product name lengthens every path by as much. Windows limits a
 path to 260 characters unless git's `core.longpaths` and the system's long-path setting are both
@@ -23,8 +23,8 @@ name, checked out a few folders deep, reaches either limit.
 - **A project's folder is its name with the product's name replaced by the product's initials**:
   the capital letters of the name in order, or a part's first letter where the part has none
   (`Acme.Shop` gives `AS`, `Contoso.OrderManagement` gives `COM`). `<Name>.Application.Auth` sits in
-  `Src/Application/<Initials>.Application.Auth`, and its tests in
-  `Tests/Application/<Initials>.Application.Auth.UnitTests`.
+  `src/Application/<Initials>.Application.Auth`, and its tests in
+  `tests/Application/<Initials>.Application.Auth.UnitTests`.
 - **The project's name is unchanged**: the `.csproj` file, the assembly, the root namespace and the
   solution's entries keep the whole name.
 - **The layer folders stay**, so the tree still reads by layer.
@@ -46,7 +46,7 @@ name, checked out a few folders deep, reaches either limit.
   product's name with its initials, and the IDE's solution explorer shows the projects by name,
   grouped by layer.
 - A module promoted to a project of its own follows the rule, `<Name>.Domain.Billing` in
-  `Src/Domain/<Initials>.Domain.Billing`; a second product with the same initials goes in a root
+  `src/Domain/<Initials>.Domain.Billing`; a second product with the same initials goes in a root
   folder of its own, as the tool finds a project by its `cleanarch.json`.
 - Moving a project means updating the paths that cite it: the solution, the references between
   projects, the `Dockerfile`s, the workflows and the pages.

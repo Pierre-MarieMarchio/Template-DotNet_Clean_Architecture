@@ -2,7 +2,7 @@ services:
   web-framework-site:
     build:
       context: ../../../..
-      dockerfile: Src/Web/apps/FrameworkSite/Dockerfile
+      dockerfile: src/Web/apps/FrameworkSite/Dockerfile
     restart: unless-stopped
     #if (externalAuth)
     environment:

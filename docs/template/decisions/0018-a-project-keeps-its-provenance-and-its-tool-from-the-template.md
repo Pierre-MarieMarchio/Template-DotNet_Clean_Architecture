@@ -27,8 +27,8 @@ project's material and the template's still has to hold, with one more thing cro
   with its own decisions, and the template repository's root README. A generated project receives
   its own README from a variant source instead.
 - **Template maintenance is excluded or conditioned.** The changelog, the plans, the acceptance
-  workflow and the tree-auditing tools (`Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs`,
-  `Tools/CheckComments.cs`) are excluded by path. Content inside a shared file is wrapped in a
+  workflow and the tree-auditing tools (`tools/CheckDocPaths.cs`, `tools/CheckWorkflows.cs`,
+  `tools/CheckComments.cs`) are excluded by path. Content inside a shared file is wrapped in a
   `templateMaintenance` block, a symbol that is false in every generated project.
 - **Two things from the template reach a project, and only these two:**
   - **Provenance.** The project file and one sentence of `docs/getting-started/overview.md`, both
@@ -39,7 +39,7 @@ project's material and the template's still has to hold, with one more thing cro
     moves to a later one only when its team runs `dotnet tool update`. The tool carries only what a
     project runs: its tasks, its generators and their code templates. Its help and its messages
     speak of "this project", as the pages do, and it never carries a template-maintenance gate.
-- **A project keeps one documentation check.** `DocumentationCitationTests`, in `Tests/Architecture`,
+- **A project keeps one documentation check.** `DocumentationCitationTests`, in `tests/Architecture`,
   holds that every `dotnet cleanarch` command a page cites is one that `docs/reference/cli.md`
   lists. It also holds that every path and link in the root pages and the `AGENTS.md` files of
   a project resolves.
@@ -59,7 +59,7 @@ project's material and the template's still has to hold, with one more thing cro
 - A project's documentation is the ground its team builds on: its own feature pages, how-tos
   and ADRs join the same folders.
 - The template repository reads its project documentation as a generated project would, and
-  the acceptance matrix runs `Tools/CheckDocPaths.cs` from this checkout against each generated
+  the acceptance matrix runs `tools/CheckDocPaths.cs` from this checkout against each generated
   tree.
 - The tool's text is held to the project's voice: a help line or a message about the template is a
   defect, as a sentence about the template in a project page is.

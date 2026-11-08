@@ -12,27 +12,27 @@ still holds.
 
 ## The template gates
 
-`dotnet run --project Launcher/CleanArch.Cli -- verify`, the project tool run from its source, runs the project's gate plus what only the template carries:
+`dotnet run --project launcher/CleanArch.Cli -- verify`, the project tool run from its source, runs the project's gate plus what only the template carries:
 
 | Gate | Checks |
 |---|---|
-| `Tools/CheckDocPaths.cs` | every repository path in a Markdown code span exists, and every `docs/` path a workflow, script or `.http` file names; `CHANGELOG.md` and the plans folder are exempt |
-| `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job, a job that runs `dotnet` on the runner image's SDK |
-| `Tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
-| `Tools/WebLockfiles.cs --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
-| `openapi --check` | `Src/Presentation/AT.Presentation.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
+| `tools/CheckDocPaths.cs` | every repository path in a Markdown code span exists, and every `docs/` path a workflow, script or `.http` file names; `CHANGELOG.md` and the plans folder are exempt |
+| `tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job, a job that runs `dotnet` on the runner image's SDK |
+| `tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
+| `tools/WebLockfiles.cs --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
+| `openapi --check` | `src/Presentation/AT.Presentation.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
 
 The launcher's own build is a gate too: its analysis row under [the launcher](#the-launcher) gives the rules it holds.
 
 Each of the three `Check*.cs` gates runs its `--self-test` first, against fixtures that must make it
 fire and fixtures that must leave it silent, and fails when it examined nothing. A rule added to one of
-them comes with the fixture that fails without it. These three files and `Tools/WebLockfiles.cs` are
+them comes with the fixture that fails without it. These three files and `tools/WebLockfiles.cs` are
 excluded from generation, and `verify` runs them only
 where `.template.config/template.json` exists, so one command serves both.
 
 CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a generated project
 does not receive. Its `Docs and workflows` job also runs
-`dotnet run --project Launcher/CleanArch.Cli -- docs-index --check`, since this repository's tool
+`dotnet run --project launcher/CleanArch.Cli -- docs-index --check`, since this repository's tool
 manifest pins no `dotnet cleanarch`. Its end-to-end job skips its steps in this repository, whose stack includes web
 apps no CLI has created yet, among them those that install the workspace and Chromium for the browser
 smoke; the acceptance matrix runs the suite and the smoke instead.
@@ -40,7 +40,7 @@ smoke; the acceptance matrix runs the suite and the smoke instead.
 A job that runs `dotnet` sets up the SDK `global.json` pins first, with `actions/setup-dotnet` and
 `global-json-file: global.json`: the runner image's SDK changes under the workflow, and NuGet audit
 judges the packages it carries. A job with no checkout has no `global.json` and names its SDK with
-`dotnet-version`. `Tools/CheckWorkflows.cs` reads a `run:` line as running `dotnet` when its first
+`dotnet-version`. `tools/CheckWorkflows.cs` reads a `run:` line as running `dotnet` when its first
 word, past `VAR=value` assignments, is `dotnet`; a comment or `docker run <image> dotnet` starts
 with another word, and a job with a `container:` runs its image's SDK, which the digest rule pins.
 
@@ -63,8 +63,8 @@ there on Mondays. The workflow is excluded from generation and from the package,
 ## Migrations in this checkout
 
 The template ships no migration, so this checkout has none until `dotnet ef migrations add
-InitialCreate` creates them, once with `Src/Infrastructure/AT.Infrastructure.Auth` and once with
-`Src/Infrastructure/AT.Infrastructure.Persistence` as both `--project` and `--startup-project`, as
+InitialCreate` creates them, once with `src/Infrastructure/AT.Infrastructure.Auth` and once with
+`src/Infrastructure/AT.Infrastructure.Persistence` as both `--project` and `--startup-project`, as
 `ci.yml` does; `bootstrap` would also create the web apps through their CLIs and rewrite the OpenAPI
 reference here. The tests, `verify` and the drift check need them. They are git-ignored here only, by a `templateMaintenance` block of `.gitignore`, and
 both `template.json` and `.template.config/TemplatePackage.csproj` exclude them, so a project
@@ -82,7 +82,7 @@ the project with, the formatting, which fails the leg if it removes one of those
 [usings under a marker](#usings-under-a-marker) says, then `bootstrap` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs `format` for what the build does not check, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `docs-index --check`, and checks every path its pages cite
-with this checkout's `Tools/CheckDocPaths.cs`. The legs that set `integration` also run the
+with this checkout's `tools/CheckDocPaths.cs`. The legs that set `integration` also run the
 integration suites, on the runner's Docker through Testcontainers, and the defaults, SQL Server and
 SQLite defaults legs then run the generated project's `dotnet cleanarch end-to-end` against
 its Compose stack. The leg that sets `coverage`, the worker, MCP and Blazor WebAssembly leg with
@@ -195,7 +195,7 @@ Every leg also greps its project for the other database providers' packages and 
 `database`; the SQLite legs run their integration suites on a file and start no database container, and
 the SQL Server leg starts one large image, so it has the longest timeout. A leg without a web app asserts no workflow, Dependabot entry, Compose file or ignore file names a
 workspace. The leg that adds a first app runs that assertion, then `cleanarch-webapp --workspace` and
-`add web-app`, which makes the lines `Src/Web/README.md` and the app's `README.md` list, and is a web leg
+`add web-app`, which makes the lines `src/Web/README.md` and the app's `README.md` list, and is a web leg
 from there. `--workspace` only adds files, and
 the engine refuses to overwrite one, so everything a web app needs from the API ships with every
 project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job asserts each refused combination exits non-zero and writes no file. The legs
@@ -206,7 +206,7 @@ user runs the project ([template decision 0014](decisions/0014-a-windows-only-sh
 from PowerShell, one command a step, it installs the package, generates, checks its `cleanarch.json`,
 asserts the source name leaked nowhere, then runs `bootstrap`, `build` with warnings as errors,
 `test --no-integration`, `verify` and the citation check. A Windows runner runs no Linux image, so
-the job starts no container and sets up no web workspace. It checks out the root files, `Tools` and
+the job starts no container and sets up no web workspace. It checks out the root files, `tools` and
 `.template.config/acceptance` with the files beside it alone, since the package brings the template and a starter's deepest path exceeds the 260 characters
 git for Windows allows by default; their `.gitattributes` keeps them LF whatever the runner's
 `core.autocrlf`.
@@ -231,15 +231,15 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 
 | A change to | Runs |
 |---|---|
-| `Launcher/CleanArch.Cli`, `Launcher/CleanArch.Cli.Commands`, `Launcher/CleanArch.Tooling`: the project tool every leg runs | the `defaults` leg |
-| `docs/template`, the plans, the rest of `Launcher`, `README.md`, the package's readme, `.github/FUNDING.yml`, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
-| `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the six web legs |
+| `launcher/CleanArch.Cli`, `launcher/CleanArch.Cli.Commands`, `launcher/CleanArch.Tooling`: the project tool every leg runs | the `defaults` leg |
+| `docs/template`, the plans, the rest of `launcher`, `README.md`, the package's readme, `.github/FUNDING.yml`, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
+| `src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the six web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | `.template.config/starters/worker` | the legs that pass `--presentation worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
-| `Src/AppHost`, its integration tests and `LocalStackParityTests` | the leg that passes `--aspire true` |
-| anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows ones included |
+| `src/AppHost`, its integration tests and `LocalStackParityTests` | the leg that passes `--aspire true` |
+| anything else: `src`, `tests`, the shared pages, `tools`, the props, `template.json`, the other variants | every leg, the Windows ones included |
 
 The `windows, wpf, local auth` leg generates the default shape with the WPF app added and nothing
 else changed, so it proves the default project's tasks on Windows too. The two WPF legs carry the
@@ -276,7 +276,7 @@ its own; every tag a rule names is a leg's, and every leg's tag a rule's; each l
 its options choose; each leg's runner is one a job serves, a Windows leg sets only the fields
 `template-windows` reads and generates no web app, and one Windows leg passes `--presentation wpf`
 and nothing else; and every `none` path is left out of the template
-package. `Tools/CheckWorkflows.cs`
+package. `tools/CheckWorkflows.cs`
 refuses a `paths:` filter, which leaves a required check pending, and a job-level `if:` on a pull
 request's matrix job, which reports none of its legs when it skips them all, unless its matrix is read
 from an earlier job and another job of the same name reports the legs it leaves out.
@@ -308,13 +308,13 @@ and the application never name a provider.
 
 | Overlaid file | Supplies |
 |---|---|
-| `Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs` | `DesignTimeConnectionString`, `VersionColumnName`, both `UseDatabase` overloads (design time, and run time with `DatabaseOptions` and `ContextMigrations`), `ApplyDatabaseConventions`, `IsVersion`, `IncludingColumns`, `WhereColumnEquals`, `IsUniqueViolation`, `DedicatedConnectionString` |
-| `Src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/LeaderLease.cs` | `LeaderLease`, the `ILeaderLease` adapter, constructed from `IConfiguration` and a logger |
-| `Src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs` | `OwnerQuotaLock`, constructed from the connection string and a logger, throwing `OwnerQuotaLockTimeoutException` after `WaitLimit` |
-| `Src/Presentation/AT.Api/Common/Observability/DatabaseInstrumentation.cs` | the provider's tracing and metrics, or none |
+| `src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs` | `DesignTimeConnectionString`, `VersionColumnName`, both `UseDatabase` overloads (design time, and run time with `DatabaseOptions` and `ContextMigrations`), `ApplyDatabaseConventions`, `IsVersion`, `IncludingColumns`, `WhereColumnEquals`, `IsUniqueViolation`, `DedicatedConnectionString` |
+| `src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/LeaderLease.cs` | `LeaderLease`, the `ILeaderLease` adapter, constructed from `IConfiguration` and a logger |
+| `src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs` | `OwnerQuotaLock`, constructed from the connection string and a logger, throwing `OwnerQuotaLockTimeoutException` after `WaitLimit` |
+| `src/Presentation/AT.Api/Common/Observability/DatabaseInstrumentation.cs` | the provider's tracing and metrics, or none |
 | `docker-compose.database.yml` | the `db` service and the `database-client` service whose environment gives the api `ConnectionStrings__Default`; SQLite declares only `database-client`, which mounts the `db-data` volume |
-| `Tests/Integration/AT.Api.IntegrationTests/Infrastructure/DatabaseServer.cs`, `Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs` | the test server: `Image` (one `docker-compose.database.yml` runs), `ConnectionString`, `StartAsync`, `DisposeAsync`, and `Table(schema, table)`, the name a test's raw SQL uses; the API one adds `TablesSql`, `ResetSql`, `SchemasSql`, `HistorySchemasSql(table)`, and `Value` and `Literal` for a `Guid` or a `DateTimeOffset` as the provider stores it; the Auth one adds `TransientFault` |
-| `Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs`, `Tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs`, `Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs`, `Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs` | the provider's own unit tests and faults; an overlay may leave one out by a `template.json` exclusion |
+| `tests/Integration/AT.Api.IntegrationTests/Infrastructure/DatabaseServer.cs`, `tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs` | the test server: `Image` (one `docker-compose.database.yml` runs), `ConnectionString`, `StartAsync`, `DisposeAsync`, and `Table(schema, table)`, the name a test's raw SQL uses; the API one adds `TablesSql`, `ResetSql`, `SchemasSql`, `HistorySchemasSql(table)`, and `Value` and `Literal` for a `Guid` or a `DateTimeOffset` as the provider stores it; the Auth one adds `TransientFault` |
+| `tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs`, `tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs`, `tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs`, `tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs` | the provider's own unit tests and faults; an overlay may leave one out by a `template.json` exclusion |
 
 A provider without `xmin` registers `VersionStampingSaveChangesInterceptor` from its run-time
 `UseDatabase`, which the modules call after the saving interceptors; `IsVersion` makes `Version` a
@@ -323,7 +323,7 @@ plain concurrency token. A provider without schemas adds `SchemaAsTablePrefixCon
 tested on SQLite here, and shipped only under `versionCounter` and `tablePrefixes`.
 
 The shared files carry the lines of each provider this version generates: the package references of
-`Src/Infrastructure/AT.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj` and of the
+`src/Infrastructure/AT.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj` and of the
 two integration projects, the versions in `Directory.Packages.props`, the variables of `.env.example`,
 and the `developmentConnectionString` switch that rewrites `appsettings.Development.json`. An overlay's
 compose file uses the variable names `.env.example` gives it.
@@ -416,7 +416,7 @@ No object store runs.
 - A shared file conditions a line on a part a project can gain later (a web app, a presentation host,
   the worker) only when the item template that adds the part rewrites the file or its join edits it;
   otherwise the project that gains the part reads otherwise than one generated with it, and
-  `Launcher/CleanArch.Create.Tests/EndToEndTests.cs` fails. The issue forms and the pull request
+  `launcher/CleanArch.Create.Tests/EndToEndTests.cs` fails. The issue forms and the pull request
   template under `.github` stay true in every form instead.
 - Text that names a token (`AppTemplate`, `app-template`, the web app tokens) is replaced in a
   generated project; write a token only where its replacement reads right.
@@ -436,13 +436,13 @@ build sees it, so two checks hold the rule.
 
 | Check | What it judges | Where |
 |---|---|---|
-| `Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs` | every form `template.json` can generate, a leg's or not: each combination of options it does not refuse, the files its sources and modifiers write for it, and the lines of each C# file its markers keep, `//#if` and `/*#if ... #endif*/` alike; a using of a project namespace no kept line reads fails, naming the file, the namespace and the options of a form that keeps it | template-only, in the architecture tests |
+| `tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs` | every form `template.json` can generate, a leg's or not: each combination of options it does not refuse, the files its sources and modifiers write for it, and the lines of each C# file its markers keep, `//#if` and `/*#if ... #endif*/` alike; a using of a project namespace no kept line reads fails, naming the file, the namespace and the options of a form that keeps it | template-only, in the architecture tests |
 | `Record the using directives the template wrote`, then `Bootstrap` | the forms the legs generate, every using alike: a using bootstrap's IDE0005 removes from a file the template wrote fails the leg | `.github/workflows/template-acceptance.yml` |
 
 The test judges a namespace by the names the template's own C# files declare in it, types, their
 attributes' short names and extension methods, and a line as reading a name it spells. It reads the
 files under `.template.config/variants` and `.template.config/starters` as the forms that write them,
-and the client Kiota writes in `Src/Presentation/AT.Presentation.Client/Generated` for the names it declares only. It
+and the client Kiota writes in `src/Presentation/AT.Presentation.Client/Generated` for the names it declares only. It
 leaves out what it cannot know: a namespace from a package, and the projects an official CLI creates,
 whose `scaffold.json` has the kind `dotnet`; the acceptance check covers those in the shapes the legs
 build.
@@ -450,7 +450,7 @@ A form the test reports runs with the options it names: generate it and build it
 
 ## Web sources
 
-Two folders under `Src/Web/apps` are the source of both `--web` and `cleanarch-webapp`:
+Two folders under `src/Web/apps` are the source of both `--web` and `cleanarch-webapp`:
 `PlaceholderSite`, the static page, and `FrameworkSite`, the wiring every framework app shares (its
 `Dockerfile`, `nginx.conf`, `compose.yml` and `README.md`). The project template keeps the one the
 choice needs and renames it from `--web-name`, the item template renames it from `-n`. Each name is a
@@ -485,7 +485,7 @@ Adding a starter, for a CLI that keeps the contract of decision 0023:
    `@app-template/api-client` dependency and a `test` script; and `overlay/` for a file the CLI's own
    settings cannot reach, a Vite config being one. The workspace's scripts run once and rewrite
    nothing: a `test` that watches or a `lint` that fixes is merged into one that does not, and Vitest
-   is pinned to the version `Src/Web/packages/api-client/package.json` uses. Import the client from
+   is pinned to the version `src/Web/packages/api-client/package.json` uses. Import the client from
    a scratch file of the created app once and run its type-check: the workspace packages export
    their sources and import each other by `.ts` path, so a compiler setting the CLI leaves off, such
    as `allowImportingTsExtensions`, is a merge too. A file the starter does not need, such as the
@@ -496,7 +496,7 @@ Adding a starter, for a CLI that keeps the contract of decision 0023:
 2. Add `<value>` to the choices of `web` in `.template.config/template.json` and of `framework` in
    `.template.config/webapp/.template.config/template.json`, each description naming the generator
    and its template, with its computed symbol, a source copying the starter folder into
-   `./Src/Web/apps/` under that symbol, and the symbol reached from `webFramework`: through
+   `./src/Web/apps/` under that symbol, and the symbol reached from `webFramework`: through
    `webVite` for a Vite-based starter, which also gives it port 5173 in `webDefaultPort` and
    `defaultPort`; directly otherwise, with its own port in both. `TemplatePackagingTests` fails until
    both templates agree with the folder. A framework that already has a value gets no second
@@ -504,9 +504,9 @@ Adding a starter, for a CLI that keeps the contract of decision 0023:
 3. Condition the wiring only where the new framework differs, and the README sentences that name
    its CLI and list what the starter adds. Give the value its row in
    `docs/getting-started/overview.md` and `docs/template/using-the-template.md`, and its name where
-   `docs/features/web-frontend.md`, `Src/Web/README.md` and the repository `README.md` list the
+   `docs/features/web-frontend.md`, `src/Web/README.md` and the repository `README.md` list the
    values.
-4. Give it an accent colour in `Launcher/CleanArch.Tooling/Prompts/GuidedConversation.cs`; its
+4. Give it an accent colour in `launcher/CleanArch.Tooling/Prompts/GuidedConversation.cs`; its
    question comes from the manifests.
 5. To offer its server form, write `ssr/FrameworkSite/scaffold.json` and its `overlay/`, whose server
    relays through `relayToApi` of `@app-template/api-client/server`, sends the page headers, and
@@ -537,8 +537,8 @@ surface. `needsWorker` brings the worker to a project whose hosts hold neither t
 worker, so that some host runs the jobs; `workerNeedsServerDatabase` refuses the worker, chosen or
 brought, with SQLite, and `desktopIsOneFramework` Avalonia and WPF together.
 `.template.config/starters/blazor-server` holds the project's own files at their paths in a project:
-`.template.config/starters/blazor-server/Src/Presentation/AT.PresentationAppPortal` (its `scaffold.json`, project file,
-`Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `Tests/`; the
+`.template.config/starters/blazor-server/src/Presentation/AT.PresentationAppPortal` (its `scaffold.json`, project file,
+`Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `tests/`; the
 project template copies the folder into the project's root under `presentationBlazorServer`.
 `.template.config/starters/avalonia` holds a desktop client's the same way, copied under
 `presentationAvalonia`, which sets `dotnetClient`: it keeps the files `dotnet new avalonia.mvvm`
@@ -583,7 +583,7 @@ the SQLite external-auth leg that adds it with `cleanarch-presentation`.
 
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
 folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` and `wpf` it also brings
-`Src/Presentation/AT.Presentation.Client`, `Tests/Presentation/AT.Presentation.Client.UnitTests` and ADR 0023, which a project without a client lacks. For `worker`
+`src/Presentation/AT.Presentation.Client`, `tests/Presentation/AT.Presentation.Client.UnitTests` and ADR 0023, which a project without a client lacks. For `worker`
 it brings ADR 0025 instead of the page, refuses every `-n` but `Worker` (`workerIsNamedWorker`), a
 project without the API (`workerTakesTheJobsOfTheApi`) and SQLite (`workerNeedsServerDatabase`), and
 the project's `add presentation` moves the jobs, as [the worker](#the-worker) says. `--has-api`, true by default, says whether the project holds the
@@ -605,8 +605,8 @@ Avalonia, `presentationWpf`, `dotnetClient` or `anyPresentation` for WPF, `prese
 the scaffold step of `add presentation` completes. The Blazor WebAssembly starter's `README.md` answers to the same
 rule for `webBlazorWasm` and `dotnetClient`, read by the project's `add web-app`, and
 `TheWebReadme_ListsEveryLineItsAppOrItsWorkspaceWritesOutsideItsFolders` holds it for
-`Src/Web/apps/FrameworkSite/README.md` (the framework symbols and `webServerRendering`),
-`Src/Web/apps/PlaceholderSite/README.md` (`webPlaceholder`) and `Src/Web/README.md` (`anyWeb`, the
+`src/Web/apps/FrameworkSite/README.md` (the framework symbols and `webServerRendering`),
+`src/Web/apps/PlaceholderSite/README.md` (`webPlaceholder`) and `src/Web/README.md` (`anyWeb`, the
 lines of a first app's workspace, which `add web-app` makes before the app's while `cleanarch.json`
 records no workspace), each leaving to the others the lines their symbols write. For an app added to
 a workspace, the overview, the first run and the web front end page stay as they are, since they
@@ -617,7 +617,7 @@ to `docs/decisions` or drops it when the project holds it already; the app's `RE
 lines citing it.
 Under `externalAuth` the WebAssembly app has code of its own, and its unit tests come from
 `.template.config/variants/blazor-wasm-sign-in/`, which both templates copy to the project's root,
-since the starter's folder lands in `Src/Web/apps/`; the scaffold step adds them to the solution with
+since the starter's folder lands in `src/Web/apps/`; the scaffold step adds them to the solution with
 the app. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
 `add presentation` reads that section and makes the edits, every one or none, so a bullet keeps
@@ -633,7 +633,7 @@ post-action scripts declined: `dotnet new` asks again for ever on a closed input
 option only from a template that has such a script, so one that would ask fails instead of waiting
 for an answer. It keeps the folders and files the descriptor names, a file the starter holds
 winning, and refuses a generated project file that declares a package or a property the starter's
-lacks, but a package the descriptor's `drop` names: one only a file the starter replaces uses. It adds the project and its tests to the solution, each in the solution folder its path gives (`Src/Presentation`, `Tests/Presentation`). A project that references the .NET client
+lacks, but a package the descriptor's `drop` names: one only a file the starter replaces uses. It adds the project and its tests to the solution, each in the solution folder its path gives (`src/Presentation`, `tests/Presentation`). A project that references the .NET client
 brings the client and its tests into the solution with it, and, once the OpenAPI reference exists, `openapi` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
 `--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires: the
@@ -643,14 +643,14 @@ resynchronise it with the new version's, and drop that component again.
 `presentationNameIsTaken` refuses each `-n` of `cleanarch-presentation` that would make
 `<Project>.<Name>` or its test project one of the template's own projects, but `Worker` for the
 worker itself;
-`ThePresentationItemsNameRefusal_NamesEveryProjectTheTemplateWrites` lists the projects under `Src`
-and `Tests` and fails until a new one is refused.
+`ThePresentationItemsNameRefusal_NamesEveryProjectTheTemplateWrites` lists the projects under `src`
+and `tests` and fails until a new one is refused.
 
 ## The app host
 
-`--aspire` adds `Src/AppHost/AT.AppHost`, an Aspire app host, beside Docker Compose, which stays the
+`--aspire` adds `src/AppHost/AT.AppHost`, an Aspire app host, beside Docker Compose, which stays the
 reference ([ADR 0032](../decisions/0032-the-app-host-follows-compose.md)). Its source is in-tree, built
-and tested in this checkout like `Src/Presentation/AT.Presentation.Client`, and `template.json` leaves it out with its
+and tested in this checkout like `src/Presentation/AT.Presentation.Client`, and `template.json` leaves it out with its
 integration tests, `LocalStackParityTests`, its page and its ADR under `!aspire`; `ProjectFileTests`
 reads it as absent here. It starts the hosts and the web apps `cleanarch.json` records rather than
 a list of its own, so `add presentation` and `add web-app` need no edit of it, and its C# conditions
@@ -719,9 +719,9 @@ tree's index as bootstrap would.
 
 ## Web lockfiles
 
-The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
-`dotnet run Tools/WebLockfiles.cs` writes the lockfile of each shape holding a `package.json`
-into `.template.config/variants/web-<App>/Src/Web/`; a framework app gets none, since the scaffold step
+The repository's `src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
+`dotnet run tools/WebLockfiles.cs` writes the lockfile of each shape holding a `package.json`
+into `.template.config/variants/web-<App>/src/Web/`; a framework app gets none, since the scaffold step
 writes it where the app is created. Run it after any change to the union lockfile; `--check`
 fails until you do.
 
@@ -744,13 +744,13 @@ of a secret that can push, which this repository does not hold.
 
 ## The .NET client
 
-`Src/Presentation/AT.Presentation.Client` and its tests are built and tested in this checkout, and reach a
+`src/Presentation/AT.Presentation.Client` and its tests are built and tested in this checkout, and reach a
 generated project only when `dotnetClient` is true, which `--presentation avalonia` and
 `--presentation wpf` set, or through `cleanarch-presentation --framework avalonia` or `wpf`. Its session is written under `localAuth`, its
 validation problem under `localAuth || anyFeature`, the two shapes whose document holds them.
 `dotnetClient` also brings the Kiota entry of the tool manifest; the `openapi` command, the CI step
 that runs `openapi --check`, the Dependabot group and the `Generated` exclusions are in every
-project and act once `Src/Presentation/AT.Presentation.Client` holds the client. `Generated/` is copied as Kiota wrote it:
+project and act once `src/Presentation/AT.Presentation.Client` holds the client. `Generated/` is copied as Kiota wrote it:
 `template.json` gives `**/Generated/**.cs` a conditional syntax no line uses, so Kiota's own `#if`
 lines survive and only the names are replaced. The tool manifest therefore comes in five shapes:
 `.config/dotnet-tools.json` with every tool but the project's own, which this checkout runs from its
@@ -764,7 +764,7 @@ and commits what it writes.
 ## The project file
 
 `cleanarch.json` records what a project was generated with: the template package and version, the
-project's name, every option that is not a part under its value, `client` when `Src/Presentation/AT.Presentation.Client`
+project's name, every option that is not a part under its value, `client` when `src/Presentation/AT.Presentation.Client`
 holds the .NET client, the web workspace with its apps and packages, and the presentation project
 ([template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)).
 This checkout holds the file the defaults generate; `dotnet cleanarch` finds the root by it and reads
@@ -777,7 +777,7 @@ the options there rather than through markers.
 | Additions | `add presentation` and `add web-app` record the part they join, `client` with it, and `add web-package` a package of the workspace; every writer keeps the key order and any key it does not know |
 | Tests | `ProjectFileTests` holds the file to the tree in every project; `TemplatePackagingTests` holds the checkout's file to the defaults, each variant to it, and every value to a symbol that replaces it; `CheckProjectFile.cs` holds each leg's file to its options |
 
-In this checkout `Src/Web`, `Src/Presentation/AT.Presentation.Client` and the API's external-identity mapping are the sources of
+In this checkout `src/Web`, `src/Presentation/AT.Presentation.Client` and the API's external-identity mapping are the sources of
 shapes the defaults leave out, so `ProjectFileTests` reads them as absent, in a `templateMaintenance`
 block. A new option that is not a part gets its key in `cleanarch.json` and in the variant,
 a generated symbol that replaces it, its place in the list of `.template.config/acceptance/CheckProjectFile.cs`, and a check in
@@ -800,12 +800,12 @@ program shares no code.
 | Every `SegmentInitials` reads as the architecture tests' own | `TemplatePackagingTests.EveryCopyOfTheInitials_ReadsAsTheArchitectureTestsOwn` |
 | The token stands only before a project's folder, at the start of a word, in every path and file a template writes | `TemplatePackagingTests.TheFolderToken_NamesNothingButAProjectFolder` |
 | Each template refuses exactly the names under two characters, which hold every name whose folders differ from its projects in case alone, and exactly the names that do not start with a letter from A to Z, which hold every name without initials | `TemplatePackagingTests.TheNameRefusals_RefuseEveryNameWhoseFoldersTheSolutionCannotHoldForItsProjects` |
-| No path under `Src` and `Tests` passes 170 characters under the default name | `TemplatePackagingTests.TheLongestPathUnderSrcAndTests_StaysWithinItsBudget_UnderTheDefaultNameAppTemplate` |
+| No path under `src` and `tests` passes 170 characters under the default name | `TemplatePackagingTests.TheLongestPathUnderSrcAndTests_StaysWithinItsBudget_UnderTheDefaultNameAppTemplate` |
 
 ## The generators' shared code
 
-The generators of the project tool, `Launcher/CleanArch.Cli/Generators`, share one copy of what they
-hold in common under `Launcher/CleanArch.Cli/Generators/Shared`: `TextEdits.cs`, the edits in files a
+The generators of the project tool, `launcher/CleanArch.Cli/Generators`, share one copy of what they
+hold in common under `launcher/CleanArch.Cli/Generators/Shared`: `TextEdits.cs`, the edits in files a
 generator does not own, placed beside a line or computed on the whole text, and the write of every
 file or none; `FeatureManifest.cs`, a feature's manifest read in either schema version, its files,
 hashes, edits and the fields `add field` added merged, and written; `CSharpNames.cs`, a name in
@@ -887,29 +887,29 @@ reasons.
 
 ## The launcher
 
-`Launcher/CleanArch.Create` is the .NET tool `dnx CleanArch.Create` runs, with its tests in
-`Launcher/CleanArch.Create.Tests`. Its `Hosting` folder starts it, `Commands` holds its arguments, its usage and the one command it has, `new`, in `Commands/NewProject`, and `Setup` one class per step of a new project's setup. The folder is its own solution, `Launcher/CleanArch.Create.slnx`,
+`launcher/CleanArch.Create` is the .NET tool `dnx CleanArch.Create` runs, with its tests in
+`launcher/CleanArch.Create.Tests`. Its `Hosting` folder starts it, `Commands` holds its arguments, its usage and the one command it has, `new`, in `Commands/NewProject`, and `Setup` one class per step of a new project's setup. The folder is its own solution, `launcher/CleanArch.Create.slnx`,
 which holds five more projects. Generation and the template package leave the folder out, and
 `TemplatePackagingTests` holds both.
 
 | Project | What it is |
 |---|---|
-| `Launcher/CleanArch.Tooling` | the library both tools share, never packed on its own: running a process and its verbatim output, the terminal, the templates' manifests with the evaluation of their refusals, and the questions asked from them; its tests are in `Launcher/CleanArch.Tooling.Tests` |
-| `Launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root: `BuiltInCommands.cs` lists every command, and the ones that stay the tool's each have a folder, `Launcher/CleanArch.Cli/Eject` with the source it ships and `Launcher/CleanArch.Cli/UpgradeReport` reading template packages through `CleanArch.Tooling`; `Launcher/CleanArch.Cli/Joins` holds the join steps `add` runs, which are not commands. `Launcher/CleanArch.Cli/Generators` holds one folder per generator, its command, request, plan, edits, report and templates, over `Launcher/CleanArch.Cli/Generators/Shared`, the pipeline every generator runs and the code they share, which references no generator; its tests are in `Launcher/CleanArch.Cli.Tests`, whose `Launcher/CleanArch.Cli.Tests/Architecture` holds the launcher's boundaries: no command or generator references another, `Kernel` and `Shared` reference none, `CleanArch.Cli.Commands` references System.CommandLine alone, and only the two process launchers call `Process.Start` |
-| `Launcher/CleanArch.Cli.Commands` | the commands `eject` can copy into a project, never packed on its own: it references System.CommandLine alone, since an ejected command is a file-based app that declares nothing else. Each command has a folder and a namespace of its own and references no other; `Launcher/CleanArch.Cli.Commands/Hosting` holds the root command, the registration and the context, and `Launcher/CleanArch.Cli.Commands/Kernel` what the commands share, the process launcher the context carries and every external call among it, the documentation index and the scaffold steps `bootstrap` runs, referencing neither the commands nor `Hosting`. `CleanArch.Cli` composes them with the ones that stay the tool's, and ships the source of every folder, which eject merges into one namespace |
+| `launcher/CleanArch.Tooling` | the library both tools share, never packed on its own: running a process and its verbatim output, the terminal, the templates' manifests with the evaluation of their refusals, and the questions asked from them; its tests are in `launcher/CleanArch.Tooling.Tests` |
+| `launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root: `BuiltInCommands.cs` lists every command, and the ones that stay the tool's each have a folder, `launcher/CleanArch.Cli/Eject` with the source it ships and `launcher/CleanArch.Cli/UpgradeReport` reading template packages through `CleanArch.Tooling`; `launcher/CleanArch.Cli/Joins` holds the join steps `add` runs, which are not commands. `launcher/CleanArch.Cli/Generators` holds one folder per generator, its command, request, plan, edits, report and templates, over `launcher/CleanArch.Cli/Generators/Shared`, the pipeline every generator runs and the code they share, which references no generator; its tests are in `launcher/CleanArch.Cli.Tests`, whose `launcher/CleanArch.Cli.Tests/Architecture` holds the launcher's boundaries: no command or generator references another, `Kernel` and `Shared` reference none, `CleanArch.Cli.Commands` references System.CommandLine alone, and only the two process launchers call `Process.Start` |
+| `launcher/CleanArch.Cli.Commands` | the commands `eject` can copy into a project, never packed on its own: it references System.CommandLine alone, since an ejected command is a file-based app that declares nothing else. Each command has a folder and a namespace of its own and references no other; `launcher/CleanArch.Cli.Commands/Hosting` holds the root command, the registration and the context, and `launcher/CleanArch.Cli.Commands/Kernel` what the commands share, the process launcher the context carries and every external call among it, the documentation index and the scaffold steps `bootstrap` runs, referencing neither the commands nor `Hosting`. `CleanArch.Cli` composes them with the ones that stay the tool's, and ships the source of every folder, which eject merges into one namespace |
 
 [Template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
 [0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) say what each tool is for.
 The tests that read the manifests through the launcher's own settings stay in
-`Launcher/CleanArch.Create.Tests`.
+`launcher/CleanArch.Create.Tests`.
 
 | Facet | Where |
 |---|---|
 | Questions | read from the manifests under `.template.config/`, embedded at build; [template decision 0026](decisions/0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md) gives the rules an option and a refusal keep |
 | Version | the same `templateVersion`; the launcher installs `CleanArch.WebApi.Templates` at its own version |
 | Thread | drawn with the glyphs every console font carries; [template decision 0016](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md) gives the rule and the test that holds it |
-| Packages | `Spectre.Console` and `System.CommandLine`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
-| Analysis | `SonarAnalyzer.CSharp`, pinned beside them, runs its default rules on all seven projects, and the build fails on any of them; a method of the four projects that ship holds a cognitive complexity (S3776) of 15 at most, set in `Launcher/.editorconfig`. The measure counts nesting and breaks in flow rather than branches, so a flat `switch` stays cheap and a method that nests is split. A finding is fixed in the code, never silenced |
+| Packages | `Spectre.Console` and `System.CommandLine`, pinned in `launcher/Directory.Packages.props`, which imports the repository's |
+| Analysis | `SonarAnalyzer.CSharp`, pinned beside them, runs its default rules on all seven projects, and the build fails on any of them; a method of the four projects that ship holds a cognitive complexity (S3776) of 15 at most, set in `launcher/.editorconfig`. The measure counts nesting and breaks in flow rather than branches, so a flat `switch` stays cheap and a method that nests is split. A finding is fixed in the code, never silenced |
 | Gate | `verify` restores, formats, builds and tests the launcher's solution, all seven projects, after the project's gate; CI's `launcher` job does the same |
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
 
@@ -923,8 +923,8 @@ The tests that read the manifests through the launcher's own settings stay in
 | `--files` | the `Infrastructure.Storage` project |
 | `--database` | the provider package `Infrastructure.Core` references: SQL Server, SQLite, PostgreSQL otherwise |
 | `--ci`, `--agent-files` | `.github/workflows/ci.yml`, `AGENTS.md` |
-| `--has-api` | the `Src/Presentation/<Initials>.Api` folder |
-| `--scope`, `--workspace` | the name in `Src/Web/package.json`, the project's name in kebab case without one; `Src/Web` |
+| `--has-api` | the `src/Presentation/<Initials>.Api` folder |
+| `--scope`, `--workspace` | the name in `src/Web/package.json`, the project's name in kebab case without one; `src/Web` |
 
 Its tests read this checkout's manifests: the options are the visible ones, each refusal fires for
 some combination, the launcher refuses exactly where `refusedOptions` does, and answering only what
@@ -935,7 +935,7 @@ templates, runs the launcher without a terminal for a project and compares the t
 project with `--web`, once as a React single-page app and once as an Angular app rendered on the
 server under an external provider, and the same project without it, to which `cleanarch-webapp
 --workspace` and `add web-app` add the app: the two trees must match but for the options the overview
-records, so an edit of `Src/Web/README.md` or of the app's `README.md` that is missing, wrong or
+records, so an edit of `src/Web/README.md` or of the app's `README.md` that is missing, wrong or
 placed elsewhere than the project template writes its lines fails it. A third adds two
 server-rendered apps to a project generated with a single-page app and requires ADR 0024, its line
 in the decisions index and the lines citing it as `--web-rendering ssr` writes them, once. Each of
@@ -954,7 +954,7 @@ worker as answered for you and passes it; `TheWorkerTheLauncherAdds_IsExactlyWha
 holds that rule against `needsWorker`.
 
 ```bash
-dotnet run --project Launcher/CleanArch.Create -- --template-source . --hive /tmp/cleanarch-hive
+dotnet run --project launcher/CleanArch.Create -- --template-source . --hive /tmp/cleanarch-hive
 ```
 
 runs it from the checkout; pass `--template-source` a `.nupkg` to try a packed one.

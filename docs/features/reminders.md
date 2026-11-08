@@ -61,7 +61,7 @@ oldest first. For each one:
    `ReminderFiredDomainEvent`.
 4. If sending fails, the reminder counts the failure and is not tried again before a delay that
    starts at one minute, doubles on each failure and stops growing at one hour
-   (`Src/Domain/AT.Domain.Core/Common/Retries/RetryBackoff.cs`). It stays `Pending`.
+   (`src/Domain/AT.Domain.Core/Common/Retries/RetryBackoff.cs`). It stays `Pending`.
 
 A reminder changed by someone else while a pass fires it ends the pass, and the next one reads it
 afresh. `ReminderFiredDomainEvent` has no consumer, and `DomainEventTests` records it as deliberately
@@ -76,7 +76,7 @@ the recipient is the owner's local account, and its address is the account's ema
 the recipient is the owner's mapped identity, and its address is the email the identity provider
 gave; an owner whose provider gave none has nobody to notify.
 <!--#endif-->
-The mail itself is `EmailReminderNotifier`, in `Src/Infrastructure/AT.Infrastructure.Email/Features/Reminders`,
+The mail itself is `EmailReminderNotifier`, in `src/Infrastructure/AT.Infrastructure.Email/Features/Reminders`,
 over the transport [email](email.md) describes.
 
 ## Use it
@@ -119,15 +119,15 @@ With `Jobs:Reminders:Enabled` off, or `Jobs:Enabled` off, no reminder is ever se
 
 ## Tests
 
-The aggregate is tested in `Tests/Domain/AT.Domain.UnitTests/Features/Reminders`, each use case, the
+The aggregate is tested in `tests/Domain/AT.Domain.UnitTests/Features/Reminders`, each use case, the
 two consumers and the pass, with its failure, retry and conflict cases, in
-`Tests/Application/AT.Application.UnitTests/Features/Reminders`, and the mapping between aggregate and
-rows in `Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Reminders`.
+`tests/Application/AT.Application.UnitTests/Features/Reminders`, and the mapping between aggregate and
+rows in `tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Reminders`.
 The registration of the pass and its settings are tested in the test project of the host that runs the
 jobs, under `Features/Reminders/Jobs`, and the recipient directories in the test project of each host
 that has one, under `Features/Reminders/Composition`.
 <!--#if (api)-->
-`Tests/Integration/AT.Api.IntegrationTests/Reminders` runs the routes and a whole pass against a
+`tests/Integration/AT.Api.IntegrationTests/Reminders` runs the routes and a whole pass against a
 database: the lifecycle, another caller's reminder and the pass that fires what is due.
 <!--#endif-->
 An MCP server's own tests for these tools are in its test project, under `Features/Reminders/Tools`.

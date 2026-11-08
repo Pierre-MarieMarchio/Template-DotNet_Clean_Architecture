@@ -25,7 +25,7 @@ What belongs to a host's transport, a header, a cookie or a tool's answer, belon
 
 ## The behaviours the pipeline runs
 
-`AddUseCasePipeline` in `Src/Application/AT.Application.Core/ApplicationCoreModule.cs` registers
+`AddUseCasePipeline` in `src/Application/AT.Application.Core/ApplicationCoreModule.cs` registers
 the behaviours once. Each registration that brings use cases calls it, a feature's as much as the
 platform's own, so every host runs them without an edit of its own. The order of registration is
 the order of nesting: the first registered wraps all the others.
@@ -41,7 +41,7 @@ one does.
 
 ## Steps
 
-1. Write `<Name>Behaviour<TMessage, TResponse>` in `Src/Application/AT.Application.Core/Common/UseCases/`,
+1. Write `<Name>Behaviour<TMessage, TResponse>` in `src/Application/AT.Application.Core/Common/UseCases/`,
    beside the three, a public sealed class implementing `IPipelineBehavior<TMessage, TResponse>`.
    `AppTemplate.Application.Core` references no feature, so the behaviour cannot name one.
 
@@ -85,7 +85,7 @@ one does.
    exports: `ObservabilityRegistrationTests` holds that registration, and a meter of its own would
    need one in each host. A new instrument takes its row in
    [observability](../features/observability.md).
-7. Test it in `Tests/Application/AT.Application.Core.UnitTests/Common/UseCases/UseCasePipelineTests.cs`.
+7. Test it in `tests/Application/AT.Application.Core.UnitTests/Common/UseCases/UseCasePipelineTests.cs`.
    Its `Pipeline` sends probe messages through a generated mediator and the real registration:
    register there what the behaviour depends on, then prove what it does with a message it applies to
    and a message it leaves alone. `ThePipeline_IsRegisteredOnce_HoweverManyFeaturesAskForIt` lists

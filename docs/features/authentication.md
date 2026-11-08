@@ -209,7 +209,7 @@ default), read from a claim of the token (`Roles:Source` = `Claim`) or from the
 <!--#endif-->
 
 A new policy is a constant beside `Administrator` in
-`Src/Presentation/AT.Presentation.Core/Common/Security/AuthorizationPolicies.cs` and one
+`src/Presentation/AT.Presentation.Core/Common/Security/AuthorizationPolicies.cs` and one
 `AddPolicy` call where the module composes its authentication. A policy guards a route or a page of
 the host, never a use case, so a host that exposes an administration use case puts the policy on it
 again ([ADR 0039](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)).
@@ -250,9 +250,9 @@ Nothing to configure.
 ## Tests
 <!--#if (localAuth && api)-->
 
-The flows run against the project's real database in `Tests/Integration/AT.Api.IntegrationTests/Auth/`
+The flows run against the project's real database in `tests/Integration/AT.Api.IntegrationTests/Auth/`
 (registration, two-factor, passkeys, password and email changes). The guarantees each have a test in
-`Tests/Integration/AT.Api.IntegrationTests/Security/`: `LoginUniformityTests` (one answer,
+`tests/Integration/AT.Api.IntegrationTests/Security/`: `LoginUniformityTests` (one answer,
 one timing), `RefreshTokenTests` and `RefreshTokenCookieTests` (rotation, replay, the cookie),
 `SecurityStampRotationTests`, `AccountLockoutTests`, `PasswordPolicyTests`,
 `DefaultDenyAuthorizationTests` and `AdministratorPolicyTests`.
@@ -260,11 +260,11 @@ one timing), `RefreshTokenTests` and `RefreshTokenCookieTests` (rotation, replay
 <!--#if (localAuth && !api)-->
 
 The sessions, the security log and the passkey ceremonies run against the project's real database in
-`Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/`.
+`tests/Integration/AT.Infrastructure.Auth.IntegrationTests/`.
 <!--#endif-->
 <!--#if (externalAuth && api)-->
 
-`Tests/Presentation/AT.Api.UnitTests/Features/ExternalIdentity/` covers validation, the
+`tests/Presentation/AT.Api.UnitTests/Features/ExternalIdentity/` covers validation, the
 first-request mapping, role mapping and the settings; the integration suite signs its requests
 with a test provider's keys.
 <!--#endif-->

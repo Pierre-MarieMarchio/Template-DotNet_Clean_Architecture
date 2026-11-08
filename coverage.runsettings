@@ -11,16 +11,16 @@
             <!-- Test assemblies, also when one test project references another. -->
             <ModulePaths>
               <Exclude>
-                <ModulePath>.*Tests\.dll$</ModulePath>
+                <ModulePath>.*tests\.dll$</ModulePath>
               </Exclude>
             </ModulePaths>
 
             <!-- Code a tool wrote, each anchored below the project: the collector matches a source's full path without case, so a bare folder name also matches the folder a project sits in. -->
             <Sources>
               <Exclude>
-                <Source>.*[\\/]Src[\\/]Infrastructure[\\/][^\\/]+[\\/]Migrations[\\/].*</Source>
+                <Source>.*[\\/]src[\\/]Infrastructure[\\/][^\\/]+[\\/]Migrations[\\/].*</Source>
                 <Source>.*[\\/]obj[\\/][^\\/]+[\\/]net\d+\.\d+[^\\/]*[\\/].*</Source>
-                <Source>.*[\\/]Src[\\/]Presentation[\\/][^\\/]+\.Presentation\.Client[\\/]Generated[\\/].*</Source>
+                <Source>.*[\\/]src[\\/]Presentation[\\/][^\\/]+\.Presentation\.Client[\\/]Generated[\\/].*</Source>
               </Exclude>
             </Sources>
 

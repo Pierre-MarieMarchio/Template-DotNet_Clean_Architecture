@@ -39,7 +39,7 @@ legs, a template-only page none.
   run in progress; the `full-acceptance` label alone runs every leg.
 - **Tests hold the data.** `AcceptanceSelectionTests` checks the legs against the required checks,
   every starter and variant folder for a rule, every tag for a leg, every leg's tags against its
-  options, and every `none` path against the package's exclusions; `Tools/CheckWorkflows.cs`
+  options, and every `none` path against the package's exclusions; `tools/CheckWorkflows.cs`
   refuses a `paths:` filter and a job-level `if:` on a pull request's matrix job that no job of the
   same name complements.
 
@@ -65,7 +65,7 @@ legs, a template-only page none.
 
 ## Consequences
 
-- A change that reaches some legs waits for those alone; one under `Src`, `Tests` or the shared pages
+- A change that reaches some legs waits for those alone; one under `src`, `tests` or the shared pages
   still runs them all, as every leg builds them.
 - A new leg, starter or variant folder costs edits outside the workflow: its entry and tags in
   `.template.config/acceptance/matrix.json`, its rule in `.template.config/acceptance/rules.json`,

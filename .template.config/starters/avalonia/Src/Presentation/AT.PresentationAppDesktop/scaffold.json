@@ -9,5 +9,6 @@
     "--name", "{name}", "--output", "{directory}",
     "--mvvm", "CommunityToolkit", "--no-restore"
   ],
-  "keep": ["Assets", "ViewModels", "Views", "App.axaml", "ViewLocator.cs", "app.manifest"]
+  "keep": ["Assets", "ViewModels", "Views", "App.axaml", "ViewLocator.cs", "app.manifest"],
+  "drop": ["AvaloniaUI.DiagnosticsSupport"]
 }

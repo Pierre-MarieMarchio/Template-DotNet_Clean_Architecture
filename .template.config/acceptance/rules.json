@@ -12,9 +12,9 @@
     },
     {
       "paths": [
-        "Launcher/CleanArch.Cli/**",
-        "Launcher/CleanArch.Cli.Commands/**",
-        "Launcher/CleanArch.Tooling/**"
+        "launcher/CleanArch.Cli/**",
+        "launcher/CleanArch.Cli.Commands/**",
+        "launcher/CleanArch.Tooling/**"
       ],
       "tags": ["defaults"]
     },
@@ -26,12 +26,12 @@
         "README.md",
         "CHANGELOG.md",
         "LICENSE",
-        "Launcher/**",
-        "Tools/CheckWorkflows.cs",
-        "Tools/CheckComments.cs",
-        "Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
-        "Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
-        "Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",
+        "launcher/**",
+        "tools/CheckWorkflows.cs",
+        "tools/CheckComments.cs",
+        "tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
+        "tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
+        "tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",
         ".github/workflows/template-release.yml",
         ".github/workflows/template-published-package.yml",
         ".github/workflows/template-pull-request-title.yml",
@@ -46,9 +46,9 @@
     },
     {
       "paths": [
-        "Src/AppHost/**",
-        "Tests/Integration/AT.AppHost.IntegrationTests/**",
-        "Tests/Architecture/AT.Architecture.Tests/Rules/LocalStackParityTests.cs"
+        "src/AppHost/**",
+        "tests/Integration/AT.AppHost.IntegrationTests/**",
+        "tests/Architecture/AT.Architecture.Tests/Rules/LocalStackParityTests.cs"
       ],
       "tags": ["aspire"]
     },
@@ -124,7 +124,7 @@
     },
     {
       "paths": [
-        "Src/Web/**",
+        "src/Web/**",
         ".github/workflows/web.yml",
         ".template.config/webapp/**",
         ".template.config/webpackage/**",

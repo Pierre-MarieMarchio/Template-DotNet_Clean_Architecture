@@ -62,6 +62,30 @@ is [the project tool](../reference/cli.md).
 9. Run `dotnet cleanarch format`, which orders the using directives as bootstrap did,
    then `dotnet cleanarch verify`.
 
+## A project whose root folders are capitalised
+
+The root folders are `src`, `tests` and `tools`; a project generated from a 1.x version has them
+as `Src`, `Tests` and `Tools`. The report matches paths exactly, so move them before reading it, as
+a commit of their own, each in two steps, since a file system that ignores case ignores a rename that
+changes case alone:
+
+```bash
+git mv Src src-tmp && git mv src-tmp src
+git mv Tests tests-tmp && git mv tests-tmp tests
+git mv Tools tools-tmp && git mv tools-tmp tools
+```
+
+Then rewrite each path that still names them, which `git grep -nE '(^|[^A-Za-z])(Src|Tests|Tools)/'`
+lists, before 2.0.0 cased, in the solution, the project files, the Dockerfiles, `.dockerignore`, the
+workflows and the pages, and check the move with `dotnet build`. The report then reads a file under
+the moved folders as unchanged where the newer version writes it as this project holds it, and
+lists it under **Added**, to merge by hand, where it differs; the older generation, kept with 1.x
+casing, is the base of that merge:
+
+```bash
+git merge-file <path> <folder>/<project version>/<path before 2.0.0> <folder>/<newer version>/<path>
+```
+
 ## What the report compares
 
 - **Files bootstrap or a framework's CLI writes are not compared.** The migrations, and wherever
@@ -84,7 +108,7 @@ is [the project tool](../reference/cli.md).
   `cleanarch.json` records, with the defaults of what the file does not record: an app is replayed
   on its recorded `port`, or on its framework's default when the file records none, and an app
   recorded without one is a file to complete by hand, with the number its
-  `Src/Web/apps/<App>/compose.yml` gives `WEB_<NAME>_HOST_PORT`, as `ProjectFileTests` asks. Their
+  `src/Web/apps/<App>/compose.yml` gives `WEB_<NAME>_HOST_PORT`, as `ProjectFileTests` asks. Their
   joins are not replayed, so a file a join edits reads under Merge, with a note.
 - **Nothing from a package runs.** A version whose templates declare a post-action beyond printing
   instructions is refused, and so is a value `cleanarch.json` records that the newer version no

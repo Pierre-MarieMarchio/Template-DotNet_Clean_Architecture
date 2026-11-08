@@ -7,7 +7,7 @@
 #else
 #   docker compose up -d db mailpit
 #endif
-#   dotnet run --project Src/Presentation/AT.Api
+#   dotnet run --project src/Presentation/AT.Api
 #
 #if (files)
 # objectstore is only needed from request 39 onwards: the Files feature signs URLs the client sends

@@ -88,12 +88,12 @@ The `ETag` precondition and the idempotency of a create read
 ## Tests
 
 The service, its input rules, the sort and page policy and the account-deletion consumer are tested in
-`Tests/Application/AT.Application.UnitTests/Features/Notes`, and the row mapping and the sort map in
-`Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Notes`.
+`tests/Application/AT.Application.UnitTests/Features/Notes`, and the row mapping and the sort map in
+`tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Notes`.
 <!--#if (api)-->
-The integration tests in `Tests/Integration/AT.Api.IntegrationTests/Notes` run the routes against a
+The integration tests in `tests/Integration/AT.Api.IntegrationTests/Notes` run the routes against a
 database: creation and reading, another caller's note, the version precondition and the idempotent
-create. `Tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs` shows a write saved
+create. `tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs` shows a write saved
 through a real context.
 <!--#endif-->
 An MCP server's own tests for these tools are in its test project, under `Features/Notes/Tools`.

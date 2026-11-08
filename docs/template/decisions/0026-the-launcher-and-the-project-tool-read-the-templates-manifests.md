@@ -50,7 +50,7 @@ name.
   name, audience and rendering are asked only with `--web`; an item template's project facts come
   from the project, not from a question; and a refusal that reads an item's `-n` is checked on the
   name asked.
-- **They live in `Launcher/`**, one solution with the code they share in `Launcher/CleanArch.Tooling`,
+- **They live in `launcher/`**, one solution with the code they share in `launcher/CleanArch.Tooling`,
   excluded from generation and from the template package.
 
 ## Alternatives considered

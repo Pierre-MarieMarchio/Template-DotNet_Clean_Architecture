@@ -26,7 +26,7 @@ the contracts, which the generator reads only in the assembly that calls `AddOpe
 stays in `Program.cs`.
 
 The reviewed contract is that document, committed under
-`Tests/Integration/AT.Api.IntegrationTests/OpenApi/`. `dotnet cleanarch openapi`
+`tests/Integration/AT.Api.IntegrationTests/OpenApi/`. `dotnet cleanarch openapi`
 writes it from a build, and `OpenApiDocumentTests` fails while the document the API serves differs
 from it, naming each difference. A change to a route, a contract or a summary therefore lands with
 its new reference, and the review reads what a client will read.
@@ -39,7 +39,7 @@ The web apps' API client is generated from the same document, written at build t
 ([ADR 0019](../decisions/0019-one-generated-api-client.md)).
 <!--#endif-->
 <!--#if (dotnetClient)-->
-The .NET client of `Src/Presentation/AT.Presentation.Client` is generated from the reference itself:
+The .NET client of `src/Presentation/AT.Presentation.Client` is generated from the reference itself:
 `dotnet cleanarch openapi` rewrites its `Generated/` folder with the Kiota the tool
 manifest pins, and `dotnet cleanarch openapi --check`, which `verify` runs, fails while
 the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both

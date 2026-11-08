@@ -6,7 +6,7 @@ description: Which projects make up each layer, what each holds, and how a proje
 
 # Layers and projects
 
-Each layer is one folder under `Src/`, and each folder holds a `.Core` project for the mechanisms
+Each layer is one folder under `src/`, and each folder holds a `.Core` project for the mechanisms
 that know no feature, beside the projects that hold the business. A project declares every reference
 it uses; nothing reaches it transitively as a favour, so removing a project never takes a mechanism
 with it silently.
@@ -131,7 +131,7 @@ as it is, so a field added inside the application is never published by that edi
 <!--#if (presentationBlazorServer)-->
 ## The portal
 
-`Src/Presentation/<Initials>.Portal` is a host: a Blazor Web App that calls the use cases in
+`src/Presentation/<Initials>.Portal` is a host: a Blazor Web App that calls the use cases in
 its own process. It references the application projects and the modules it composes, and never another
 host (`NoHost_ReferencesAnotherHost`); under `Common/` and `Features/` it keeps
 its own caller, its sign-in and the adapters a host supplies. [Presentation projects](../features/presentation.md)
@@ -141,8 +141,8 @@ describes it.
 <!--#if (presentationAvalonia)-->
 ## The desktop app
 
-`Src/Presentation/<Initials>.Desktop` is a desktop client: an Avalonia app that calls the API over
-HTTP through the .NET client of `Src/Presentation/<Initials>.Presentation.Client`. It references
+`src/Presentation/<Initials>.Desktop` is a desktop client: an Avalonia app that calls the API over
+HTTP through the .NET client of `src/Presentation/<Initials>.Presentation.Client`. It references
 that client alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes
 no use case and no module. [Presentation projects](../features/presentation.md) describes it.
 
@@ -150,7 +150,7 @@ no use case and no module. [Presentation projects](../features/presentation.md) 
 <!--#if (presentationMcp)-->
 ## The MCP server
 
-`Src/Presentation/<Initials>.Mcp` is a host: an MCP server whose tools call the use cases
+`src/Presentation/<Initials>.Mcp` is a host: an MCP server whose tools call the use cases
 in its own process, one use case each. It references the application projects and the modules it
 composes, and never another host (`NoHost_ReferencesAnotherHost`); under `Common/`
 and `Features/` it keeps its own caller, its authentication, its tools and the adapters a host
@@ -160,8 +160,8 @@ supplies. [Presentation projects](../features/presentation.md) describes it.
 <!--#if (presentationWpf)-->
 ## The desktop app
 
-`Src/Presentation/<Initials>.Desktop` is a desktop client for Windows: a WPF app that calls the API
-over HTTP through the .NET client of `Src/Presentation/<Initials>.Presentation.Client`. It
+`src/Presentation/<Initials>.Desktop` is a desktop client for Windows: a WPF app that calls the API
+over HTTP through the .NET client of `src/Presentation/<Initials>.Presentation.Client`. It
 references that client alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it
 composes no use case and no module. It is developed, run and tested on Windows; other systems build it.
 [Presentation projects](../features/presentation.md) describes it.

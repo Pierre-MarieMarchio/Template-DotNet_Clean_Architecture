@@ -62,7 +62,7 @@ says.
 Each question is also a flag named like the option, and `--yes` takes the default of each one not
 given, or the only value the template leaves it: `--auth none --yes` generates with
 `--examples none --files false`. Such a project has no feature, so its use-case test project,
-`Tests/Application/<Initials>.Application.UnitTests`, holds no test and reports "Zero tests ran"
+`tests/Application/<Initials>.Application.UnitTests`, holds no test and reports "Zero tests ran"
 when run alone, which is expected. Without a terminal, every answer is a flag or `--yes` is passed.
 `dnx` takes `--yes`, `--help` and `--version` for itself, so every argument of the launcher follows
 `--`:
@@ -156,8 +156,8 @@ conditions cannot search a name, and the build then stops on CA1707.
 
 | Option | Values | Default | Gives |
 |---|---|---|---|
-| `--presentation` | `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker`, once per value | `api` | the hosts the project holds in `Src/Presentation`, one or several ([template decision 0020](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)): `api` is the HTTP API, `<Project>.Api`, which a web app, a desktop client or the MCP server under `--auth local` brings when it is not chosen; `blazor-server` is `<Project>.Portal`, a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `mcp` is `<Project>.Mcp`, an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names, bringing the access keys under `--auth local`; `avalonia` is `<Project>.Desktop`, a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`; `wpf` is `<Project>.Desktop` for Windows, written in the shape of `dotnet new wpf`, one project with its view models and host, Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip; `worker` is `<Project>.Worker`, written in the shape of `dotnet new worker`, which takes the API's background jobs and their tests, and which a project holding neither the API nor the worker gets without choosing it. Without the worker the jobs run in the API |
-| `--web` | `none`, `placeholder`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `blazor-wasm` | `none` | the first web app in `Src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
+| `--presentation` | `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker`, once per value | `api` | the hosts the project holds in `src/Presentation`, one or several ([template decision 0020](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)): `api` is the HTTP API, `<Project>.Api`, which a web app, a desktop client or the MCP server under `--auth local` brings when it is not chosen; `blazor-server` is `<Project>.Portal`, a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `mcp` is `<Project>.Mcp`, an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names, bringing the access keys under `--auth local`; `avalonia` is `<Project>.Desktop`, a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`; `wpf` is `<Project>.Desktop` for Windows, written in the shape of `dotnet new wpf`, one project with its view models and host, Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip; `worker` is `<Project>.Worker`, written in the shape of `dotnet new worker`, which takes the API's background jobs and their tests, and which a project holding neither the API nor the worker gets without choosing it. Without the worker the jobs run in the API |
+| `--web` | `none`, `placeholder`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `blazor-wasm` | `none` | the first web app in `src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
 | `--web-rendering` | `spa`, `ssr` | `spa` | how the first app renders: `ssr` renders each page on its framework's own Node server, with a nonce per response and, with accounts, the session, for `angular` and `react-router` |
@@ -167,8 +167,8 @@ conditions cannot search a name, and the build then stops on CA1707.
 | `--files` | `true`, `false` | `true` | the Files feature, its storage module, the object store in Compose and its tables |
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
 | `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and command, and its steps in `ci.yml` when `--ci` is true |
-| `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
-| `--aspire` | `true`, `false` | `false` | an Aspire app host, `<Project>.AppHost` in `Src/AppHost`, beside Docker Compose, which stays the reference of the deployment: it starts the containers Compose runs and every host and web app `cleanarch.json` records, with the settings Compose gives them and their telemetry in the Aspire dashboard, and its integration test starts the whole stack; refused with `--database sqlite` |
+| `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
+| `--aspire` | `true`, `false` | `false` | an Aspire app host, `<Project>.AppHost` in `src/AppHost`, beside Docker Compose, which stays the reference of the deployment: it starts the containers Compose runs and every host and web app `cleanarch.json` records, with the settings Compose gives them and their telemetry in the Aspire dashboard, and its integration test starts the whole stack; refused with `--database sqlite` |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that
 writes the app and never changes meaning:
@@ -229,8 +229,8 @@ rather than for the template, from `.template.config/variants/project/.github`.
 What maintains the template stays here: `docs/template/`, this repository's `README.md`, the
 changelog, the plans, the package project `.template.config/TemplatePackage.csproj`,
 `template-acceptance.yml`, `template-release.yml`, the issue forms under `.github/ISSUE_TEMPLATE`,
-`CODE_OF_CONDUCT.md`, `SUPPORT.md`, and the three tree-auditing gates `Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs` and
-`Tools/CheckComments.cs`.
+`CODE_OF_CONDUCT.md`, `SUPPORT.md`, and the three tree-auditing gates `tools/CheckDocPaths.cs`, `tools/CheckWorkflows.cs` and
+`tools/CheckComments.cs`.
 [Template decision 0018](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md) records why.
 
 ## Item templates
@@ -245,14 +245,14 @@ dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-
 
 | Template | Options |
 |---|---|
-| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--rendering spa\|ssr` (`ssr` for `angular` and `react-router`), `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), the project's `--examples`, `--files` and `--agent-files`, and `--has-client true` where the project holds the .NET client already, which it then uses instead of writing; it is refused with `--auth none`. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`, and needs `--project-name`; it is refused where `Src/Web` exists |
+| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--rendering spa\|ssr` (`ssr` for `angular` and `react-router`), `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), the project's `--examples`, `--files` and `--agent-files`, and `--has-client true` where the project holds the .NET client already, which it then uses instead of writing; it is refused with `--auth none`. `--workspace` also creates `src/Web` and `web.yml`, for the first app of a project generated with `--web none`, and needs `--project-name`; it is refused where `src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
 | `cleanarch-presentation` | `--framework blazor-server\|avalonia\|wpf\|mcp\|worker` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals; `avalonia` and `wpf` take `--has-client true` where the project holds the .NET client already; `mcp` is refused with `--auth none`; `--has-api false` where the project holds no API, which refuses `avalonia`, `wpf`, and `mcp` under `--auth local`. `-n` is the presentation project's name, `Portal` by default (pass `-n Mcp` for an MCP server, `-n Desktop` for a desktop app), refused when it names one of the template's projects: a presentation project the project was generated without |
 
 An item template can add files but not edit them, so the `README.md` it writes lists each line its
 option writes elsewhere, in the form the join step of `add` reads: `cleanarch-webapp` the app's `include:`
 line in `docker-compose.yml` and its port in `.env.example`, and with `--workspace`
-`Src/Web/README.md` the workspace's lines in `.dockerignore`, `.github/dependabot.yml`, the
+`src/Web/README.md` the workspace's lines in `.dockerignore`, `.github/dependabot.yml`, the
 workflows and the pages under `docs/`. `dotnet cleanarch add web-app --name <name>`
 makes them, once the folder holds the app. `cleanarch-presentation`
 writes the project, its tests and its page, and the `README.md` in the project's folder lists every

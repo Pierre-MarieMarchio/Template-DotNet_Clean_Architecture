@@ -79,7 +79,7 @@ their own budgets.
 
 ## The clock
 
-`TimeProvider.GetUtcNow()` is the one clock, and no code under `Src/` reads `DateTime.UtcNow` or
+`TimeProvider.GetUtcNow()` is the one clock, and no code under `src/` reads `DateTime.UtcNow` or
 `DateTimeOffset.UtcNow`: `ClockUsageTests` holds it. The BCL's `TimeProvider` is the clock rather than a
 port of this project because it is the standard abstraction, `FakeTimeProvider` is its official test
 double, and the timers (`PeriodicTimer`) take it too, so a test moves a job's interval without waiting.

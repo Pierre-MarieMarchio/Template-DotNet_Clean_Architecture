@@ -59,12 +59,12 @@ its strings and comments set aside, a key in a settings file, a heading of the c
 reference, a link to the feature's page, its route or its error code. The feature's name in a
 sentence refers to nothing, so the report leaves it out.
 <!--#if (api)-->
-It reads neither the solution, the `.props` and `.targets` files nor `Tools/`, nor what is written
+It reads neither the solution, the `.props` and `.targets` files nor `tools/`, nor what is written
 again from the code: the generated clients, the web workspace's API schema, the OpenAPI reference and
 the migrations.
 <!--#endif-->
 <!--#if (!api)-->
-It reads neither the solution, the `.props` and `.targets` files nor `Tools/`, nor the migrations.
+It reads neither the solution, the `.props` and `.targets` files nor `tools/`, nor the migrations.
 <!--#endif-->
 
 `--apply` changes nothing while a file it would delete or edit is not committed as it stands, since
@@ -76,7 +76,7 @@ feature's page, builds once, and from that build adds the `Remove<Features>` mig
 [below](#migrations) says, and rewrites the OpenAPI reference and what is written from it.
 <!--#endif-->
 <!--#if (anyWeb)-->
-With a web workspace, that rewrite includes `pnpm api <reference>` in `Src/Web`, which needs Node.js and pnpm.
+With a web workspace, that rewrite includes `pnpm api <reference>` in `src/Web`, which needs Node.js and pnpm.
 <!--#endif-->
 <!--#if (!api)-->
 It then deletes and undoes everything or nothing, writes the documentation index again without the
@@ -106,21 +106,21 @@ Reminders depends on TodoLists: it consumes `TodoItemCompletedDomainEvent` and r
 
 ### What to delete
 
-Delete `Features/<Feature>/` in every layer that has one, and its mirror under `Tests/`:
+Delete `Features/<Feature>/` in every layer that has one, and its mirror under `tests/`:
 <!--#endif-->
 <!--#if (todoLists)-->
 
 - TodoLists and Reminders in the domain, application, persistence and API; the API folders carry the
   jobs.
-- `Src/Infrastructure/AT.Infrastructure.Email/Features/` and
-  `Src/Infrastructure/AT.Infrastructure.InMemory/Features/Reminders/` with Reminders.
-- `Tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs` and `AReminder.cs`,
+- `src/Infrastructure/AT.Infrastructure.Email/Features/` and
+  `src/Infrastructure/AT.Infrastructure.InMemory/Features/Reminders/` with Reminders.
+- `tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs` and `AReminder.cs`,
   and the integration folders `TodoLists/` and `Reminders/`.
 - [the TodoLists page](../features/todo-lists.md) and [the Reminders page](../features/reminders.md).
 <!--#endif-->
 <!--#if (notes && api)-->
 - Notes in the application, persistence and API, and
-  `Tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs`.
+  `tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs`.
 - [the Notes page](../features/notes.md).
 <!--#endif-->
 <!--#if (notes && !api)-->
@@ -138,9 +138,9 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 
 | File | Change |
 |---|---|
-| `Src/Application/AT.Application/ApplicationModule.cs` | the feature's `Add<Features>()` method and its constant |
-| `Src/Infrastructure/AT.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
-| `Src/Infrastructure/AT.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
+| `src/Application/AT.Application/ApplicationModule.cs` | the feature's `Add<Features>()` method and its constant |
+| `src/Infrastructure/AT.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
+| `src/Infrastructure/AT.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
 | <!--#if (presentationBlazorServer)--> |
 | the portal's `Program.cs` | the `Add<Features>()` line |
 | <!--#endif--> |
@@ -149,28 +149,28 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 | the MCP server's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
 | <!--#endif--> |
 | <!--#if (api)--> |
-| `Src/Presentation/AT.Api/Program.cs` | the `Add<Features>()` line |
+| `src/Presentation/AT.Api/Program.cs` | the `Add<Features>()` line |
 | <!--#endif--> |
 | <!--#if (jobsWorker)--> |
-| `Src/Presentation/<Initials>.Worker/Program.cs` | the same line |
+| `src/Presentation/<Initials>.Worker/Program.cs` | the same line |
 | <!--#endif--> |
-| `Tests/Architecture/AT.Architecture.Tests/Composition/HostComposition.cs` | the same calls |
-| `Tests/Application/AT.Application.UnitTests/ApplicationModuleTests.cs` | the feature's call and the facts naming its types |
+| `tests/Architecture/AT.Architecture.Tests/Composition/HostComposition.cs` | the same calls |
+| `tests/Application/AT.Application.UnitTests/ApplicationModuleTests.cs` | the feature's call and the facts naming its types |
 | <!--#if (api)--> |
-| `Tests/Integration/AT.Api.IntegrationTests/Infrastructure/TestDatabase.cs` | the feature's schema |
+| `tests/Integration/AT.Api.IntegrationTests/Infrastructure/TestDatabase.cs` | the feature's schema |
 | <!--#endif--> |
 | <!--#endif--> |
 | <!--#if (todoLists)--> |
 | <!--#if (!jobsWorker)--> |
-| `Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
-| `Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
+| `src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
+| `src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
 | <!--#endif--> |
 | <!--#if (jobsWorker)--> |
-| `Src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
-| `Src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
+| `src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
+| `src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
 | <!--#endif--> |
-| `Src/Infrastructure/AT.Infrastructure.Email/EmailModule.cs` | the reminder notifier; `IEmailSender` stays |
-| `Src/Infrastructure/AT.Infrastructure.InMemory/InMemoryModule.cs` | `AddInMemoryReminderNotifications` |
+| `src/Infrastructure/AT.Infrastructure.Email/EmailModule.cs` | the reminder notifier; `IEmailSender` stays |
+| `src/Infrastructure/AT.Infrastructure.InMemory/InMemoryModule.cs` | `AddInMemoryReminderNotifications` |
 <!--#endif-->
 <!--#if (todoLists || notes)-->
 
@@ -216,8 +216,8 @@ With Notes goes the only example of the simple shape.
 
 Files is a working capability: a product that stores files re-points it at its own bucket. To remove
 it, delete `Features/Files/` in every layer with its test mirrors, the integration folders `Files/` and
-`Storage/`, and the projects `Src/Infrastructure/AT.Infrastructure.Storage` and
-`Tests/Infrastructure/AT.Infrastructure.Storage.UnitTests` with their solution entries. Then
+`Storage/`, and the projects `src/Infrastructure/AT.Infrastructure.Storage` and
+`tests/Infrastructure/AT.Infrastructure.Storage.UnitTests` with their solution entries. Then
 edit:
 
 - the four registration files above, and `AddStorageModule` in `Program.cs`;
@@ -256,16 +256,16 @@ applies it next; one that applied none applies them all and ends without the fea
 <!--#if (localAuth && api)-->
 ## Remove authentication
 
-Delete `Src/Application/AT.Application.Auth`, `Src/Infrastructure/AT.Infrastructure.Auth`
-and `Src/Presentation/AT.Api/Features/Auth` with their tests and solution entries, and the
+Delete `src/Application/AT.Application.Auth`, `src/Infrastructure/AT.Infrastructure.Auth`
+and `src/Presentation/AT.Api/Features/Auth` with their tests and solution entries, and the
 `AddAuthFeature` line in `Program.cs`; the `identity` migration goes with its project. The host then
 owes an authentication scheme of its own and the `Administrator` policy.
 <!--#endif-->
 <!--#if (localAuth && !api)-->
 ## Remove authentication
 
-Delete `Src/Application/AT.Application.Auth`, `Src/Infrastructure/AT.Infrastructure.Auth` and the
-`Features/Auth` folder of each host under `Src/Presentation` with their tests and solution entries, and
+Delete `src/Application/AT.Application.Auth`, `src/Infrastructure/AT.Infrastructure.Auth` and the
+`Features/Auth` folder of each host under `src/Presentation` with their tests and solution entries, and
 the line that composes it in each host's `Program.cs`; the `identity` migration goes with its
 project.
 <!--#endif-->
@@ -284,13 +284,13 @@ with a directory over your provider, or remove Reminders too.
 <!--#if (api)-->
 ```bash
 dotnet cleanarch verify
-docker build -f Src/Presentation/AT.Api/Dockerfile .
+docker build -f src/Presentation/AT.Api/Dockerfile .
 ```
 <!--#endif-->
 <!--#if (!api)-->
 ```bash
 dotnet cleanarch verify
-docker build -f Src/Presentation/<Initials>.Worker/Dockerfile .
+docker build -f src/Presentation/<Initials>.Worker/Dockerfile .
 ```
 <!--#endif-->
 

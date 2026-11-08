@@ -65,7 +65,7 @@ features grow beside them, and the documentation grows with them.
 
 | Part | Here |
 |---|---|
-| Layers | `Src/Domain`, `Src/Application`, `Src/Infrastructure` and `Src/Presentation`, each mirrored under `Tests/` |
+| Layers | `src/Domain`, `src/Application`, `src/Infrastructure` and `src/Presentation`, each mirrored under `tests/` |
 | <!--#if (localAuth && files)--> |
 | Modules | Persistence, Auth, Email, Storage, InMemory |
 | <!--#endif--> |
@@ -91,11 +91,11 @@ features grow beside them, and the documentation grows with them.
 | Background jobs | timers in the API process, switched per instance |
 | <!--#endif--> |
 | <!--#if (jobsWorker)--> |
-| Background jobs | timers in the worker, `Src/Presentation/<Initials>.Worker`, a process of their own |
+| Background jobs | timers in the worker, `src/Presentation/<Initials>.Worker`, a process of their own |
 | <!--#endif--> |
-| Tools | `dotnet cleanarch`, pinned in `.config/dotnet-tools.json`: the build, the gates, the feature generator and its undo, one more use case, a validated setting, a domain event, and what a newer version of the package changes; `Tools/` holds the commands you add or eject |
+| Tools | `dotnet cleanarch`, pinned in `.config/dotnet-tools.json`: the build, the gates, the feature generator and its undo, one more use case, a validated setting, a domain event, and what a newer version of the package changes; `tools/` holds the commands you add or eject |
 | <!--#if (anyWeb)--> |
-| Web | `Src/Web`, a pnpm workspace with one app, a generated API client and shared packages |
+| Web | `src/Web`, a pnpm workspace with one app, a generated API client and shared packages |
 | <!--#endif--> |
 | <!--#if (ci)--> |
 | CI | GitHub Actions workflows under `.github/workflows` |
@@ -160,34 +160,34 @@ setting, table or test names it.
 | `--sonar` | `false` | no Sonar analysis |
 | <!--#endif--> |
 | <!--#if (aspire)--> |
-| `--aspire` | `true` | an Aspire app host in `Src/AppHost`, beside Docker Compose, which it follows |
+| `--aspire` | `true` | an Aspire app host in `src/AppHost`, beside Docker Compose, which it follows |
 | <!--#endif--> |
 | <!--#if (!aspire)--> |
 | `--aspire` | `false` | no Aspire app host; Docker Compose runs the local stack |
 | <!--#endif--> |
 | <!--#if (webAngular)--> |
-| `--web` | `angular` | an Angular app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
+| `--web` | `angular` | an Angular app in `src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
 | <!--#endif--> |
 | <!--#if (web == "vite-react")--> |
-| `--web` | `vite-react` | a React app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
+| `--web` | `vite-react` | a React app in `src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
 | <!--#endif--> |
 | <!--#if (webViteVue)--> |
-| `--web` | `vite-vue` | a Vue app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
+| `--web` | `vite-vue` | a Vue app in `src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
 | <!--#endif--> |
 | <!--#if (webViteSvelte)--> |
-| `--web` | `vite-svelte` | a Svelte app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
+| `--web` | `vite-svelte` | a Svelte app in `src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
 | <!--#endif--> |
 | <!--#if (webReactRouter && !webServerRendering)--> |
-| `--web` | `react-router` | a React single-page app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
+| `--web` | `react-router` | a React single-page app in `src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
 | <!--#endif--> |
 | <!--#if (webReactRouter && webServerRendering)--> |
-| `--web` | `react-router` | a React app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
+| `--web` | `react-router` | a React app in `src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
 | <!--#endif--> |
 | <!--#if (webBlazorWasm)--> |
-| `--web` | `blazor-wasm` | a Blazor WebAssembly app in `Src/Web/apps/FrameworkSite`, created by `dotnet new blazorwasm` at bootstrap, calling the API through the .NET client of `Src/Presentation/AT.Presentation.Client` |
+| `--web` | `blazor-wasm` | a Blazor WebAssembly app in `src/Web/apps/FrameworkSite`, created by `dotnet new blazorwasm` at bootstrap, calling the API through the .NET client of `src/Presentation/AT.Presentation.Client` |
 | <!--#endif--> |
 | <!--#if (webPlaceholder)--> |
-| `--web` | `placeholder` | a static page in `Src/Web/apps/PlaceholderSite`, served by nginx |
+| `--web` | `placeholder` | a static page in `src/Web/apps/PlaceholderSite`, served by nginx |
 | <!--#endif--> |
 | <!--#if (!anyWeb)--> |
 | <!--#if (api)--> |
@@ -207,25 +207,25 @@ setting, table or test names it.
 | `--web-rendering` | `ssr` | the app is rendered on the server for each request, by its framework's own Node server ([Web front end](../features/web-frontend.md#images-and-headers)) |
 | <!--#endif--> |
 | <!--#if (api && !jobsWorker)--> |
-| `--presentation` | `api` | the HTTP API in `Src/Presentation`, which also runs the background jobs ([Background jobs](../features/background-jobs.md)) |
+| `--presentation` | `api` | the HTTP API in `src/Presentation`, which also runs the background jobs ([Background jobs](../features/background-jobs.md)) |
 | <!--#endif--> |
 | <!--#if (api && jobsWorker)--> |
-| `--presentation` | `api` | the HTTP API in `Src/Presentation` |
+| `--presentation` | `api` | the HTTP API in `src/Presentation` |
 | <!--#endif--> |
 | <!--#if (jobsWorker)--> |
-| `--presentation` | `worker` | a worker in `Src/Presentation` that runs the background jobs, written in the shape of `dotnet new worker` ([Background jobs](../features/background-jobs.md)) |
+| `--presentation` | `worker` | a worker in `src/Presentation` that runs the background jobs, written in the shape of `dotnet new worker` ([Background jobs](../features/background-jobs.md)) |
 | <!--#endif--> |
 | <!--#if (presentationBlazorServer)--> |
-| `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation projects](../features/presentation.md)) |
+| `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation projects](../features/presentation.md)) |
 | <!--#endif--> |
 | <!--#if (presentationAvalonia)--> |
-| `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Presentation/AT.Presentation.Client` ([Presentation projects](../features/presentation.md)) |
+| `--presentation` | `avalonia` | an Avalonia desktop app in `src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `src/Presentation/AT.Presentation.Client` ([Presentation projects](../features/presentation.md)) |
 | <!--#endif--> |
 | <!--#if (presentationMcp)--> |
-| `--presentation` | `mcp` | an MCP server in `Src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation projects](../features/presentation.md)) |
+| `--presentation` | `mcp` | an MCP server in `src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation projects](../features/presentation.md)) |
 | <!--#endif--> |
 | <!--#if (presentationWpf)--> |
-| `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, calling the API through the .NET client of `Src/Presentation/AT.Presentation.Client`, developed, run and tested on Windows ([Presentation projects](../features/presentation.md)) |
+| `--presentation` | `wpf` | a WPF desktop app for Windows in `src/Presentation`, in the shape of `dotnet new wpf`, calling the API through the .NET client of `src/Presentation/AT.Presentation.Client`, developed, run and tested on Windows ([Presentation projects](../features/presentation.md)) |
 <!--#endif-->
 
 To change a value, remove the part by hand or add it:

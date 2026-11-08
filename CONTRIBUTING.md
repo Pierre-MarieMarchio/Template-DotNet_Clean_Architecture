@@ -17,7 +17,7 @@ Each rule has one home, and a test holds it wherever a test can.
 | <!--#if (agentFiles)--> |
 | How to work here: the commands, where code goes, what done means | [AGENTS.md](AGENTS.md) |
 | <!--#endif--> |
-| What may depend on what | [Architecture](docs/architecture/README.md), held by `Tests/Architecture` |
+| What may depend on what | [Architecture](docs/architecture/README.md), held by `tests/Architecture` |
 | Which project and folder a file goes in, and its name | [Project layout](docs/reference/project-layout.md) |
 | A feature's shape: an aggregate, or a service over a store | [Feature shapes](docs/architecture/feature-shapes.md) |
 | <!--#if (api)--> |
@@ -50,7 +50,7 @@ Each rule has one home, and a test holds it wherever a test can.
 - The gate passes, without overrides.
 - New behaviour comes with a test you have seen fail: break the code, watch the test go red, restore
   it.
-- A constraint you checked by hand becomes a rule in `Tests/Architecture`.
+- A constraint you checked by hand becomes a rule in `tests/Architecture`.
 - A decision that could reasonably have gone the other way is an ADR.
 - Commits and pull requests name their human author only, with no `Co-Authored-By` or "Generated
   with" line naming an AI tool; the author answers for every line and can explain it. Where a tool

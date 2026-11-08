@@ -84,13 +84,13 @@ x-host-environment: &host-environment
   #endif
 
 #if (anyWeb)
-# One line per web app: its compose.yml declares the service, built from Src/Web.
+# One line per web app: its compose.yml declares the service, built from src/Web.
 include:
   #if (webPlaceholder)
-  - path: Src/Web/apps/PlaceholderSite/compose.yml
+  - path: src/Web/apps/PlaceholderSite/compose.yml
   #endif
   #if (webFramework)
-  - path: Src/Web/apps/FrameworkSite/compose.yml
+  - path: src/Web/apps/FrameworkSite/compose.yml
   #endif
 
 #endif
@@ -128,7 +128,7 @@ services:
     image: app-template-presentation-app-portal:dev
     build:
       context: .
-      dockerfile: Src/Presentation/AT.PresentationAppPortal/Dockerfile
+      dockerfile: src/Presentation/AT.PresentationAppPortal/Dockerfile
     restart: unless-stopped
     environment:
       <<: *host-environment
@@ -179,7 +179,7 @@ services:
     image: app-template-presentation-app-mcp:dev
     build:
       context: .
-      dockerfile: Src/Presentation/AT.PresentationAppMcp/Dockerfile
+      dockerfile: src/Presentation/AT.PresentationAppMcp/Dockerfile
     restart: unless-stopped
     environment:
       <<: *host-environment
@@ -222,7 +222,7 @@ services:
     image: app-template-api:dev
     build:
       context: .
-      dockerfile: Src/Presentation/AT.Api/Dockerfile
+      dockerfile: src/Presentation/AT.Api/Dockerfile
     restart: unless-stopped
     environment:
       <<: *host-environment
@@ -283,7 +283,7 @@ services:
     image: app-template-worker:dev
     build:
       context: .
-      dockerfile: Src/Presentation/AT.Worker/Dockerfile
+      dockerfile: src/Presentation/AT.Worker/Dockerfile
     restart: unless-stopped
     environment:
       <<: *host-environment
@@ -388,7 +388,7 @@ services:
     profiles: [sonar]
     build:
       context: .
-      dockerfile: Tools/sonar-scanner.Dockerfile
+      dockerfile: tools/sonar-scanner.Dockerfile
     depends_on:
       sonarqube:
         condition: service_healthy

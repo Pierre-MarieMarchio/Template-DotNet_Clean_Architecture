@@ -1,0 +1,124 @@
+﻿using AppTemplate.Architecture.Tests.Fixtures;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Architecture.Tests.Rules;
+
+public sealed class TestProjectMirrorTests
+{
+    private const string _unitTestsSuffix = ".UnitTests";
+
+    private static readonly MirrorException[] _withoutAUnitTestProject =
+    [
+        new(
+            "a project of the web workspace is the output of an official CLI (dotnet new blazorwasm for a " +
+            "WebAssembly app) and the web acceptance legs run it; one that brings its own unit tests keeps them",
+            project => project.RelativePath.Replace('\\', '/').StartsWith("src/Web/", StringComparison.Ordinal)),
+        //#if (aspire)
+        new(
+            "the app host composes the local stack and none of the product: LocalStackTests in its integration " +
+            "project starts it, and LocalStackParityTests holds it to the Compose files",
+            project => project.RelativePath.Replace('\\', '/').StartsWith("src/AppHost/", StringComparison.Ordinal)),
+        //#endif
+    ];
+
+    [Fact]
+    public void EverySourceProject_HasItsUnitTestProject_ExceptTheOnesNamedHere()
+    {
+        var sources = ProjectReferenceGraph.SourceProjects.Values
+            .Where(project => !project.RelativePath.Contains("node_modules", StringComparison.Ordinal))
+            .ToList();
+
+        sources.ShouldNotBeEmpty("No source project was read, so this rule would hold by reading nothing.");
+
+        MissingMirrors(sources, TestProjectPaths())
+            .ShouldBeEmpty(
+                "A source project has one unit test project, named for it with .UnitTests and placed " +
+                "under tests/ in the same layer folder, as the project layout says. Add the project " +
+                "named here; a kind of project that cannot have one goes in the list at the top of " +
+                "this class, with its reason.");
+    }
+
+    [Fact]
+    public void EveryUnitTestProject_MirrorsASourceProject()
+    {
+        Orphans(TestProjectPaths(), SourceNames())
+            .ShouldBeEmpty(
+                "A unit test project with no source project of its name tests nothing that exists: " +
+                "the project it mirrored was removed or renamed. Delete it, or rename it with its source.");
+    }
+
+    [Fact]
+    public void TheMirror_IsSensitive_AndSeesAMissingProjectAnOrphanAndTheExceptions()
+    {
+        string product = ProjectFolders.ProductName;
+        var lonely = Source($"src/Domain/{ProjectFolders.FolderOf(product + ".Domain.Core")}/{product}.Domain.Core.csproj");
+        var webApp = Source($"src/Web/apps/AnySite/{product}.AnySite.csproj");
+        var desktop = Source($"src/Presentation/{ProjectFolders.FolderOf(product + ".Desktop")}/{product}.Desktop.csproj");
+        string mirror = ExpectedPath(lonely);
+        HashSet<string> none = new(StringComparer.Ordinal);
+
+        MissingMirrors([lonely, webApp, desktop], none)
+            .ShouldBe([mirror, ExpectedPath(desktop)], "A source project with no test project is reported, a desktop app among them; a web app is not.");
+
+        MissingMirrors([lonely], new HashSet<string>([mirror], StringComparer.Ordinal))
+            .ShouldBeEmpty("A source project whose mirror exists is not reported.");
+
+        Orphans(
+                [$"tests/Domain/{ProjectFolders.FolderOf(product + ".Domain.Gone")}.UnitTests/{product}.Domain.Gone.UnitTests.csproj"],
+                new HashSet<string>([product + ".Domain.Core"], StringComparer.Ordinal))
+            .ShouldNotBeEmpty("A test project whose source does not exist is reported.");
+    }
+
+    private static List<string> MissingMirrors(IEnumerable<ProjectNode> sources, HashSet<string> testProjectPaths) =>
+        [
+            .. sources
+                .Where(project => !Array.Exists(_withoutAUnitTestProject, exception => exception.Applies(project)))
+                .Select(ExpectedPath)
+                .Where(path => !testProjectPaths.Contains(path))
+                .Order(StringComparer.Ordinal),
+        ];
+
+    private static List<string> Orphans(IEnumerable<string> testProjectPaths, HashSet<string> sourceNames) =>
+        [
+            .. testProjectPaths
+                .Where(path => Path.GetFileNameWithoutExtension(path).EndsWith(_unitTestsSuffix, StringComparison.Ordinal))
+                .Where(path => !sourceNames.Contains(
+                    Path.GetFileNameWithoutExtension(path)[..^_unitTestsSuffix.Length]))
+                .Order(StringComparer.Ordinal),
+        ];
+
+    private static string ExpectedPath(ProjectNode source)
+    {
+        string[] segments = source.RelativePath.Replace('\\', '/').Split('/');
+
+        return $"tests/{segments[1]}/{ProjectFolders.FolderOf(source.Name)}{_unitTestsSuffix}/{source.Name}{_unitTestsSuffix}.csproj";
+    }
+
+    private static ProjectNode Source(string relativePath) =>
+        new(
+            Path.GetFileNameWithoutExtension(relativePath),
+            relativePath,
+            new HashSet<string>(),
+            false,
+            false,
+            string.Empty,
+            new HashSet<string>(),
+            new HashSet<string>());
+
+    private static HashSet<string> SourceNames() =>
+        ProjectReferenceGraph.SourceProjects.Keys.ToHashSet(StringComparer.Ordinal);
+
+    private static HashSet<string> TestProjectPaths()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        return
+        [
+            .. RepositoryTree.SourceFiles(Path.Combine(root, "tests"), "*.csproj", ["node_modules"])
+                .Select(path => RepositoryTree.Relative(root, path)),
+        ];
+    }
+
+    private sealed record MirrorException(string Reason, Func<ProjectNode, bool> Applies);
+}

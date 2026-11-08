@@ -28,7 +28,7 @@ records. The template has to offer that form without doubling its values.
 
 ## Decision
 
-- **One wiring, a catalogue of starters.** `Src/Web/apps/FrameworkSite` holds the wiring every
+- **One wiring, a catalogue of starters.** `src/Web/apps/FrameworkSite` holds the wiring every
   framework app shares, under one set of rename tokens. Each `--web` value with a CLI is a starter,
   a folder under `.template.config/starters` named after the value, holding
   `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`. The project template and
@@ -110,7 +110,7 @@ records. The template has to offer that form without doubling its values.
   build does once, from the very page the image serves.
 - **The hash step in every image.** It would allow an inline script that slips into any app's page
   as silently as React Router's: a starter whose page carries none keeps refusing them.
-- **Starters inside `Src/Web/apps`.** The checkout would carry a descriptor per framework where
+- **Starters inside `src/Web/apps`.** The checkout would carry a descriptor per framework where
   `add web-app` looks for apps to create, and each generated project would need them excluded.
 - **A `--web` value per rendering, `angular-ssr` beside `angular`.** Every value that renders both
   ways doubles, the launcher shows both, and each starter to come that renders both ways doubles

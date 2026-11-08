@@ -1,6 +1,6 @@
 name: Web
 
-# The web workspace Src/Web, apart from ci.yml so that adding the first web app adds this file and edits none.
+# The web workspace src/Web, apart from ci.yml so that adding the first web app adds this file and edits none.
 on:
   push:
     branches: [main]
@@ -29,24 +29,24 @@ jobs:
     timeout-minutes: 20
     defaults:
       run:
-        working-directory: Src/Web
+        working-directory: src/Web
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The version and its hash come from packageManager in Src/Web/package.json.
+      # The version and its hash come from packageManager in src/Web/package.json.
       - name: Set up pnpm (from package.json)
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          package_json_file: Src/Web/package.json
+          package_json_file: src/Web/package.json
           cache: true
-          cache_dependency_path: Src/Web/pnpm-lock.yaml
+          cache_dependency_path: src/Web/pnpm-lock.yaml
 
       - name: Set up Node.js (from .node-version)
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: Src/Web/.node-version
+          node-version-file: src/Web/.node-version
 
       - name: Set up .NET SDK (from global.json)
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -73,11 +73,11 @@ jobs:
         run: |
           pnpm api
           if ! git diff --exit-code -- packages/api-client/src/generated; then
-            echo "::error title=Stale API client::The API changed since packages/api-client was generated. Run pnpm api in Src/Web and commit the result."
+            echo "::error title=Stale API client::The API changed since packages/api-client was generated. Run pnpm api in src/Web and commit the result."
             exit 1
           fi
 
-  # Every folder under Src/Web/apps holding a Dockerfile and a package.json is an app with its own image; one still holding scaffold.json waits for web-scaffold.
+  # Every folder under src/Web/apps holding a Dockerfile and a package.json is an app with its own image; one still holding scaffold.json waits for web-scaffold.
   web-apps:
     name: Web apps
     runs-on: ubuntu-latest
@@ -93,9 +93,9 @@ jobs:
         id: discover
         run: |
           set -euo pipefail
-          apps=$(find Src/Web/apps -mindepth 2 -maxdepth 2 -name Dockerfile -printf '%h\n' | while read -r app; do if [ -f "$app/package.json" ]; then basename "$app"; fi; done | sort | jq -R . | jq -cs .)
+          apps=$(find src/Web/apps -mindepth 2 -maxdepth 2 -name Dockerfile -printf '%h\n' | while read -r app; do if [ -f "$app/package.json" ]; then basename "$app"; fi; done | sort | jq -R . | jq -cs .)
           if [ "$apps" = "[]" ]; then
-            echo "::error title=No web app::Src/Web/apps holds no app with a Dockerfile and a package.json: run dotnet cleanarch bootstrap, or dotnet cleanarch add web-app --name <App> for one app, and commit the app it creates."
+            echo "::error title=No web app::src/Web/apps holds no app with a Dockerfile and a package.json: run dotnet cleanarch bootstrap, or dotnet cleanarch add web-app --name <App> for one app, and commit the app it creates."
             exit 1
           fi
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
@@ -133,8 +133,8 @@ jobs:
       - name: Build the image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: Src/Web
-          file: Src/Web/apps/${{ matrix.app }}/Dockerfile
+          context: src/Web
+          file: src/Web/apps/${{ matrix.app }}/Dockerfile
           platforms: linux/amd64
           push: false
           load: true

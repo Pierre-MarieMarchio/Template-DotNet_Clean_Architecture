@@ -52,16 +52,16 @@ behind the `Administrator` policy.
 ## One process: HTTP and jobs
 
 `AppTemplate.Api` serves HTTP and runs the jobs, composed by the one call `AddBackgroundJobs` in
-`Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`. Each loop
+`src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`. Each loop
 runs on `PeriodicJob.RunAsync`
-(`Src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
+(`src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
 then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
 shutdown.
 <!--#endif-->
 <!--#if (jobsWorker)-->
 ## The worker
 
-`Src/Presentation/<Initials>.Worker` is a generic host that runs the jobs and serves no HTTP
+`src/Presentation/<Initials>.Worker` is a generic host that runs the jobs and serves no HTTP
 ([ADR 0025](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)). Its `Program.cs` composes the
 features and the modules the passes call, as the API's does, gives every scope no caller, and calls
 `AddBackgroundJobs` from `Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`; each feature's jobs
@@ -70,7 +70,7 @@ are under its own `Features/<Feature>/Jobs/`.
 The API composes no job and binds no `Jobs` section, and keeps the maintenance routes.
 <!--#endif-->
 Each loop runs on `PeriodicJob.RunAsync`
-(`Src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
+(`src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
 then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
 shutdown.
 
@@ -83,7 +83,7 @@ The worker migrates nothing, and neither does any other host of this project: in
 migrations are applied with `dotnet ef database update`, as [first run](../getting-started/first-run.md#run-with-compose)
 shows, and at release the migration bundles run before the hosts.
 <!--#endif-->
-Its tests are in `Tests/Presentation/<Initials>.Worker.UnitTests`: `WorkerCompositionTests` builds the
+Its tests are in `tests/Presentation/<Initials>.Worker.UnitTests`: `WorkerCompositionTests` builds the
 worker from its own `Program.cs` with every registration validated and resolves each use case's
 handler it composes in a background scope.
 <!--#endif-->
@@ -139,7 +139,7 @@ leased pass therefore states what a repeat costs, and the other passes are idemp
 The reminder pass sends, then commits, one reminder at a time, so a crash between the two sends
 that one reminder twice: delivery is at least once. A failed send is retried after a minute,
 doubling up to an hour, behind the reminders that waited longer: `RetryBackoff`, in
-`Src/Domain/AT.Domain.Core/Common/Retries/RetryBackoff.cs`, holds that wait.
+`src/Domain/AT.Domain.Core/Common/Retries/RetryBackoff.cs`, holds that wait.
 <!--#endif-->
 
 <!--#if (postgreSql)-->
@@ -207,11 +207,11 @@ services.AddMaintenanceTask<PurgeExpiredExportsCommand>(
 ```
 
 <!--#if (!jobsWorker)-->
-`Src/Presentation/AT.Api/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
+`src/Presentation/AT.Api/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
 the idempotency purge this way.
 <!--#endif-->
 <!--#if (jobsWorker)-->
-`Src/Presentation/<Initials>.Worker/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
+`src/Presentation/<Initials>.Worker/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
 the idempotency purge this way.
 <!--#endif-->
 

@@ -18,8 +18,8 @@ env:
   DOTNET_NOLOGO: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   PACKAGE_PROJECT: .template.config/TemplatePackage.csproj
-  LAUNCHER_PROJECT: Launcher/CleanArch.Create/CleanArch.Create.csproj
-  PROJECT_TOOL_PROJECT: Launcher/CleanArch.Cli/CleanArch.Cli.csproj
+  LAUNCHER_PROJECT: launcher/CleanArch.Create/CleanArch.Create.csproj
+  PROJECT_TOOL_PROJECT: launcher/CleanArch.Cli/CleanArch.Cli.csproj
 
 jobs:
   release-please:

@@ -5,7 +5,7 @@ A Blazor WebAssembly back office over the API, for administrators.
 <!--#else-->
 A Blazor WebAssembly front end over the API.
 <!--#endif-->
-It runs in the browser and calls the API through the .NET client of `Src/Presentation/AT.Presentation.Client`, on the page's
+It runs in the browser and calls the API through the .NET client of `src/Presentation/AT.Presentation.Client`, on the page's
 own origin: nginx serves the app and relays `/api/` to the API, so the API keeps CORS closed.
 
 The app itself is what `dotnet new blazorwasm` writes; this folder adds the project file,
@@ -106,7 +106,7 @@ to remove the step.
 
 ## Work on it
 
-`dotnet watch --project Src/Web/apps/FrameworkSite` serves the pages alone, without the `/api`
+`dotnet watch --project src/Web/apps/FrameworkSite` serves the pages alone, without the `/api`
 relay. A page that calls the API runs through the stack: `docker compose up --build` builds the
 app's image and serves it on the port below.
 
@@ -152,16 +152,16 @@ defaults: the client's files are written for them. Pass `--has-client true` when
 project. A project generated with `--auth none` publishes no route for it to call, and the item
 template refuses it.
 
-It writes this folder, the .NET client in `Src/Presentation/AT.Presentation.Client` with its tests, and the client's decision;
+It writes this folder, the .NET client in `src/Presentation/AT.Presentation.Client` with its tests, and the client's decision;
 `--has-client true` leaves the client, its tests and its decision out, and its edits below with them.
 <!--#if (externalAuth)-->
-With `--auth external` it also writes the app's unit tests under `Tests`, which its creation adds to
+With `--auth external` it also writes the app's unit tests under `tests`, which its creation adds to
 the solution with the app.
 <!--#endif-->
 The lines `--web blazor-wasm` writes in files the item template cannot edit are listed below, each
 placed by the lines it goes beside. One command makes them all, leaving those in place already, or
 none when one of those lines is not found exactly once; with `--workspace` it first makes those
-`Src/Web/README.md` lists for the workspace:
+`src/Web/README.md` lists for the workspace:
 
 ```bash
 dotnet cleanarch add web-app --name FrameworkSite --framework blazor-wasm
@@ -178,7 +178,7 @@ It then creates the app as above; commit it. The edits, to make by hand where th
   add:
 
   ```yaml
-    - path: Src/Web/apps/FrameworkSite/compose.yml
+    - path: src/Web/apps/FrameworkSite/compose.yml
   ```
 
 - in `.env.example`, after the line:
@@ -274,16 +274,16 @@ It then creates the app as above; commit it. The edits, to make by hand where th
 - in `.dockerignore`, after the line:
 
   ```text
-  Src/Web/
+  src/Web/
   ```
 
   add:
 
   ```text
   # The WebAssembly app builds from here, beside the solution's props and the .NET client.
-  !Src/Web/apps/FrameworkSite/
-  Src/Web/apps/FrameworkSite/bin/
-  Src/Web/apps/FrameworkSite/obj/
+  !src/Web/apps/FrameworkSite/
+  src/Web/apps/FrameworkSite/bin/
+  src/Web/apps/FrameworkSite/obj/
   ```
 
 <!--#if (agentFiles && !hasClient)-->
@@ -313,7 +313,7 @@ It then creates the app as above; commit it. The edits, to make by hand where th
 
 <!--#endif-->
 <!--#if (agentFiles)-->
-- in `Src/Web/AGENTS.md`, before the line:
+- in `src/Web/AGENTS.md`, before the line:
 
   ```markdown
   | After a change to the API's routes or bodies | `pnpm api` |
@@ -325,7 +325,7 @@ It then creates the app as above; commit it. The edits, to make by hand where th
   | While you work on the WebAssembly app | `dotnet watch --project apps/<Name>`, its pages without the `/api` relay |
   ```
 
-- in `Src/Web/AGENTS.md`, after the lines:
+- in `src/Web/AGENTS.md`, after the lines:
 
   ```markdown
   ## Rules
@@ -337,27 +337,27 @@ It then creates the app as above; commit it. The edits, to make by hand where th
   ```markdown
   - The WebAssembly app starts from `dotnet new blazorwasm`, which `bootstrap` and `dotnet cleanarch add web-app`
     run once; it is a .NET project of the solution, built and formatted with it, and calls the API
-    through the .NET client of `Src/Presentation/AT.Presentation.Client`, never through `@app-template/api-client`.
+    through the .NET client of `src/Presentation/AT.Presentation.Client`, never through `@app-template/api-client`.
   ```
 
 <!--#endif-->
-- in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+- in `tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   line:
 
   ```csharp
-          ["Src/Infrastructure/AT.Infrastructure.Core"] = null,
+          ["src/Infrastructure/AT.Infrastructure.Core"] = null,
   ```
 
   add:
 
   ```csharp
-          ["Src/Web/apps/FrameworkSite"] = null,
+          ["src/Web/apps/FrameworkSite"] = null,
   <!--#if (!hasClient)-->
-          ["Src/Presentation/AT.Presentation.Client"] = null,
+          ["src/Presentation/AT.Presentation.Client"] = null,
   <!--#endif-->
   ```
 
-- in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+- in `tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   line:
 
   ```csharp
@@ -368,16 +368,16 @@ It then creates the app as above; commit it. The edits, to make by hand where th
 
   ```csharp
   <!--#if (externalAuth)-->
-          ["Src/Web/apps/FrameworkSite"] = ["Hosting", "Sessions"],
+          ["src/Web/apps/FrameworkSite"] = ["Hosting", "Sessions"],
   <!--#else-->
-          ["Src/Web/apps/FrameworkSite"] = null,
+          ["src/Web/apps/FrameworkSite"] = null,
   <!--#endif-->
   <!--#if (!hasClient)-->
-          ["Src/Presentation/AT.Presentation.Client"] = ["Composition", "Errors", "Sessions"],
+          ["src/Presentation/AT.Presentation.Client"] = ["Composition", "Errors", "Sessions"],
   <!--#endif-->
   ```
 
-- in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+- in `tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   lines:
 
   ```csharp
@@ -405,7 +405,7 @@ It then creates the app as above; commit it. The edits, to make by hand where th
   add:
 
   ```markdown
-  The .NET client of `Src/Presentation/AT.Presentation.Client` is generated from the reference itself:
+  The .NET client of `src/Presentation/AT.Presentation.Client` is generated from the reference itself:
   `dotnet cleanarch openapi` rewrites its `Generated/` folder with the Kiota the tool
   manifest pins, and `dotnet cleanarch openapi --check`, which `verify` runs, fails while
   the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
@@ -467,7 +467,7 @@ It then creates the app as above; commit it. The edits, to make by hand where th
 - in `docs/reference/project-layout.md`, after the line:
 
   ```text
-  Src/Web/                                the pnpm workspace: apps/ and packages/
+  src/Web/                                the pnpm workspace: apps/ and packages/
   ```
 
   add:
@@ -495,7 +495,7 @@ It then creates the app as above; commit it. The edits, to make by hand where th
 
   ### `SignIn`
 
-  Read by the Blazor WebAssembly app of `Src/Web/apps/FrameworkSite` alone, as the public client it
+  Read by the Blazor WebAssembly app of `src/Web/apps/FrameworkSite` alone, as the public client it
   signs its user in with at the provider, from the `wwwroot/appsettings.json` every visitor's browser
   downloads: public values only, never a secret. Its image fills `Authority` and `ClientId` there,
   when the file leaves them empty, from `EXTERNAL_AUTH_AUTHORITY` and `EXTERNAL_AUTH_BROWSER_CLIENT_ID`

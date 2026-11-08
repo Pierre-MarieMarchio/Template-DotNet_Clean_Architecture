@@ -25,23 +25,23 @@ a SQLite file for the database.
 
 | Type | Proves here | Never used for | Lives in |
 |---|---|---|---|
-| Unit | a decision of one type: an invariant, a refusal with its control, a choice a mapper or a policy makes | wiring, a framework or compiler guarantee, an argument passed on, isolation between owners | `Tests/<Layer>/<Initials>.<Layer>[.<Module>].UnitTests/Features/<Feature>/`, mirroring `Src/` |
-| Architecture | a property of a population ("every use case…", "no domain type…") and the composition of the real host | the behaviour of one type | `Tests/Architecture/AT.Architecture.Tests` |
+| Unit | a decision of one type: an invariant, a refusal with its control, a choice a mapper or a policy makes | wiring, a framework or compiler guarantee, an argument passed on, isolation between owners | `tests/<Layer>/<Initials>.<Layer>[.<Module>].UnitTests/Features/<Feature>/`, mirroring `src/` |
+| Architecture | a property of a population ("every use case…", "no domain type…") and the composition of the real host | the behaviour of one type | `tests/Architecture/AT.Architecture.Tests` |
 | <!--#if (api || localAuth)--> |
-| Integration | what only the real stack decides: authentication, ownership in the query, races, the schema, the real stores | logic a unit test already decides branch by branch | `Tests/Integration/` |
+| Integration | what only the real stack decides: authentication, ownership in the query, races, the schema, the real stores | logic a unit test already decides branch by branch | `tests/Integration/` |
 | <!--#endif--> |
 | <!--#if (api)--> |
-| Contract | the surface a client relies on: routes, statuses, problem `code`s, the OpenAPI document, every response member on the wire | internals | `Tests/Integration/AT.Api.IntegrationTests/OpenApi/`, the error-code tests, one wire read per feature |
-| End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AT.EndToEnd.Tests`, over HTTP against the Compose stack |
-| Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
+| Contract | the surface a client relies on: routes, statuses, problem `code`s, the OpenAPI document, every response member on the wire | internals | `tests/Integration/AT.Api.IntegrationTests/OpenApi/`, the error-code tests, one wire read per feature |
+| End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `tests/EndToEnd/AT.EndToEnd.Tests`, over HTTP against the Compose stack |
+| Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `tests/Load/smoke.js`, a k6 script against a running stack |
 | <!--#endif--> |
 | <!--#if (anyWeb)--> |
-| Browser smoke | what a browser blocks or breaks in each served web app: a Content-Security-Policy violation, a console error, an uncaught exception, a relay call that fails | what a lower type can prove; a flow or a screen's content | `Src/Web/packages/browser-smoke`, Playwright in Chromium against the Compose stack |
+| Browser smoke | what a browser blocks or breaks in each served web app: a Content-Security-Policy violation, a console error, an uncaught exception, a relay call that fails | what a lower type can prove; a flow or a screen's content | `src/Web/packages/browser-smoke`, Playwright in Chromium against the Compose stack |
 <!--#endif-->
 <!--#if (!anyFeature)-->
 
 The use-case unit tests are the ones a feature brings, so this project has none yet: its
-`Tests/Application/AT.Application.UnitTests` project holds only test doubles, and `dotnet test` run on
+`tests/Application/AT.Application.UnitTests` project holds only test doubles, and `dotnet test` run on
 it alone ends with "Zero tests ran", which is expected. The first feature fills it.
 <!--#endif-->
 
@@ -69,7 +69,7 @@ The browser smoke needs the stack and Chromium, and runs with the end-to-end sui
 | A use case's decisions | unit | the application suites, one test per branch of its handler, each refusal with its control |
 | A message its validator refuses never reaches its handler | unit; architecture for "every message" and "every validator" | `UseCasePipelineTests`; `ContainerCompositionTests`, `ValidatorTargetTests` |
 | Request and configuration validation | unit; architecture for "every section has a validator" | the validator tests, boundary rows only; `ConfigurationSurfaceTests` |
-| Layers, folders, closed lists, composition | architecture | `Tests/Architecture/AT.Architecture.Tests`, `ContainerCompositionTests` among them |
+| Layers, folders, closed lists, composition | architecture | `tests/Architecture/AT.Architecture.Tests`, `ContainerCompositionTests` among them |
 | <!--#if (aspire)--> |
 | The app host drifts from the Compose files, or its stack does not start | architecture for the services, images, host settings and web ports; integration for the start | `LocalStackParityTests`; `LocalStackTests`, which `test --no-integration` builds and does not run, with the suites that need Docker |
 | <!--#endif--> |
@@ -81,7 +81,7 @@ The browser smoke needs the stack and Chromium, and runs with the end-to-end sui
 | Data ownership, in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)) | integration, every entry point that names a row; architecture for the owned load's signature | each feature's ownership tests in the integration suite; `OwnedAggregateLoadTests` |
 | <!--#endif--> |
 | <!--#if (localAuth)--> |
-| Sign-in, sessions, two-factor, passkeys, lockout | integration; unit for each use case's refusals | the `Security/` and `Auth/` integration folders, `Tests/Integration/AT.Infrastructure.Auth.IntegrationTests` |
+| Sign-in, sessions, two-factor, passkeys, lockout | integration; unit for each use case's refusals | the `Security/` and `Auth/` integration folders, `tests/Integration/AT.Infrastructure.Auth.IntegrationTests` |
 | Anonymous routes reveal nothing ([ADR 0014](../decisions/0014-anonymous-routes-reveal-nothing.md)) | integration | `LoginUniformityTests` and the "answers as a missing one" tests |
 | <!--#endif--> |
 | Optimistic concurrency | integration where two writers meet; unit for the precondition decision | each feature's concurrency tests, `ApiControllerBaseTests` |
@@ -93,10 +93,10 @@ The browser smoke needs the stack and Chromium, and runs with the end-to-end sui
 | Stored-file safety: keys, grants, inspection | unit for the policy and the state machine; integration for the stores | the files suites ([ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md)) |
 | <!--#endif--> |
 | <!--#if (api)--> |
-| The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AT.EndToEnd.Tests` |
+| The stack as shipped | end-to-end, one test per flow | `tests/EndToEnd/AT.EndToEnd.Tests` |
 | <!--#endif--> |
 | <!--#if (anyWeb)--> |
-| What the browser blocks or breaks in a web app | browser smoke, one test per app | `Src/Web/packages/browser-smoke` |
+| What the browser blocks or breaks in a web app | browser smoke, one test per app | `src/Web/packages/browser-smoke` |
 <!--#endif-->
 
 A feature that brings a risk of its own adds a row here.
@@ -136,7 +136,7 @@ store. A hand-written double that stands in for an adapter runs the contract tes
 so the double cannot drift from what it replaces.
 <!--#if (files)-->
 The contract bases live under
-`Tests/Infrastructure/AT.Infrastructure.Storage.UnitTests/Features/Files/Contracts/` and are
+`tests/Infrastructure/AT.Infrastructure.Storage.UnitTests/Features/Files/Contracts/` and are
 linked into the in-memory and integration suites.
 <!--#endif-->
 
@@ -146,7 +146,7 @@ linked into the in-memory and integration suites.
 ```bash
 dotnet cleanarch test                                          # the solution
 dotnet cleanarch test --no-integration                         # the projects that need no Docker
-dotnet test --project Tests/Architecture/AT.Architecture.Tests # the architecture rules alone
+dotnet test --project tests/Architecture/AT.Architecture.Tests # the architecture rules alone
 dotnet cleanarch openapi                                       # rewrite the OpenAPI reference after a contract change
 dotnet cleanarch end-to-end                                    # the end-to-end suite against a stack of its own
 ```
@@ -155,7 +155,7 @@ dotnet cleanarch end-to-end                                    # the end-to-end 
 ```bash
 dotnet cleanarch test                                          # the solution
 dotnet cleanarch test --no-integration                         # the projects that need no Docker
-dotnet test --project Tests/Architecture/AT.Architecture.Tests # the architecture rules alone
+dotnet test --project tests/Architecture/AT.Architecture.Tests # the architecture rules alone
 ```
 <!--#endif-->
 
@@ -248,7 +248,7 @@ test.
 ## The browser smoke
 
 After the end-to-end suite, `end-to-end` drives every web app in Chromium, through
-`pnpm --filter "*browser-smoke" smoke` in `Src/Web`. The package reads the apps `cleanarch.json` records
+`pnpm --filter "*browser-smoke" smoke` in `src/Web`. The package reads the apps `cleanarch.json` records
 and each one's port from `WEB_<APP>_HOST_PORT`, in the environment and then in `.env.example`, so an app
 added later is driven without an edit. For each app, one test:
 
@@ -275,7 +275,7 @@ needs the stack, so `pnpm test` leaves it out; `pnpm test` runs the unit tests o
 their ports are found.
 
 Chromium is not installed by `pnpm install`. Install it once per machine with
-`pnpm --filter "*browser-smoke" exec playwright install --only-shell chromium` in `Src/Web`, adding
+`pnpm --filter "*browser-smoke" exec playwright install --only-shell chromium` in `src/Web`, adding
 `--with-deps` on a Linux that lacks the system libraries it loads.
 
 `end-to-end` fails with that command in its message when the browser is missing, and has no option to

@@ -11,7 +11,7 @@ How this project sends mail, and how it picks the language a mail is written in.
 ## Sending
 
 Every mail goes through one port, `IEmailSender`
-(`Src/Application/AT.Application.Core/Common/Ports/IEmailSender.cs`), and one adapter
+(`src/Application/AT.Application.Core/Common/Ports/IEmailSender.cs`), and one adapter
 chosen by `Email:Transport` at start-up:
 
 | `Email:Transport` | Adapter | Settings it reads |
@@ -53,7 +53,7 @@ folders, or MSBuild compiles it into a satellite assembly.
 <!--#if (localAuth)-->
 `EmailTemplateCoverageTests` refuses a language that one mail has and another lacks, and two
 languages of one mail sharing a subject. It reads the folders it names, and refuses a folder of
-mail templates under `Src` that it does not name until the folder joins its list.
+mail templates under `src` that it does not name until the folder joins its list.
 <!--#endif-->
 
 ## The mails
@@ -61,7 +61,7 @@ mail templates under `Src` that it does not name until the folder joins its list
 
 | Mail | Sent when | Template folder |
 |---|---|---|
-| `Register` | a new or unconfirmed address registers | `Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Resources/Templates/` |
+| `Register` | a new or unconfirmed address registers | `src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Resources/Templates/` |
 | `AlreadyRegistered` | a confirmed address registers again, or is named by an address change | same |
 | `PasswordReset` | `forgot-password` names an account | same |
 | `EmailChange` | `change-email` names a free address | same |
@@ -70,7 +70,7 @@ mail templates under `Src` that it does not name until the folder joins its list
 
 | Mail | Sent when | Template folder |
 |---|---|---|
-| `Reminder` | a reminder falls due, from the reminder job | `Src/Infrastructure/AT.Infrastructure.Email/Features/Reminders/` |
+| `Reminder` | a reminder falls due, from the reminder job | `src/Infrastructure/AT.Infrastructure.Email/Features/Reminders/` |
 <!--#endif-->
 <!--#if (externalAuth)-->
 

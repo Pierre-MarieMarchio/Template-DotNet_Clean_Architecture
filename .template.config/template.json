@@ -279,14 +279,14 @@
       "displayName": "Agent instructions",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include AGENTS.md, the brief for coding agents and people, and Src/Web/AGENTS.md with a web app. It is the only agent file the template writes."
+      "description": "Include AGENTS.md, the brief for coding agents and people, and src/Web/AGENTS.md with a web app. It is the only agent file the template writes."
     },
     "aspire": {
       "type": "parameter",
       "displayName": "Aspire app host",
       "datatype": "bool",
       "defaultValue": "false",
-      "description": "Include an Aspire app host beside Docker Compose: Src/AppHost starts the containers Compose runs and every host cleanarch.json records, with the settings Compose gives them and their telemetry in the Aspire dashboard. Compose stays the reference of the deployment."
+      "description": "Include an Aspire app host beside Docker Compose: src/AppHost starts the containers Compose runs and every host cleanarch.json records, with the settings Compose gives them and their telemetry in the Aspire dashboard. Compose stays the reference of the deployment."
     },
     "aspireNeedsServerDatabase": {
       "type": "parameter",
@@ -316,30 +316,30 @@
         },
         {
           "choice": "angular",
-          "description": "One Angular web app in the pnpm workspace Src/Web, created by the Angular CLI (ng new)."
+          "description": "One Angular web app in the pnpm workspace src/Web, created by the Angular CLI (ng new)."
         },
         {
           "choice": "vite-react",
-          "description": "One React web app in the pnpm workspace Src/Web, created by Vite's official CLI (create-vite, react-ts)."
+          "description": "One React web app in the pnpm workspace src/Web, created by Vite's official CLI (create-vite, react-ts)."
         },
         {
           "choice": "vite-vue",
-          "description": "One Vue web app in the pnpm workspace Src/Web, created by Vite's official CLI (create-vite, vue-ts)."
+          "description": "One Vue web app in the pnpm workspace src/Web, created by Vite's official CLI (create-vite, vue-ts)."
         },
         {
           "choice": "vite-svelte",
-          "description": "One Svelte web app in the pnpm workspace Src/Web, created by Vite's official CLI (create-vite, svelte-ts)."
+          "description": "One Svelte web app in the pnpm workspace src/Web, created by Vite's official CLI (create-vite, svelte-ts)."
         },
         {
           "choice": "react-router",
-          "description": "One React web app in the pnpm workspace Src/Web, created by React Router's official CLI (create-react-router): a single-page app, or rendered on the server with --web-rendering ssr."
+          "description": "One React web app in the pnpm workspace src/Web, created by React Router's official CLI (create-react-router): a single-page app, or rendered on the server with --web-rendering ssr."
         },
         {
           "choice": "blazor-wasm",
-          "description": "One Blazor WebAssembly app in Src/Web, created by dotnet new blazorwasm and calling the API through the .NET client in Src/Presentation."
+          "description": "One Blazor WebAssembly app in src/Web, created by dotnet new blazorwasm and calling the API through the .NET client in src/Presentation."
         }
       ],
-      "description": "The first web front end, in the pnpm workspace Src/Web. More apps are added later with dotnet new cleanarch-webapp."
+      "description": "The first web front end, in the pnpm workspace src/Web. More apps are added later with dotnet new cleanarch-webapp."
     },
     "anyWeb": {
       "type": "computed",
@@ -529,7 +529,7 @@
       "displayName": "Web app name",
       "datatype": "text",
       "defaultValue": "Site",
-      "description": "The first web app's name, in PascalCase: its folder Src/Web/apps/<name>, its service web-<name>, its port WEB_<NAME>_HOST_PORT.",
+      "description": "The first web app's name, in PascalCase: its folder src/Web/apps/<name>, its service web-<name>, its port WEB_<NAME>_HOST_PORT.",
       "replaces": "PlaceholderSite",
       "fileRename": "PlaceholderSite"
     },
@@ -732,18 +732,18 @@
         },
         {
           "choice": "avalonia",
-          "description": "An Avalonia desktop app, <Project>.Desktop, created by dotnet new avalonia.mvvm and calling the API through the .NET client in Src/Presentation."
+          "description": "An Avalonia desktop app, <Project>.Desktop, created by dotnet new avalonia.mvvm and calling the API through the .NET client in src/Presentation."
         },
         {
           "choice": "wpf",
-          "description": "A WPF desktop app for Windows, <Project>.Desktop, written in the shape of dotnet new wpf, calling the API through the .NET client in Src/Presentation; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
+          "description": "A WPF desktop app for Windows, <Project>.Desktop, written in the shape of dotnet new wpf, calling the API through the .NET client in src/Presentation; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
         },
         {
           "choice": "worker",
           "description": "A worker, <Project>.Worker, written from the shape of dotnet new worker, that runs the background jobs the API runs otherwise. Needs a server database."
         }
       ],
-      "description": "The presentation projects the project holds, one or several: each is a host of the use cases in Src/Presentation, created at bootstrap by its framework's own generator or written whole. A server host reaches the application layer in process, a client reaches the API through the .NET client. Pass the option once per project; a project adds one later with dotnet new cleanarch-presentation."
+      "description": "The presentation projects the project holds, one or several: each is a host of the use cases in src/Presentation, created at bootstrap by its framework's own generator or written whole. A server host reaches the application layer in process, a client reaches the API through the .NET client. Pass the option once per project; a project adds one later with dotnet new cleanarch-presentation."
     },
     "presentationApi": {
       "type": "computed",
@@ -798,7 +798,7 @@
     "dotnetClient": {
       "type": "computed",
       "value": "(presentationAvalonia || presentationWpf || webBlazorWasm)",
-      "description": "True when the project holds a presentation or a web app that calls the API through the .NET client in Src/Presentation. Brings the client, its tests, the api-client task and the Kiota tool."
+      "description": "True when the project holds a presentation or a web app that calls the API through the .NET client in src/Presentation. Brings the client, its tests, the api-client task and the Kiota tool."
     },
     "clientPresentationNeedsAccounts": {
       "type": "parameter",
@@ -926,7 +926,7 @@
     "scaffoldedAtBootstrap": {
       "type": "computed",
       "value": "(anyPresentation || jobsWorker || webFramework)",
-      "description": "True when a folder under Src/Presentation or Src/Web/apps holds a scaffold.json, a project or an app bootstrap creates."
+      "description": "True when a folder under src/Presentation or src/Web/apps holds a scaffold.json, a project or an app bootstrap creates."
     },
     "jobsNamespaceCommon": {
       "type": "generated",
@@ -1596,7 +1596,7 @@
             "docs/plans/**",
             "docs/index.md",
             "docs/**/index.md",
-            "Tests/Integration/AT.Api.IntegrationTests/OpenApi/v1.json",
+            "tests/Integration/AT.Api.IntegrationTests/OpenApi/v1.json",
             "docs/guide_architecture_pour_agent.md",
             "CHANGELOG.md",
             ".github/workflows/template-acceptance.yml",
@@ -1610,34 +1610,34 @@
             ".github/FUNDING.yml",
             "CODE_OF_CONDUCT.md",
             "SUPPORT.md",
-            "Tools/CheckDocPaths.cs",
-            "Tools/CheckWorkflows.cs",
-            "Tools/CheckComments.cs",
-            "Tools/WebLockfiles.cs",
-            "Launcher/**",
-            "Src/Web/**/node_modules/**",
-            "Src/Web/**/dist/**",
-            "Src/Web/**/coverage/**",
-            "Src/Web/pnpm-lock.yaml",
-            "Src/Infrastructure/AT.Infrastructure.Persistence/Migrations/**",
-            "Src/Infrastructure/AT.Infrastructure.Auth/Migrations/**"
+            "tools/CheckDocPaths.cs",
+            "tools/CheckWorkflows.cs",
+            "tools/CheckComments.cs",
+            "tools/WebLockfiles.cs",
+            "launcher/**",
+            "src/Web/**/node_modules/**",
+            "src/Web/**/dist/**",
+            "src/Web/**/coverage/**",
+            "src/Web/pnpm-lock.yaml",
+            "src/Infrastructure/AT.Infrastructure.Persistence/Migrations/**",
+            "src/Infrastructure/AT.Infrastructure.Auth/Migrations/**"
           ]
         },
         {
           "condition": "(!postgreSql)",
           "exclude": [
-            "Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs",
-            "Src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/LeaderLease.cs",
-            "Src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs",
-            "Src/Presentation/AT.Api/Common/Observability/DatabaseInstrumentation.cs",
+            "src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs",
+            "src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/LeaderLease.cs",
+            "src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs",
+            "src/Presentation/AT.Api/Common/Observability/DatabaseInstrumentation.cs",
             "docker-compose.database.yml",
-            "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Saving/UniqueViolationFault.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/DatabaseServer.cs",
-            "Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs"
+            "tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs",
+            "tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Saving/UniqueViolationFault.cs",
+            "tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Infrastructure/DatabaseServer.cs",
+            "tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs"
           ]
         },
         {
@@ -1655,63 +1655,63 @@
         {
           "condition": "(sqlite)",
           "exclude": [
-            "Src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
-            "Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/ResourceReaperSwitch.cs"
+            "src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
+            "tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/ResourceReaperSwitch.cs"
           ]
         },
         {
           "condition": "(sqlite && !files)",
           "exclude": [
-            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/ResourceReaperSwitch.cs"
+            "tests/Integration/AT.Api.IntegrationTests/Infrastructure/ResourceReaperSwitch.cs"
           ]
         },
         {
           "condition": "(!versionCounter)",
           "exclude": [
-            "Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Versioning/**",
-            "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Saving/Versioning/**"
+            "src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Versioning/**",
+            "tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Saving/Versioning/**"
           ]
         },
         {
           "condition": "(!tablePrefixes)",
           "exclude": [
-            "Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/SchemaAsTablePrefixConvention.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/SchemaAsTablePrefixConventionTests.cs"
+            "src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/SchemaAsTablePrefixConvention.cs",
+            "tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/SchemaAsTablePrefixConventionTests.cs"
           ]
         },
         {
           "condition": "(sqlServer)",
           "exclude": [
-            "Src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs"
+            "src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs"
           ]
         },
         {
           "condition": "(tablePrefixes)",
           "exclude": [
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Notes/Rows/Configurations/NoteRecordConfigurationTests.cs"
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Notes/Rows/Configurations/NoteRecordConfigurationTests.cs"
           ]
         },
         {
           "condition": "(sqlite || sqlServer)",
           "exclude": [
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileLikePatternTests.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileSortMapTests.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Notes/Access/Queries/NoteSortMapTests.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListLikePatternTests.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListSortMapTests.cs"
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileLikePatternTests.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileSortMapTests.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Notes/Access/Queries/NoteSortMapTests.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListLikePatternTests.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListSortMapTests.cs"
           ]
         },
         {
           "condition": "(!anyWeb)",
           "exclude": [
-            "Src/Web/**",
+            "src/Web/**",
             ".github/workflows/web.yml",
             "docs/features/web-frontend.md",
             "docs/decisions/0019-one-generated-api-client.md",
             "docs/decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md",
-            "Tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs"
+            "tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs"
           ]
         },
         {
@@ -1729,46 +1729,46 @@
         {
           "condition": "(!api)",
           "exclude": [
-            "Src/Presentation/AT.Api/**",
-            "Tests/Presentation/AT.Api.UnitTests/**",
-            "Tests/Integration/AT.Api.IntegrationTests/**",
-            "Tests/EndToEnd/**",
-            "Tests/Load/**",
+            "src/Presentation/AT.Api/**",
+            "tests/Presentation/AT.Api.UnitTests/**",
+            "tests/Integration/AT.Api.IntegrationTests/**",
+            "tests/EndToEnd/**",
+            "tests/Load/**",
             "AppTemplate.Api.http",
             "docs/architecture/http-api.md",
             "docs/architecture/request-pipeline.md",
             "docs/reference/api.md",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/ApiRouteTableTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/ErrorCodeTableTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/HttpCommonBoundaryTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/HttpSurfaceTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/IdempotentActionTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/RequestPipelineTests.cs"
+            "tests/Architecture/AT.Architecture.Tests/Rules/ApiRouteTableTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/ErrorCodeTableTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/HttpCommonBoundaryTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/HttpSurfaceTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/IdempotentActionTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/RequestPipelineTests.cs"
           ]
         },
         {
           "condition": "(!webPlaceholder)",
           "exclude": [
-            "Src/Web/apps/PlaceholderSite/**"
+            "src/Web/apps/PlaceholderSite/**"
           ]
         },
         {
           "condition": "(!webFramework)",
           "exclude": [
-            "Src/Web/apps/FrameworkSite/**"
+            "src/Web/apps/FrameworkSite/**"
           ]
         },
         {
           "condition": "(webBlazorWasm)",
           "exclude": [
-            "Src/Web/apps/FrameworkSite/compose.yml",
-            "Src/Web/apps/FrameworkSite/README.md"
+            "src/Web/apps/FrameworkSite/compose.yml",
+            "src/Web/apps/FrameworkSite/README.md"
           ]
         },
         {
           "condition": "(webServerRendering)",
           "exclude": [
-            "Src/Web/apps/FrameworkSite/nginx.conf"
+            "src/Web/apps/FrameworkSite/nginx.conf"
           ]
         },
         {
@@ -1776,74 +1776,74 @@
           "exclude": [
             "docs/decisions/0003-use-cases-and-ports-are-explicit.md",
             "docs/decisions/0004-features-meet-through-ports-and-events.md",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedMarkdownTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Fixtures/TemplateForms.cs"
+            "tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/ConditionedMarkdownTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Fixtures/TemplateForms.cs"
           ]
         },
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "Src/Application/AT.Application.Auth/**",
-            "Src/Infrastructure/AT.Infrastructure.Auth/**",
-            "Src/**/Features/Auth/**",
-            "Src/Infrastructure/AT.Infrastructure.InMemory/Features/ExternalLogins/**",
-            "Tests/Application/AT.Application.Auth.UnitTests/**",
-            "Tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/**",
-            "Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/**",
-            "Tests/**/Features/Auth/**",
-            "Tests/Infrastructure/AT.Infrastructure.InMemory.UnitTests/Features/ExternalLogins/**",
-            "Tests/Integration/AT.Api.IntegrationTests/Auth/**",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/AccountLockoutTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/AdministratorPolicyTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/AuthenticationProblemDetailsTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/LoginUniformityTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/PasswordPolicyTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/RateLimitingTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/RefreshTokenTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/RequestLogRedactionTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/EmailTemplateCoverageTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
-            "Src/Presentation/AT.Api/Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs",
+            "src/Application/AT.Application.Auth/**",
+            "src/Infrastructure/AT.Infrastructure.Auth/**",
+            "src/**/Features/Auth/**",
+            "src/Infrastructure/AT.Infrastructure.InMemory/Features/ExternalLogins/**",
+            "tests/Application/AT.Application.Auth.UnitTests/**",
+            "tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/**",
+            "tests/Integration/AT.Infrastructure.Auth.IntegrationTests/**",
+            "tests/**/Features/Auth/**",
+            "tests/Infrastructure/AT.Infrastructure.InMemory.UnitTests/Features/ExternalLogins/**",
+            "tests/Integration/AT.Api.IntegrationTests/Auth/**",
+            "tests/Integration/AT.Api.IntegrationTests/Security/AccountLockoutTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/AdministratorPolicyTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/AuthenticationProblemDetailsTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/LoginUniformityTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/PasswordPolicyTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/RateLimitingTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/RefreshTokenTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/RequestLogRedactionTests.cs",
+            "tests/Architecture/AT.Architecture.Tests/Rules/EmailTemplateCoverageTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
+            "src/Presentation/AT.Api/Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
+            "tests/Presentation/AT.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs",
             "docs/decisions/0013-a-session-is-a-refresh-token-family.md",
             "docs/decisions/0014-anonymous-routes-reveal-nothing.md",
             "docs/decisions/0015-passkeys-stand-on-their-own.md",
             "docs/decisions/0016-browser-refresh-token-in-a-cookie.md",
             "docs/decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md",
             "docs/guides/rotating-the-signing-key.md",
-            "Tests/EndToEnd/AT.EndToEnd.Tests/Accounts.cs",
-            "Tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
-            "Tests/EndToEnd/AT.EndToEnd.Tests/Mailbox.cs",
-            "Tests/EndToEnd/AT.EndToEnd.Tests/Poll.cs",
-            "Tests/EndToEnd/AT.EndToEnd.Tests/SessionTests.cs"
+            "tests/EndToEnd/AT.EndToEnd.Tests/Accounts.cs",
+            "tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
+            "tests/EndToEnd/AT.EndToEnd.Tests/Mailbox.cs",
+            "tests/EndToEnd/AT.EndToEnd.Tests/Poll.cs",
+            "tests/EndToEnd/AT.EndToEnd.Tests/SessionTests.cs"
           ]
         },
         {
           "condition": "(!browserSessions)",
           "exclude": [
-            "Src/Presentation/AT.Api/Features/Auth/Composition/BrowserSession.cs",
-            "Src/Presentation/AT.Api/Features/Auth/Composition/BrowserSessionComposition.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Features/Auth/Composition/BrowserSessionTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/RefreshTokenCookieTests.cs"
+            "src/Presentation/AT.Api/Features/Auth/Composition/BrowserSession.cs",
+            "src/Presentation/AT.Api/Features/Auth/Composition/BrowserSessionComposition.cs",
+            "tests/Presentation/AT.Api.UnitTests/Features/Auth/Composition/BrowserSessionTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/RefreshTokenCookieTests.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "Src/**/Features/ExternalIdentity/**",
-            "Tests/**/Features/ExternalIdentity/**",
-            "Src/Presentation/AT.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/ExternalProvider.cs",
+            "src/**/Features/ExternalIdentity/**",
+            "tests/**/Features/ExternalIdentity/**",
+            "src/Presentation/AT.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
+            "tests/Presentation/AT.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Infrastructure/ExternalProvider.cs",
             "docs/decisions/0017-external-subjects-map-to-internal-owners.md",
-            "Src/Presentation/AT.Presentation.Core/Common/Security/AuthenticationExternalOptions.cs",
-            "Src/Presentation/AT.Presentation.Core/Common/Security/AuthenticationExternalOptionsValidator.cs",
-            "Src/Presentation/AT.Presentation.Core/Common/Security/TokenRoleMapping.cs",
-            "Tests/Presentation/AT.Presentation.Core.UnitTests/Common/Security/AuthenticationExternalOptionsValidatorTests.cs",
-            "Tests/Presentation/AT.Presentation.Core.UnitTests/Common/Security/TokenRoleMappingTests.cs"
+            "src/Presentation/AT.Presentation.Core/Common/Security/AuthenticationExternalOptions.cs",
+            "src/Presentation/AT.Presentation.Core/Common/Security/AuthenticationExternalOptionsValidator.cs",
+            "src/Presentation/AT.Presentation.Core/Common/Security/TokenRoleMapping.cs",
+            "tests/Presentation/AT.Presentation.Core.UnitTests/Common/Security/AuthenticationExternalOptionsValidatorTests.cs",
+            "tests/Presentation/AT.Presentation.Core.UnitTests/Common/Security/TokenRoleMappingTests.cs"
           ]
         },
         {
@@ -1864,123 +1864,123 @@
         {
           "condition": "(!anyFeature)",
           "exclude": [
-            "Src/Application/AT.Application.Core/Common/Ports/IUserAccountDirectory.cs",
-            "Src/Application/AT.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
-            "Src/Application/AT.Application.Core/Features/DeletedAccounts/**",
-            "Tests/Application/AT.Application.Core.UnitTests/Features/DeletedAccounts/**",
-            "Src/Presentation/AT.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
-            "Src/Presentation/AT.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs",
-            "Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
-            "Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Features/Auth/Composition/AccountUserAccountDirectoryTests.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectoryTests.cs"
+            "src/Application/AT.Application.Core/Common/Ports/IUserAccountDirectory.cs",
+            "src/Application/AT.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
+            "src/Application/AT.Application.Core/Features/DeletedAccounts/**",
+            "tests/Application/AT.Application.Core.UnitTests/Features/DeletedAccounts/**",
+            "src/Presentation/AT.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
+            "src/Presentation/AT.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs",
+            "src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
+            "src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
+            "tests/Presentation/AT.Api.UnitTests/Features/Auth/Composition/AccountUserAccountDirectoryTests.cs",
+            "tests/Presentation/AT.Api.UnitTests/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectoryTests.cs"
           ]
         },
         {
           "condition": "(!publicApi)",
           "exclude": [
-            "Tests/Integration/AT.Api.IntegrationTests/Security/AuthorizeWithoutAuthenticationTests.cs"
+            "tests/Integration/AT.Api.IntegrationTests/Security/AuthorizeWithoutAuthenticationTests.cs"
           ]
         },
         {
           "condition": "(publicApi)",
           "exclude": [
-            "Tests/Integration/AT.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs",
-            "Src/Application/AT.Application.Core/Common/Events/UserAccountDeleted.cs",
-            "Src/Presentation/AT.Api/Common/OpenApi/OpenApiDiscriminatorTransformer.cs",
-            "Src/Presentation/AT.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",
-            "Src/Presentation/AT.Presentation.Core/Common/Security/AuthorizationPolicies.cs",
-            "Src/Presentation/AT.Api/Features/Maintenance/Controllers/**",
-            "Src/Presentation/AT.Api/Features/Maintenance/Contracts/**",
-            "Tests/Presentation/AT.Api.UnitTests/Features/Maintenance/Contracts/Mapping/**"
+            "tests/Integration/AT.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs",
+            "src/Application/AT.Application.Core/Common/Events/UserAccountDeleted.cs",
+            "src/Presentation/AT.Api/Common/OpenApi/OpenApiDiscriminatorTransformer.cs",
+            "src/Presentation/AT.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",
+            "src/Presentation/AT.Presentation.Core/Common/Security/AuthorizationPolicies.cs",
+            "src/Presentation/AT.Api/Features/Maintenance/Controllers/**",
+            "src/Presentation/AT.Api/Features/Maintenance/Contracts/**",
+            "tests/Presentation/AT.Api.UnitTests/Features/Maintenance/Contracts/Mapping/**"
           ]
         },
         {
           "condition": "(!files)",
           "exclude": [
-            "Src/**/Features/Files/**",
-            "Src/Infrastructure/AT.Infrastructure.Storage/**",
-            "Tests/**/Features/Files/**",
-            "Tests/Infrastructure/AT.Infrastructure.Storage.UnitTests/**",
-            "Tests/Integration/AT.Api.IntegrationTests/Files/**",
-            "Tests/Integration/AT.Api.IntegrationTests/Storage/**",
-            "Tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryBucket.cs",
-            "Tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryStoredFileStore.cs",
-            "Tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
-            "Tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs",
+            "src/**/Features/Files/**",
+            "src/Infrastructure/AT.Infrastructure.Storage/**",
+            "tests/**/Features/Files/**",
+            "tests/Infrastructure/AT.Infrastructure.Storage.UnitTests/**",
+            "tests/Integration/AT.Api.IntegrationTests/Files/**",
+            "tests/Integration/AT.Api.IntegrationTests/Storage/**",
+            "tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryBucket.cs",
+            "tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryStoredFileStore.cs",
+            "tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
+            "tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs",
             "docs/features/files.md",
             "docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md",
-            "Tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Composition/StoredFileOwnerQueryTests.cs"
+            "tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
+            "tests/Presentation/AT.Api.UnitTests/Composition/StoredFileOwnerQueryTests.cs"
           ]
         },
         {
           "condition": "(!todoLists)",
           "exclude": [
-            "Src/**/Features/TodoLists/**",
-            "Tests/**/Features/TodoLists/**",
+            "src/**/Features/TodoLists/**",
+            "tests/**/Features/TodoLists/**",
             "docs/features/todo-lists.md",
-            "Tests/Integration/AT.Api.IntegrationTests/TodoLists/**",
-            "Tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/Auditing/AuditingSaveChangesInterceptorTests.cs",
-            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatchSaveChangesInterceptorTests.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Composition/ContextScopedSavingTests.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Composition/TodoListOwnerQueryTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Caching/CacheHeaderTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Idempotency/IdempotencyTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Saving/ContextScopedSavingTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Security/OwnershipIsolationTests.cs"
+            "tests/Integration/AT.Api.IntegrationTests/TodoLists/**",
+            "tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/Auditing/AuditingSaveChangesInterceptorTests.cs",
+            "tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatchSaveChangesInterceptorTests.cs",
+            "tests/Presentation/AT.Api.UnitTests/Composition/ContextScopedSavingTests.cs",
+            "tests/Presentation/AT.Api.UnitTests/Composition/TodoListOwnerQueryTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Caching/CacheHeaderTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Idempotency/IdempotencyTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Saving/ContextScopedSavingTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs",
+            "tests/Integration/AT.Api.IntegrationTests/Security/OwnershipIsolationTests.cs"
           ]
         },
         {
           "condition": "(!reminders)",
           "exclude": [
-            "Src/**/Features/Reminders/**",
-            "Tests/**/Features/Reminders/**",
+            "src/**/Features/Reminders/**",
+            "tests/**/Features/Reminders/**",
             "docs/features/reminders.md",
-            "Tests/Integration/AT.Api.IntegrationTests/Reminders/**",
-            "Tests/Application/AT.Application.UnitTests/TestDoubles/AReminder.cs",
-            "Tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryReminderStore.cs"
+            "tests/Integration/AT.Api.IntegrationTests/Reminders/**",
+            "tests/Application/AT.Application.UnitTests/TestDoubles/AReminder.cs",
+            "tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryReminderStore.cs"
           ]
         },
         {
           "condition": "(!notes)",
           "exclude": [
-            "Src/**/Features/Notes/**",
-            "Tests/**/Features/Notes/**",
+            "src/**/Features/Notes/**",
+            "tests/**/Features/Notes/**",
             "docs/features/notes.md",
-            "Tests/Integration/AT.Api.IntegrationTests/Notes/**",
-            "Tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs"
+            "tests/Integration/AT.Api.IntegrationTests/Notes/**",
+            "tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs"
           ]
         },
         {
           "condition": "(!tagging)",
           "exclude": [
-            "Src/Domain/AT.Domain/Common/Tagging/**",
-            "Src/Application/AT.Application/Common/Tagging/**",
-            "Tests/Domain/AT.Domain.UnitTests/Common/Tagging/**"
+            "src/Domain/AT.Domain/Common/Tagging/**",
+            "src/Application/AT.Application/Common/Tagging/**",
+            "tests/Domain/AT.Domain.UnitTests/Common/Tagging/**"
           ]
         },
         {
           "condition": "(!(reminders || files))",
           "exclude": [
-            "Src/Domain/AT.Domain.Core/Common/Retries/**",
-            "Tests/Domain/AT.Domain.Core.UnitTests/Common/Retries/**"
+            "src/Domain/AT.Domain.Core/Common/Retries/**",
+            "tests/Domain/AT.Domain.Core.UnitTests/Common/Retries/**"
           ]
         },
         {
           "condition": "(!todoLists && !notes && !files && !externalAuth)",
           "exclude": [
-            "Tests/Presentation/AT.Api.UnitTests/Composition/SqliteSavingHost.cs",
-            "Tests/Presentation/AT.Api.UnitTests/Composition/PublishedEvents.cs"
+            "tests/Presentation/AT.Api.UnitTests/Composition/SqliteSavingHost.cs",
+            "tests/Presentation/AT.Api.UnitTests/Composition/PublishedEvents.cs"
           ]
         },
         {
           "condition": "(!anyFeature)",
           "exclude": [
-            "Tests/Application/AT.Application.UnitTests/ApplicationModuleTests.cs"
+            "tests/Application/AT.Application.UnitTests/ApplicationModuleTests.cs"
           ]
         },
         {
@@ -1996,16 +1996,16 @@
           "condition": "(!agentFiles)",
           "exclude": [
             "AGENTS.md",
-            "Src/Web/AGENTS.md"
+            "src/Web/AGENTS.md"
           ]
         },
         {
           "condition": "(!aspire)",
           "exclude": [
             "global.json",
-            "Src/AppHost/**",
-            "Tests/Integration/AT.AppHost.IntegrationTests/**",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/LocalStackParityTests.cs",
+            "src/AppHost/**",
+            "tests/Integration/AT.AppHost.IntegrationTests/**",
+            "tests/Architecture/AT.Architecture.Tests/Rules/LocalStackParityTests.cs",
             "docs/guides/running-the-app-host.md",
             "docs/decisions/0032-the-app-host-follows-compose.md"
           ]
@@ -2013,14 +2013,14 @@
         {
           "condition": "(!sonar)",
           "exclude": [
-            "Tools/sonar-scanner.Dockerfile"
+            "tools/sonar-scanner.Dockerfile"
           ]
         },
         {
           "condition": "(!dotnetClient)",
           "exclude": [
-            "Src/Presentation/AT.Presentation.Client/**",
-            "Tests/Presentation/AT.Presentation.Client.UnitTests/**",
+            "src/Presentation/AT.Presentation.Client/**",
+            "tests/Presentation/AT.Presentation.Client.UnitTests/**",
             "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md"
           ]
         },
@@ -2033,39 +2033,39 @@
         {
           "condition": "(!accessKeys)",
           "exclude": [
-            "Src/Application/AT.Application.Auth/Features/AccessKeys/**",
-            "Src/Infrastructure/AT.Infrastructure.Auth/Features/AccessKeys/**",
-            "Src/Presentation/AT.Api/Features/Auth/Contracts/Mapping/AccessKeyResponseMapping.cs",
-            "Src/Presentation/AT.Api/Features/Auth/Contracts/Requests/CreateAccessKeyRequest.cs",
-            "Src/Presentation/AT.Api/Features/Auth/Contracts/Responses/AccessKeyResponse.cs",
-            "Src/Presentation/AT.Api/Features/Auth/Contracts/Responses/AccessKeysResponse.cs",
-            "Src/Presentation/AT.Api/Features/Auth/Contracts/Responses/CreatedAccessKeyResponse.cs",
-            "Src/Presentation/AT.Api/Features/Auth/Controllers/AccessKeysController.cs",
-            "Tests/Application/AT.Application.Auth.UnitTests/Features/AccessKeys/**",
-            "Tests/Integration/AT.Api.IntegrationTests/Auth/AccessKeyManagementTests.cs",
-            "Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**",
+            "src/Application/AT.Application.Auth/Features/AccessKeys/**",
+            "src/Infrastructure/AT.Infrastructure.Auth/Features/AccessKeys/**",
+            "src/Presentation/AT.Api/Features/Auth/Contracts/Mapping/AccessKeyResponseMapping.cs",
+            "src/Presentation/AT.Api/Features/Auth/Contracts/Requests/CreateAccessKeyRequest.cs",
+            "src/Presentation/AT.Api/Features/Auth/Contracts/Responses/AccessKeyResponse.cs",
+            "src/Presentation/AT.Api/Features/Auth/Contracts/Responses/AccessKeysResponse.cs",
+            "src/Presentation/AT.Api/Features/Auth/Contracts/Responses/CreatedAccessKeyResponse.cs",
+            "src/Presentation/AT.Api/Features/Auth/Controllers/AccessKeysController.cs",
+            "tests/Application/AT.Application.Auth.UnitTests/Features/AccessKeys/**",
+            "tests/Integration/AT.Api.IntegrationTests/Auth/AccessKeyManagementTests.cs",
+            "tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**",
             "docs/decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md"
           ]
         },
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "Src/Presentation/AT.Presentation.Client/Common/Sessions/ApiSession.cs",
-            "Src/Presentation/AT.Presentation.Client/Common/Sessions/ApiSessionHandler.cs",
-            "Src/Presentation/AT.Presentation.Client/Common/Sessions/CookieRefreshTokenStore.cs",
-            "Src/Presentation/AT.Presentation.Client/Common/Sessions/IRefreshTokenStore.cs",
-            "Src/Presentation/AT.Presentation.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
-            "Src/Presentation/AT.Presentation.Client/Common/Sessions/RefreshTokenMode.cs",
-            "Tests/Presentation/AT.Presentation.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+            "src/Presentation/AT.Presentation.Client/Common/Sessions/ApiSession.cs",
+            "src/Presentation/AT.Presentation.Client/Common/Sessions/ApiSessionHandler.cs",
+            "src/Presentation/AT.Presentation.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "src/Presentation/AT.Presentation.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "src/Presentation/AT.Presentation.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "src/Presentation/AT.Presentation.Client/Common/Sessions/RefreshTokenMode.cs",
+            "tests/Presentation/AT.Presentation.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "Src/Presentation/AT.Presentation.Client/Common/Sessions/AccessTokenHandler.cs",
-            "Src/Presentation/AT.Presentation.Client/Common/Sessions/IAccessTokenSource.cs",
-            "Tests/Presentation/AT.Presentation.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
-            "Tests/Presentation/AT.Presentation.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
+            "src/Presentation/AT.Presentation.Client/Common/Sessions/AccessTokenHandler.cs",
+            "src/Presentation/AT.Presentation.Client/Common/Sessions/IAccessTokenSource.cs",
+            "tests/Presentation/AT.Presentation.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "tests/Presentation/AT.Presentation.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         },
         {
@@ -2077,9 +2077,9 @@
         {
           "condition": "(jobsWorker)",
           "exclude": [
-            "Src/Presentation/AT.Api/Common/Jobs/**",
-            "Src/Presentation/AT.Api/Features/*/Jobs/**",
-            "Tests/Presentation/AT.Api.UnitTests/Features/*/Jobs/**",
+            "src/Presentation/AT.Api/Common/Jobs/**",
+            "src/Presentation/AT.Api/Features/*/Jobs/**",
+            "tests/Presentation/AT.Api.UnitTests/Features/*/Jobs/**",
             "docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md"
           ]
         },
@@ -2135,7 +2135,7 @@
     },
     {
       "source": "./.template.config/starters/angular/",
-      "target": "./Src/Web/apps/",
+      "target": "./src/Web/apps/",
       "condition": "(webAngular)",
       "modifiers": [
         {
@@ -2153,27 +2153,27 @@
     },
     {
       "source": "./.template.config/starters/angular/ssr/",
-      "target": "./Src/Web/apps/",
+      "target": "./src/Web/apps/",
       "condition": "(webAngular && webServerRendering)"
     },
     {
       "source": "./.template.config/starters/vite-react/",
-      "target": "./Src/Web/apps/",
+      "target": "./src/Web/apps/",
       "condition": "(webViteReact)"
     },
     {
       "source": "./.template.config/starters/vite-vue/",
-      "target": "./Src/Web/apps/",
+      "target": "./src/Web/apps/",
       "condition": "(webViteVue)"
     },
     {
       "source": "./.template.config/starters/vite-svelte/",
-      "target": "./Src/Web/apps/",
+      "target": "./src/Web/apps/",
       "condition": "(webViteSvelte)"
     },
     {
       "source": "./.template.config/starters/react-router/",
-      "target": "./Src/Web/apps/",
+      "target": "./src/Web/apps/",
       "condition": "(webReactRouter)",
       "modifiers": [
         {
@@ -2191,12 +2191,12 @@
     },
     {
       "source": "./.template.config/starters/react-router/ssr/",
-      "target": "./Src/Web/apps/",
+      "target": "./src/Web/apps/",
       "condition": "(webReactRouter && webServerRendering)"
     },
     {
       "source": "./.template.config/starters/blazor-wasm/",
-      "target": "./Src/Web/apps/",
+      "target": "./src/Web/apps/",
       "condition": "(webBlazorWasm)",
       "modifiers": [
         {
@@ -2379,8 +2379,8 @@
       ]
     },
     {
-      "source": "./Src/Presentation/AT.Api/",
-      "target": "./Src/Presentation/",
+      "source": "./src/Presentation/AT.Api/",
+      "target": "./src/Presentation/",
       "rename": {
         "Common/": "AT.Worker/Common/",
         "Features/": "AT.Worker/Features/"
@@ -2423,8 +2423,8 @@
       ]
     },
     {
-      "source": "./Tests/Presentation/AT.Api.UnitTests/",
-      "target": "./Tests/Presentation/",
+      "source": "./tests/Presentation/AT.Api.UnitTests/",
+      "target": "./tests/Presentation/",
       "rename": {
         "Features/": "AT.Worker.UnitTests/Features/"
       },
@@ -2465,20 +2465,20 @@
         {
           "condition": "(!files)",
           "exclude": [
-            "Src/**/Features/Files/**",
-            "Tests/**/Features/Files/**"
+            "src/**/Features/Files/**",
+            "tests/**/Features/Files/**"
           ]
         },
         {
           "condition": "(!todoLists)",
           "exclude": [
-            "Tests/**/Features/TodoLists/**"
+            "tests/**/Features/TodoLists/**"
           ]
         },
         {
           "condition": "(!notes)",
           "exclude": [
-            "Tests/**/Features/Notes/**"
+            "tests/**/Features/Notes/**"
           ]
         }
       ]
@@ -2491,20 +2491,20 @@
         {
           "condition": "(!files)",
           "exclude": [
-            "Src/**/Features/Files/**",
-            "Tests/**/Features/Files/**"
+            "src/**/Features/Files/**",
+            "tests/**/Features/Files/**"
           ]
         },
         {
           "condition": "(!todoLists)",
           "exclude": [
-            "Tests/**/Features/TodoLists/**"
+            "tests/**/Features/TodoLists/**"
           ]
         },
         {
           "condition": "(!notes)",
           "exclude": [
-            "Tests/**/Features/Notes/**"
+            "tests/**/Features/Notes/**"
           ]
         }
       ]
@@ -2549,7 +2549,7 @@
       "description": "Bootstrap also creates what each scaffold.json describes.",
       "manualInstructions": [
         {
-          "text": "A folder under Src/Presentation or Src/Web/apps that holds a scaffold.json is a project or an app still to be created: bootstrap creates it as that file describes, and adds a .NET one with its tests to the solution."
+          "text": "A folder under src/Presentation or src/Web/apps that holds a scaffold.json is a project or an app still to be created: bootstrap creates it as that file describes, and adds a .NET one with its tests to the solution."
         }
       ],
       "continueOnError": true
@@ -2560,7 +2560,7 @@
       "description": "Bootstrap also writes the .NET client.",
       "manualInstructions": [
         {
-          "text": "It writes the client in Src/Presentation from the OpenAPI reference with Kiota, one of the local tools."
+          "text": "It writes the client in src/Presentation from the OpenAPI reference with Kiota, one of the local tools."
         }
       ],
       "continueOnError": true
@@ -2571,7 +2571,7 @@
       "description": "Bootstrap also installs the web workspace.",
       "manualInstructions": [
         {
-          "text": "It installs Src/Web and writes its TypeScript API client, which needs Node.js and pnpm: run corepack enable once per machine."
+          "text": "It installs src/Web and writes its TypeScript API client, which needs Node.js and pnpm: run corepack enable once per machine."
         }
       ],
       "continueOnError": true

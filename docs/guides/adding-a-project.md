@@ -18,7 +18,7 @@ says. A new folder in an existing project is not a new project.
 
 ## Steps
 
-1. Name it `AppTemplate.<Layer>.<Capability>` and put it under `Src/<Layer>/`, in a folder that
+1. Name it `AppTemplate.<Layer>.<Capability>` and put it under `src/<Layer>/`, in a folder that
    carries the product's initials in place of its name, `<Initials>.<Layer>.<Capability>`, as the
    folders beside it do ([ADR 0029](../decisions/0029-a-project-folder-carries-the-products-initials-not-its-name.md));
    `ProjectFolderTests` names the folder a misplaced project belongs in.
@@ -27,7 +27,7 @@ says. A new folder in an existing project is not a new project.
    module references the application projects whose ports it implements and
    `AppTemplate.Infrastructure.Core`, never another module; `ModuleDependencyTests` holds it. It
    grants its internals to its unit tests with an `InternalsVisibleTo` item.
-3. Add it to the solution, in the solution folder of its layer: `dotnet sln AppTemplate.slnx add --solution-folder Src/Infrastructure <path to the project file>`, and `--solution-folder Tests/Infrastructure` for its unit tests.
+3. Add it to the solution, in the solution folder of its layer: `dotnet sln AppTemplate.slnx add --solution-folder src/Infrastructure <path to the project file>`, and `--solution-folder tests/Infrastructure` for its unit tests.
 4. Give it its registration class at its root, `<Capability>Module` with an
    `Add<Capability>Module` extension method, the only source file a project root holds. Its adapters
    are internal, so a host composes them through that method alone; `AdapterVisibilityTests` holds it.
@@ -36,9 +36,9 @@ says. A new folder in an existing project is not a new project.
 6. Add its project file's `COPY` line to the `Dockerfile` of each of those hosts, beside the other
    project files, before the restore. The build passes on your machine without it; only the image
    fails, in the CI's image job.
-7. Write its unit test project, `Tests/<Layer>/<Initials>.<Layer>.<Capability>.UnitTests/`, from a
+7. Write its unit test project, `tests/<Layer>/<Initials>.<Layer>.<Capability>.UnitTests/`, from a
    sibling's, and add it to the solution; `TestProjectMirrorTests` names a project without one.
-8. Reference the project from `Tests/Architecture/AT.Architecture.Tests`, as it references every
+8. Reference the project from `tests/Architecture/AT.Architecture.Tests`, as it references every
    module: the rules load each project of a layer by name, and refuse to run over one the project
    does not reference itself, even when another reference brings it along.
 9. Give it its two entries in `LayoutConventionTests`: its words under `Features/` in `_vocabulary`,

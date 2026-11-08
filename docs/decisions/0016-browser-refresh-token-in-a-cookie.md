@@ -51,7 +51,7 @@ tokens on its server instead, behind a session cookie of its own.
   of that name.
 - `BrowserSessionTests` and `RefreshTokenCookieTests` hold the cookie, the header and the refusals.
 <!--#if (anyWeb)-->
-  `Src/Web/packages/api-client/test/session.test.ts` holds the browser side.
+  `src/Web/packages/api-client/test/session.test.ts` holds the browser side.
 <!--#endif-->
 
 [Browsers: the refresh-token cookie](../features/authentication.md#browsers-the-refresh-token-cookie)

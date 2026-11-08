@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mediator.Abstractions" />
+    <PackageReference Include="Mediator.SourceGenerator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Application\AT.Application\AppTemplate.Application.csproj" />
+    <!--#if (aspire)-->
+    <ProjectReference Include="..\..\..\src\AppHost\AT.AppHost\AppTemplate.AppHost.csproj" />
+    <!--#endif-->
+    <ProjectReference Include="..\..\..\src\Application\AT.Application.Core\AppTemplate.Application.Core.csproj" />
+    <!--#if (localAuth)-->
+    <ProjectReference Include="..\..\..\src\Application\AT.Application.Auth\AppTemplate.Application.Auth.csproj" />
+    <!--#endif-->
+    <!--#if (api)-->
+    <ProjectReference Include="..\..\..\src\Presentation\AT.Api\AppTemplate.Api.csproj" />
+    <!--#endif-->
+    <ProjectReference Include="..\..\..\src\Presentation\AT.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
+    <ProjectReference Include="..\..\..\src\Domain\AT.Domain\AppTemplate.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\Domain\AT.Domain.Core\AppTemplate.Domain.Core.csproj" />
+    <ProjectReference Include="..\..\..\src\Infrastructure\AT.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
+    <ProjectReference Include="..\..\..\src\Infrastructure\AT.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
+    <!--#if (localAuth)-->
+    <ProjectReference Include="..\..\..\src\Infrastructure\AT.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj" />
+    <!--#endif-->
+    <ProjectReference Include="..\..\..\src\Infrastructure\AT.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
+    <ProjectReference Include="..\..\..\src\Infrastructure\AT.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
+    <!--#if (files)-->
+    <ProjectReference Include="..\..\..\src\Infrastructure\AT.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
+    <!--#endif-->
+  </ItemGroup>
+
+</Project>

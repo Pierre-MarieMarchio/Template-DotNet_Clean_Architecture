@@ -20,12 +20,12 @@ reference and a test holds the other to it.
 ## Decision
 
 - Compose stays the reference; the app host follows it. Every service of `docker-compose.yml` and of
-  the files it includes is a resource of `Src/AppHost/AT.AppHost` under the same name, and the
+  the files it includes is a resource of `src/AppHost/AT.AppHost` under the same name, and the
   reverse; each container runs the image its service pins, tag and digest alike, read from the Compose
   files when the app host starts; each setting a Compose file gives a host, the app host gives it too;
   each container gets the variables its service declares, and each image it builds comes from the
   context and the `Dockerfile` its service names; each web app listens on the port its
-  `Src/Web/apps/<App>/compose.yml` publishes, which `cleanarch.json` records.
+  `src/Web/apps/<App>/compose.yml` publishes, which `cleanarch.json` records.
   `LocalStackParityTests` holds the six, and lists by name each service, setting or variable in which
   the two stacks differ, with its reason.
 - The app host starts the hosts `cleanarch.json` records, not a list of its own, so a host or a web

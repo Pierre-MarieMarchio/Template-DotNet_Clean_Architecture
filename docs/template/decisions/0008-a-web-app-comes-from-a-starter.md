@@ -22,7 +22,7 @@ every new value would cost a copy of the wiring.
 
 ## Decision
 
-- **One wiring, a catalogue of starters.** `Src/Web/apps/FrameworkSite` holds the wiring every
+- **One wiring, a catalogue of starters.** `src/Web/apps/FrameworkSite` holds the wiring every
   framework app shares, under one set of rename tokens. Each `--web` value with a CLI is a starter,
   a folder under `.template.config/starters` named after the value, holding only
   `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`. The project template and
@@ -87,7 +87,7 @@ every new value would cost a copy of the wiring.
   as silently as React Router's: a starter whose page carries none keeps refusing them.
 - **A `kind` field in each `scaffold.json`, ready for starters that are not pnpm apps.** No second
   kind exists yet; the field's shape waits for the first .NET starter.
-- **Starters inside `Src/Web/apps`.** The checkout would carry a descriptor per framework where
+- **Starters inside `src/Web/apps`.** The checkout would carry a descriptor per framework where
   `add web-app` looks for apps to create, and each generated project would need them excluded.
 
 ## Consequences

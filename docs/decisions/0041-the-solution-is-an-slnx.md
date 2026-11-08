@@ -21,8 +21,8 @@ writes an `.slnx`, and `dotnet sln`, `dotnet build`, `dotnet test` and `dotnet f
 
 ## Decision
 
-- **The root holds one solution, `AppTemplate.slnx`.** Its folders are the layers', under `Src/`
-  and `Tests/`; `add presentation` and `add web-app` add a project with
+- **The root holds one solution, `AppTemplate.slnx`.** Its folders are the layers', under `src/`
+  and `tests/`; `add presentation` and `add web-app` add a project with
   `dotnet sln add --solution-folder`, and the tool, the solution filters they write and the
   workflows name it.
 - **No `.sln` beside it or in its place.** `ProjectFileTests` holds that the root's one solution is

@@ -50,10 +50,10 @@ Every route is public: the API authenticates nobody.
 <!--#if (publicApi && !api)-->
 The hosts authenticate nobody.
 <!--#endif-->
-This project's code lives in four layers under `Src/`, mirrored under `Tests/`;
+This project's code lives in four layers under `src/`, mirrored under `tests/`;
 [project layout](docs/reference/project-layout.md) says where a file goes.
 <!--#if (anyWeb)-->
-The web apps live in the pnpm workspace `Src/Web`.
+The web apps live in the pnpm workspace `src/Web`.
 <!--#endif-->
 [The overview](docs/getting-started/overview.md) lists what it contains and the options it was
 generated with.

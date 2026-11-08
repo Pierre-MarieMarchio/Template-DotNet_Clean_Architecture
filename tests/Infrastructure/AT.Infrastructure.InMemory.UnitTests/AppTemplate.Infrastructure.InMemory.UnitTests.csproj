@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Infrastructure\AT.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
+  </ItemGroup>
+  <!--#if (files)-->
+
+  <ItemGroup>
+    <Compile Include="..\AT.Infrastructure.Storage.UnitTests\Features\Files\Contracts\*.cs" LinkBase="Features\Files\Contracts" />
+  </ItemGroup>
+  <!--#endif-->
+
+</Project>

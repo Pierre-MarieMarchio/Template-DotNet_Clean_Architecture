@@ -10,7 +10,7 @@ description: Every setting this project reads, section by section, with its defa
 Every setting the API reads, one table per section; a section a team adds gets its own, which a
 test compares with the options classes. Every section is validated at start-up: a missing or
 out-of-range value stops the host and names the key. "Required" means start-up fails without it;
-a default applies when the key is absent. `Src/Presentation/AT.Api/appsettings.json`
+a default applies when the key is absent. `src/Presentation/AT.Api/appsettings.json`
 holds no secret, and a key `A:B` is the environment variable `A__B`.
 <!--#endif-->
 <!--#if (!api)-->
@@ -309,7 +309,7 @@ build, which loads the server, needs none of them.
 
 ### `SignIn`
 
-Read by the Blazor WebAssembly app of `Src/Web/apps/FrameworkSite` alone, as the public client it
+Read by the Blazor WebAssembly app of `src/Web/apps/FrameworkSite` alone, as the public client it
 signs its user in with at the provider, from the `wwwroot/appsettings.json` every visitor's browser
 downloads: public values only, never a secret. Its image fills `Authority` and `ClientId` there,
 when the file leaves them empty, from `EXTERNAL_AUTH_AUTHORITY` and `EXTERNAL_AUTH_BROWSER_CLIENT_ID`
@@ -490,7 +490,7 @@ The three pages follow the contract in [Accounts](../features/accounts.md#the-pa
 ## Background jobs
 
 <!--#if (jobsWorker)-->
-The worker reads these sections, from `Src/Presentation/<Initials>.Worker/appsettings.json` and its
+The worker reads these sections, from `src/Presentation/<Initials>.Worker/appsettings.json` and its
 environment; the API reads none of them. The worker also reads the sections of the modules it
 composes, with the same keys as the API.
 

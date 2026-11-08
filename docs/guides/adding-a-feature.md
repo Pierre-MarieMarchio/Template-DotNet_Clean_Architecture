@@ -156,7 +156,7 @@ Why it makes the edits rather than print them is [ADR 0031](../decisions/0031-th
 ## What you write by hand
 
 The generator writes the shape; the rules are yours. Each step below has a test that reads it, so run
-`dotnet test --project Tests/Architecture/AT.Architecture.Tests` before you push.
+`dotnet test --project tests/Architecture/AT.Architecture.Tests` before you push.
 
 ### Domain
 
@@ -193,7 +193,7 @@ default-deny authorisation.
 
 <!--#if (api)-->
 The rules the feature protects, each with a test you have seen fail, and the integration tests against
-the project's database under `Tests/Integration/AT.Api.IntegrationTests`;
+the project's database under `tests/Integration/AT.Api.IntegrationTests`;
 [testing](testing.md#where-a-new-features-tests-go) says which type holds what. Add the feature's
 schema to the schemas `TestDatabase` truncates between tests.
 <!--#endif-->
@@ -451,7 +451,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 | <!--#endif--> |
 | A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `add setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
-| A new project | `AppTemplate.slnx`, a `COPY` line in each host's `Dockerfile`, a mirror under `Tests/`, its vocabularies in `LayoutConventionTests`, the module lists of `ModuleDependencyTests`; [adding a project](adding-a-project.md) gives the steps |
+| A new project | `AppTemplate.slnx`, a `COPY` line in each host's `Dockerfile`, a mirror under `tests/`, its vocabularies in `LayoutConventionTests`, the module lists of `ModuleDependencyTests`; [adding a project](adding-a-project.md) gives the steps |
 | Anything, eventually | `coverage.minimum`, re-measured as [testing](testing.md#coverage) says |
 
 ## Document it

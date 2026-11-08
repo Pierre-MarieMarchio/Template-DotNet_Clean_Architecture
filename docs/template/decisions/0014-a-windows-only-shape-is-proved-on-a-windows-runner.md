@@ -33,12 +33,12 @@ Windows.
 - **The default shape runs on Windows with WPF, and it is required.** `windows, wpf, local auth`
   generates with `--presentation wpf` alone, which keeps every other default and adds the desktop
   app, so one leg proves the default project's tasks and the Windows-only shape; every change that
-  runs every leg, one under `Src`, `Tests` or `Tools` among them, runs it too, and so does a change
+  runs every leg, one under `src`, `tests` or `tools` among them, runs it too, and so does a change
   to the WPF starter. `windows, wpf, external auth, notes` proves the app under the other sign-in.
 - **Tests hold it.** `AcceptanceSelectionTests` holds that each leg's runner is one a job serves and
   that a Windows leg sets only the fields the Windows job reads and generates no web app, and that
   one Windows leg passes `--presentation wpf` and nothing else;
-  `Tools/CheckWorkflows.cs` holds the `template-windows` job to the complement rule of
+  `tools/CheckWorkflows.cs` holds the `template-windows` job to the complement rule of
   [0010](0010-a-pull-request-runs-the-legs-its-change-can-affect.md).
 
 ## Alternatives considered

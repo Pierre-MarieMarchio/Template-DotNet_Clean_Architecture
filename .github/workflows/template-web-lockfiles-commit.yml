@@ -1,6 +1,6 @@
 name: Template web lockfiles commit
 
-# Template repository only: a Dependabot pull request on Src/Web receives the lockfiles Template web lockfiles wrote for it, as a commit made through the API from the uploaded files alone, so nothing from the pull request runs where the token can write.
+# Template repository only: a Dependabot pull request on src/Web receives the lockfiles Template web lockfiles wrote for it, as a commit made through the API from the uploaded files alone, so nothing from the pull request runs where the token can write.
 on:
   workflow_run:
     workflows: [Template web lockfiles]
@@ -60,7 +60,7 @@ jobs:
           fi
           tree='[]'
           for entry in "${entries[@]}"; do
-            [[ "$entry" =~ ^\.template\.config/variants/web-[A-Za-z0-9]+/Src/Web/pnpm-lock\.yaml$ ]] || fail "The artifact holds '$entry', which is not a generated web shape's lockfile."
+            [[ "$entry" =~ ^\.template\.config/variants/web-[A-Za-z0-9]+/src/Web/pnpm-lock\.yaml$ ]] || fail "The artifact holds '$entry', which is not a generated web shape's lockfile."
             [ -f "$entry" ] && [ ! -L "$entry" ] || fail "'$entry' is not a regular file."
             [ "$(stat -c %s "$entry")" -le 10485760 ] || fail "'$entry' is larger than any lockfile."
             gh api "repos/$GITHUB_REPOSITORY/contents/$entry?ref=$HEAD_SHA" --silent || fail "$BRANCH holds no '$entry' to replace."
@@ -73,7 +73,7 @@ jobs:
             echo "$BRANCH already holds these lockfiles."
             exit 0
           fi
-          message="build(deps): lock each generated web shape on the versions of Src/Web/pnpm-lock.yaml"
+          message="build(deps): lock each generated web shape on the versions of src/Web/pnpm-lock.yaml"
           commit=$(jq -n --arg tree "$written" --arg parent "$HEAD_SHA" --arg message "$message" '{message: $message, tree: $tree, parents: [$parent]}' \
             | gh api "repos/$GITHUB_REPOSITORY/git/commits" --input - --jq .sha)
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH" -f sha="$commit" -F force=false --silent

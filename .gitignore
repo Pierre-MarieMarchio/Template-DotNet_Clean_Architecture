@@ -398,5 +398,5 @@ FodyWeavers.xsd
 #if (templateMaintenance)
 
 # Template repository only: the migrations bootstrap writes for the checkout; a generated project commits its own.
-Src/Infrastructure/*/Migrations/
+src/Infrastructure/*/Migrations/
 #endif

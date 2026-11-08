@@ -7,7 +7,7 @@ description: Where a file goes in this project and what it is called.
 # Project layout
 
 Where a file goes and what it is called. Every rule on this page is held by a test in
-`Tests/Architecture/AT.Architecture.Tests`, so a misplaced file fails a test there. Why the
+`tests/Architecture/AT.Architecture.Tests`, so a misplaced file fails a test there. Why the
 layers are drawn this way is [the architecture](../architecture/README.md).
 
 ## The folder map
@@ -15,9 +15,12 @@ layers are drawn this way is [the architecture](../architecture/README.md).
 A project's folder is its name with this project's name replaced by its initials, `<Initials>` in
 the pages: the capital letters of the name in order, or a part's first letter where the part has
 none, so a product named Acme.Shop keeps its project Acme.Shop.Application.Auth in
-Src/Application/AS.Application.Auth. A module promoted to a project of its own follows the rule, and
+src/Application/AS.Application.Auth. A module promoted to a project of its own follows the rule, and
 a second product goes in a root folder of its own, since the tool finds a project by its
 `cleanarch.json` ([ADR 0029](../decisions/0029-a-project-folder-carries-the-products-initials-not-its-name.md)).
+The root folders `src`, `tests` and `tools` are lowercase, as every other root folder is;
+[upgrading](../guides/upgrading.md#a-project-whose-root-folders-are-capitalised) moves those of a
+project that has them capitalised.
 
 Every project has the same shape: `Common/` for what knows no feature, `Features/<Feature>/` for the
 rest, and a root that holds only the `.csproj`, one composition file (`Program.cs` or the project's
@@ -49,7 +52,7 @@ A brace lists every word a project allows at that level; a feature holds only th
 content for.
 
 ```
-Src/Domain/
+src/Domain/
 <!--#if (reminders || files)-->
   AT.Domain.Core                        Common/{Abstractions,Events,Exceptions,Primitives,Retries}
 <!--#endif-->
@@ -64,7 +67,7 @@ Src/Domain/
   AT.Domain                             no Common/
 <!--#endif-->
                                         Features/<F>/{Model/{Entities,Events,ValueObjects},Repositories}
-Src/Application/
+src/Application/
   AT.Application.Core                   Common/{Collections,Concurrency,Events,Idempotency,Localization,
                                                 Policies,Ports,Results,UseCases,Validation}
                                         Features/<F>/UseCases/Commands/<Operation>
@@ -87,7 +90,7 @@ Src/Application/
                                         Features/{Accounts,Sessions,TwoFactor,Passkeys,ExternalLogins,
                                                   SecurityEvents}/{UseCases,Ports,Model/{Errors,Policies}}
 <!--#endif-->
-Src/Infrastructure/
+src/Infrastructure/
   AT.Infrastructure.Core                Common/{Caching,Contexts,Options,Saving,Templating}
                                         no Features/
   AT.Infrastructure.Persistence
@@ -118,7 +121,7 @@ Src/Infrastructure/
                                                         Configuration/Options}
 <!--#endif-->
   AT.Infrastructure.InMemory            Common/Email             Features/<F>/, files side by side
-Src/Presentation/
+src/Presentation/
   AT.Presentation.Core                  Common/{Jobs,Localization,Observability,Outbound,Security}
                                         no Features/
 <!--#if (dotnetClient)-->
@@ -196,12 +199,12 @@ Src/Presentation/
                                         Features/<F>/{Composition,Jobs}
 <!--#endif-->
 <!--#if (aspire)-->
-Src/AppHost/
+src/AppHost/
   AT.AppHost                            Common/{Hosting}
                                         no Features/; AppHostModule.cs at its root: the app host's entry
 <!--#endif-->
 <!--#if (anyWeb)-->
-Src/Web/                                the pnpm workspace: apps/ and packages/
+src/Web/                                the pnpm workspace: apps/ and packages/
 <!--#if (webBlazorWasm && !externalAuth)-->
   apps/FrameworkSite                    the WebAssembly app, a .NET project: no Common/, no Features/
                                         Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
@@ -211,7 +214,7 @@ Src/Web/                                the pnpm workspace: apps/ and packages/
                                         Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
 <!--#endif-->
 <!--#endif-->
-Tests/                                  one test project per source project, mirroring its folders,
+tests/                                  one test project per source project, mirroring its folders,
                                         plus Architecture/, EndToEnd/, Integration/ and Load/
 ```
 
@@ -225,11 +228,11 @@ Server and which carries the schema in its name on SQLite.
 | Key | Holds |
 |---|---|
 | `template` | the `package` and the `version` that generated the project |
-| `name` | the project's name, the prefix of every project under `Src` and `Tests` |
+| `name` | the project's name, the prefix of every project under `src` and `tests` |
 | `options` | each generation option that adds no part: `auth`, `database`, `examples`, `files`, `ci`, `sonar`, `agentFiles`, `aspire` |
 | `client` | `true` when the project holds the .NET client of the API |
 | `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience`, `rendering` and host `port` each was added with, and the `packages` added to it |
-| `presentation` | every presentation project under `Src/Presentation` but `Presentation.Core` and the .NET client, the API and the worker among them: its `name`, the part of its project's name after this project's name, and its `framework` |
+| `presentation` | every presentation project under `src/Presentation` but `Presentation.Core` and the .NET client, the API and the worker among them: its `name`, the part of its project's name after this project's name, and its `framework` |
 
 The options are a fact about the day of generation, and no command rewrites them: removing an example
 feature leaves `examples` as it was. A part added later is recorded by the command that joins it,
@@ -251,7 +254,7 @@ entry and one folder to delete for a host without local accounts.
 ## The worked example
 
 <!--#if (todoLists)-->
-A rich feature's application folder, `Src/Application/AT.Application/Features/TodoLists/`:
+A rich feature's application folder, `src/Application/AT.Application/Features/TodoLists/`:
 
 ```
 UseCases/Commands/CreateTodoList/   CreateTodoList.cs: CreateTodoListCommand and its
@@ -287,14 +290,14 @@ Services/Consumers/<Event>/         one folder per event the feature answers
 A simple feature has no operation folders, so an input DTO's validator sits beside the DTO:
 
 ```
-Src/Application/AT.Application/Features/Notes/
+src/Application/AT.Application/Features/Notes/
   Model/Dtos/            NoteDto, NoteContentDto, NoteContentDtoValidator, …
   Model/Policies/        NoteInputPolicy, NoteCollectionPolicy
   Ports/NoteQueries/     INoteQueries, NoteFilter
   Ports/NoteStore/       INoteStore, NoteChangeStatus
   Services/              INoteService, NoteService
   Services/Consumers/    DeleteNotesOnAccountDeletedConsumer
-Src/Infrastructure/AT.Infrastructure.Persistence/Features/Notes/
+src/Infrastructure/AT.Infrastructure.Persistence/Features/Notes/
   Rows/Models/           NoteRecord, the only model
   Access/Queries/        NoteQueries, NoteSortMap
   Access/Stores/         NoteStore
@@ -346,7 +349,7 @@ as `ResultExtensions` lives in `Common/Results/`.
 
 ## Adding a project
 
-A project under `Src/` fails `LayoutConventionTests` until that test gives it an entry in both of its
+A project under `src/` fails `LayoutConventionTests` until that test gives it an entry in both of its
 vocabularies, the `Common/` one and the `Features/` one, and this page's folder map lists its words.
 An entry is `null` when the project has no such folder, checked in both directions, and an empty
 list when its features hold their files side by side.
@@ -356,8 +359,8 @@ A `.Core` project is marked `IsSdkProject`; an infrastructure project is a modul
 references. Its folder takes the initials, as [the folder map](#the-folder-map) says, and
 `ProjectFolderTests` names the folder a misplaced project belongs in.
 
-Each project under `Src/` has one unit test project, `<Name>.UnitTests`, in the same layer folder under
-`Tests/`, and `TestProjectMirrorTests` names the one that is missing. An app of the web workspace,
+Each project under `src/` has one unit test project, `<Name>.UnitTests`, in the same layer folder under
+`tests/`, and `TestProjectMirrorTests` names the one that is missing. An app of the web workspace,
 the output of an official CLI, goes without one.
 <!--#if (aspire)-->
 So does the app host, which `LocalStackTests` starts from its integration test project.

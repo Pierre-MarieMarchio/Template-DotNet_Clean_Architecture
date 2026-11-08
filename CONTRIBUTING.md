@@ -55,7 +55,8 @@ Each rule has one home, and a test holds it wherever a test can.
 - Commits and pull requests name their human author only, with no `Co-Authored-By` or "Generated
   with" line naming an AI tool; the author answers for every line and can explain it. Where a tool
   wrote code, an `Assisted-by: <tool>:<model>` trailer and the pull request's Assistance section are
-  recommended; bots such as Dependabot keep their own messages
+  recommended; bots such as Dependabot or release-please keep their own messages as they write them,
+  emoji included, since a bot did write them
   ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)).
 - Each commit follows [the commit message form](#commit-messages).
 
@@ -106,7 +107,8 @@ In this repository, release-please reads the types: a `feat` or a `fix` lands in
 ## Working on the template
 
 This repository is also the template. A change starts from `develop` on a `<type>/<subject>` branch,
-as a conventional commit, and returns to `develop` by a pull request; `main` holds the releases.
+as a conventional commit, and returns to `develop` by a pull request; `main` holds the releases. The
+branch is deleted once merged, since `develop` holds its commits and the pull request its discussion.
 The branches and releases, its own gates, the acceptance matrix and the rules for writing pages that
 condition on the generation options are in
 [maintaining the template](docs/template/maintaining-the-template.md).

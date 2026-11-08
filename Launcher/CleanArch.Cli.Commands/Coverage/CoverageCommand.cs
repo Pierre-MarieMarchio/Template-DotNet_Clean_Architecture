@@ -88,7 +88,7 @@ internal static class CoverageCommand
                 .. settings.Modules,
                 "--results-directory", ProjectPath.Relative(root, results),
                 "--coverage",
-                "--coverage-settings", ProjectPath.Relative(root, Path.Combine(root, "coverage.runsettings")),
+                "--coverage-settings", Path.Combine(root, "coverage.runsettings"),
                 "--coverage-output-format", "cobertura",
             ]);
 

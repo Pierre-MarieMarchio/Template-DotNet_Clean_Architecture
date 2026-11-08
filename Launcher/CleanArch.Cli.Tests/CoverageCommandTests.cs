@@ -8,9 +8,6 @@ public sealed class CoverageCommandTests : IDisposable
 {
     private const string _stepSummary = "GITHUB_STEP_SUMMARY";
 
-    private const string _coveredRun =
-        "test --solution Acme.Shop.slnx --configuration Debug --results-directory TestResults --coverage"
-        + " --coverage-settings coverage.runsettings --coverage-output-format cobertura";
 
     private const string _ghost = "<package name=\"App.Ghost\"><classes></classes></package>";
 
@@ -54,7 +51,7 @@ public sealed class CoverageCommandTests : IDisposable
 
         Run(["coverage"], project.Root, processes).ShouldBe(CleanArchCommand.Succeeded);
 
-        _dotnet.Calls.ShouldBe([_coveredRun]);
+        _dotnet.Calls.ShouldBe([CoveredRun(project.Root)]);
         _output.ToString().ShouldContain("Coverage 100.00% >= floor 80%.");
         _error.ToString().ShouldBeEmpty();
     }
@@ -110,7 +107,7 @@ public sealed class CoverageCommandTests : IDisposable
 
         _error.ToString().ShouldContain("coverage.minimum");
         _error.ToString().ShouldContain("no coverage floor");
-        _dotnet.Calls.ShouldBe([_coveredRun]);
+        _dotnet.Calls.ShouldBe([CoveredRun(project.Root)]);
     }
 
     [Theory]
@@ -169,6 +166,10 @@ public sealed class CoverageCommandTests : IDisposable
         _output.Dispose();
         _error.Dispose();
     }
+
+    private static string CoveredRun(string root) =>
+        "test --solution Acme.Shop.slnx --configuration Debug --results-directory TestResults --coverage"
+        + $" --coverage-settings {Path.Combine(root, "coverage.runsettings")} --coverage-output-format cobertura";
 
     private static string Report(params string[] packages) =>
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<coverage><packages>\n" + string.Join("\n", packages) + "\n</packages></coverage>\n";

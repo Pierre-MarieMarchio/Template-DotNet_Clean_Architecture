@@ -47,6 +47,12 @@ describe what a feature written by hand holds.
 
 Every refused combination is refused before anything is written, with the change that fixes it.
 
+`--concurrency etag` gives the feature the whole chain of
+[concurrency](../architecture/persistence-model.md#concurrency): the version stored, published as
+`ETag`, checked against `If-Match` and, last, in the `WHERE` of the write, so a lost update is refused.
+`--concurrency none` leaves a simple feature's writes last-wins, which suits a feature no two callers
+edit at once. The rich shape guards a state, so it always takes `etag`.
+
 ### Fields
 
 <!--#if (canAddFeature)-->
@@ -151,6 +157,10 @@ Run again with the same options, it writes nothing and resumes these steps; the 
 is not added twice.
 <!--#if (accounts)-->
 Why it makes the edits rather than print them is [ADR 0031](../decisions/0031-the-feature-generator-composes-what-it-writes.md).
+A dozen lines copied by hand, in order, is where a feature goes wrong, and making the edits that can
+be made while printing the rest would leave a tree half composed, which neither builds nor says which
+half is missing. Discovering the features by reflection or a source generator would need no edit, at
+the price of a composition nobody reads in `Program.cs`, which every host states line by line.
 <!--#endif-->
 
 ## What you write by hand
@@ -273,7 +283,12 @@ the declaration, the migration and each file's change, so `remove feature` reads
 untouched.
 <!--#if (accounts)-->
 Why a field is written through the syntax tree while the feature's edits are lines placed beside an
-anchor is [ADR 0031](../decisions/0031-the-feature-generator-composes-what-it-writes.md).
+anchor is [ADR 0031](../decisions/0031-the-feature-generator-composes-what-it-writes.md): the
+composing edits go beside a line a reader can see, in C# and Markdown alike, while a field rewrites
+members the generator wrote, which no line marks; placed beside anchors, a field's lines would land
+in the wrong place in a reformatted file instead of being refused. A field's default goes into its
+migration and never into the model, which would make EF Core leave out of an insert the value a
+caller set when it equals the type's empty one.
 <!--#endif-->
 
 ### By hand

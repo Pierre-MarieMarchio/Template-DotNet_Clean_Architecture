@@ -25,6 +25,17 @@ of its own from one commit; the schema changes in a step of its own before any o
 This project is not deployed. It runs on SQLite, a development database, and the API refuses to start
 outside Development; [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) says why and
 how to move to a server database. The rest of this page applies once the move is made.
+
+A file has one writer at a time, its locks live in the process that opened it, and its types are
+fewer than a server's: a project that started anywhere would meet these limits in production, under
+load, rather than on its first start. The host throws at composition when its environment is not
+`Development`, with a message that names the way out, and no setting lifts the refusal: every
+deployment would set it, and the refusal would stop saying anything. No release workflow and no
+migration bundle are generated, since there is nothing to deploy.
+
+To deploy, generate the project again with `--database postgresql` or `sqlserver`, move the
+features' code across, and let `bootstrap` create the migrations for the new provider. The domain and
+the application do not change, since no provider reaches them.
 <!--#endif-->
 
 ## The local stack is no model

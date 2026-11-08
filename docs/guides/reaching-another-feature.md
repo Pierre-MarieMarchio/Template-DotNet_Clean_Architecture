@@ -22,6 +22,11 @@ can still be removed without editing the other's internals.
 A port is a synchronous call whose answer the use case needs. An event is a fact the raising
 feature does not wait on: if nobody needs the answer, it is an event.
 
+Two other ways in look shorter and are refused. Sending the other feature's use case from a handler
+is a use case inside a use case: two commits, the pipeline run twice, and a caller bound to a
+message shaped for a host. Changing the other feature's state through an event commits apart from
+the operation and at most once, so a state that must change with it can be left behind.
+
 ## A read port
 
 The feature that owns the data declares the port in its own application folder, under
@@ -64,8 +69,10 @@ both commit, or neither does.
    handler with a substitute of the port, including a status that refuses and leaves nothing
    committed.
 
-When several features each answer the same request, the port is declared once, in
-`AppTemplate.Application.Core`, and each owner implements it.
+When several features each answer the same request, the port is declared once, under
+`Common/Ports/` of `AppTemplate.Application.Core`, and each owner implements it; the caller takes
+every implementation. The caller never declares the port it needs: the owner would then implement an
+interface from each caller's folder, and removing a caller would edit the owner.
 <!--#if (anyFeature)-->
 `IDeletedAccountDataPolicy` is the worked case, which every feature that owns user data implements
 and the account-deletion sweep calls.

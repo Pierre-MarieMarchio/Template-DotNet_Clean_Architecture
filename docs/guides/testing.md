@@ -63,6 +63,14 @@ The browser smoke needs the stack and Chromium, and runs with the end-to-end sui
 
 ## The risks this project holds
 
+One risk, one type: a second type of test holds a risk only for a cause the first cannot see. A suite
+that grows by habit, a row per enum member, a test per null guard, a mapping test per field, makes
+every change touch tests that fail only when the line they copy is edited on purpose, while the risks
+a client meets, a changed contract, a route left open, a double that drifted from its adapter, stay
+untested; a test count or a coverage target would reward exactly that growth. The table is read
+again when a defect reaches a deployment that a test of another type would have caught, or when the
+integration suite grows too slow to run on every change.
+
 | Risk | Type | Held by |
 |---|---|---|
 | Domain invariants and rehydration | unit | the domain suites, one test per invariant and per refused row |

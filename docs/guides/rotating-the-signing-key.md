@@ -17,6 +17,15 @@ accepts a token signed with `Jwt:Key` or with one of `Jwt:PreviousKeys`, and sig
 `Jwt:Key`; [the configuration reference](../reference/configuration.md#jwt) holds the rules each key
 is held to, and [ADR 0040](../decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md) says why the previous keys only validate.
 
+A token carries no key id and no JWKS document publishes the keys: every host that validates a
+token already holds the secret, and trying one or two HS256 keys costs nothing, where a `kid` would
+need naming, storing and keeping in step on every host, and a JWKS endpoint is one more route, cache
+and key store to run. Replacing the key in place would refuse every caller once per rotation, and
+instances restarting one at a time would refuse each other's tokens; a key store shared by the
+hosts, such as the data-protection key ring, would rotate without a restart, at the cost of a store
+every host must reach before it can validate a token. A party that holds no secret and must
+validate the tokens calls for an asymmetric key and a published key set instead.
+
 | What a caller holds | What the rotation does to it |
 |---|---|
 | An access token | accepted until it expires while its key is listed in `Jwt:PreviousKeys`, refused once the key is gone |

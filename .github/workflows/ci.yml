@@ -117,7 +117,7 @@ jobs:
       # Generated is committed, so Kiota at the version the tool manifest pins writes it again from the OpenAPI reference and any difference fails.
       - name: The .NET client is what Kiota writes from the OpenAPI reference
         if: hashFiles('src/Presentation/*.Presentation.Client/*.csproj') != ''
-        run: dotnet cleanarch openapi --check
+        run: dotnet cleanarch openapi --check --no-web
 
       # Using order, the BOM, line endings, IDE0003 and IDE0049, which the build's code-style analysis does not check; before the build, to fail fast.
       - name: Verify the formatting the build does not

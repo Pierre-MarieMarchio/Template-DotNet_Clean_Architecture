@@ -128,6 +128,7 @@ It does not install itself: the tool that runs it is the one this project pins i
 | `openapi` | builds the API and writes the OpenAPI reference it describes itself with, then everything written from it: the .NET client's `Generated/` folder through Kiota where the project holds the client, and the web workspace's schema with `pnpm api <reference>` where the workspace holds the `api-client` package; `pnpm api`, run by hand in the workspace, calls this command and then writes the schema |
 | `openapi --no-build` | the same from the API's last build, refused while it has none |
 | `openapi --check` | fails where the reference, the client or the web schema differs from what it would write, and writes nothing |
+| `openapi --no-web` | leaves the web workspace's schema out, on a machine without Node.js and pnpm; the web workflow checks it |
 | `run` | `dotnet run` of the API |
 | `end-to-end` | the Compose stack from `.env.example` under a project name of its own, the end-to-end tests against it, then with a web app the browser smoke, the stack's logs on a failure, and the stack and its volumes removed; `--keep-stack` leaves it running, `--configuration` sets the tests' |
 

@@ -170,7 +170,7 @@
     <!--#if (postgreSql)-->
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
     <!--#endif-->
-    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
   </ItemGroup>
 
 </Project>

@@ -2,7 +2,7 @@
 
 #if (webBlazorWasm)
 # Built from the repository root, which holds the solution's props and the .NET client: docker build -f src/Web/apps/FrameworkSite/Dockerfile .
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.403-noble@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e AS publish
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.404-noble@sha256:fe0fd4e93bd2fbb47c883b7a6369e5c8d3db8bf01cdc5981f6ee35fbdf3ff4fb AS publish
 
 WORKDIR /source
 
@@ -21,7 +21,7 @@ RUN script=/publish/wwwroot/_content/Microsoft.AspNetCore.Components.WebAssembly
     && gzip -9 --keep --force "$script"
 #endif
 
-FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS build
+FROM node:24.22.3-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS build
 
 WORKDIR /workspace
 
@@ -29,7 +29,7 @@ COPY --from=publish /publish/wwwroot/index.html apps/FrameworkSite/dist/client/i
 COPY src/Web/apps/FrameworkSite/nginx.conf apps/FrameworkSite/nginx.conf
 #else
 # Built from src/Web once web-scaffold has created the app: docker build -f apps/FrameworkSite/Dockerfile src/Web
-FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS build
+FROM node:24.22.3-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS build
 
 ENV CI=true \
 #if (webAngular)
@@ -74,7 +74,7 @@ HASHES
 #endif
 
 #if (webServerRendering)
-FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS runtime
+FROM node:24.22.3-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS runtime
 
 ENV NODE_ENV=production \
     PORT=8080 \

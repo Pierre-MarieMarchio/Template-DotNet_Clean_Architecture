@@ -137,14 +137,14 @@
   <!--#if (aspire)-->
   <!-- One band with the app host's SDK in global.json, which LocalStackParityTests holds to these versions. -->
   <ItemGroup Label="Aspire">
-    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.4" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.5" />
     <!--#if (postgreSql)-->
-    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
     <!--#endif-->
     <!--#if (sqlServer)-->
     <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.6.4" />
     <!--#endif-->
-    <PackageVersion Include="Aspire.Hosting.Testing" Version="13.6.4" />
+    <PackageVersion Include="Aspire.Hosting.Testing" Version="13.6.5" />
   </ItemGroup>
 
   <!--#endif-->
